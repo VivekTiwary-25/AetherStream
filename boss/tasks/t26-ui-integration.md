@@ -26,6 +26,20 @@ WebSocket is constructed.
 
 Acceptance check: `ci-web` green on your branch.
 
+## Also fix these review findings (docs/reviews/R06-web.md on main) - they are part of this task
+1. Mount PipelineEditor, ChaosPanel, ComparePanel (and CheckpointTimeline from web/src/app/timeline, and ScenarioPanel from
+   web/src/app/scenarios if it exists on main when you start) in the shell.
+2. Header StatusPill must be driven by execution + worker state (running / backpressured / checkpointing / recovering /
+   stopped / failed), never hardcoded.
+3. WorkersPanel: worker state RESTORING -> "recovering", RUNNING -> "running", IDLE -> "idle"; alive=false -> "dead".
+4. Never print a value the engine did not compute: omitted aggregations show an em dash, no invented "Recovered in 0.0 s".
+5. Reducer and panels must tolerate null/missing data (ignore null frames, default arrays to [], format only finite timestamps,
+   skip workers without queue fields).
+6. ChaosPanel pill bound to real backpressure.
+You may edit web/src/app/panels/**, web/src/app/state/**, web/src/app/chaos/** for these fixes (in addition to the files above).
+
+- If you are running on vivek-pc: do NOT start Docker containers, docker compose stacks or kind clusters there.
+
 ## Rules (apply to every task)
 - Read every file in docs/contracts/ first and follow them exactly. Do not edit docs/contracts/ or infra/db/schema.sql. If a contract looks wrong, follow it anyway and say so in your result.
 - Do not change anything in swarm/ (except your own report file if the swarm asks you to write one).
