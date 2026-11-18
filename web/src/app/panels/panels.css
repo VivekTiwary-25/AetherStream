@@ -1,0 +1,25 @@
+.panel-skeleton {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+}
+
+.panel-skeleton span {
+  height: 1rem;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(90deg, rgb(148 163 184 / 12%), rgb(203 213 225 / 28%), rgb(148 163 184 / 12%));
+  background-size: 200% 100%;
+  animation: panel-shimmer 1.4s ease-in-out infinite;
+}
+
+.panel-skeleton span:nth-child(2) { width: 78%; }
+.panel-skeleton span:nth-child(3) { width: 56%; }
+
+@keyframes panel-shimmer {
+  from { background-position: 100% 0; }
+  to { background-position: -100% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel-skeleton span { animation: none; background: rgb(203 213 225 / 28%); }
+}
