@@ -16,8 +16,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.LongSupplier;
@@ -26,7 +26,8 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Runs one ASSIGN (contract 03 sections 1, 4, 5): source thread -> queue 1 -> operator thread -> queue 2 -> sink thread.
- * Full queues block the upstream stage (backpressure). Operators are exactly {@link PartitionPipeline}.
+ * Full queues backpressure upstream. Two coalesced requests bound control memory; checkpoint offsets track queue
+ * admission, while source-thread-only lag samples use consumer positions, including under backpressure.
  */
 public final class TaskRuntime {
     public static final int QUEUE_CAPACITY = 1000;
@@ -55,8 +56,11 @@ public final class TaskRuntime {
 
     private final ArrayBlockingQueue<Item> sourceQueue = new ArrayBlockingQueue<>(QUEUE_CAPACITY);
     private final ArrayBlockingQueue<Item> sinkQueue = new ArrayBlockingQueue<>(QUEUE_CAPACITY);
-    private final ConcurrentLinkedQueue<Long> pendingBarriers = new ConcurrentLinkedQueue<>();
+    // Guarded by pendingBarriers; retain only the two newest requests not yet in sourceQueue.
+    private final TreeSet<Long> pendingBarriers = new TreeSet<>();
+    private long highestCheckpointRequested;
     private final AtomicLong processedRecords = new AtomicLong();
+    private final AtomicLong sinkBatches = new AtomicLong();
     private final List<Thread> threads = new ArrayList<>();
 
     private volatile State state = State.RESTORING;
@@ -64,6 +68,10 @@ public final class TaskRuntime {
     private volatile boolean fenced;
     private volatile long lastCheckpointId;
     private volatile Map<Integer, Long> lag = Map.of();
+    private volatile RecordSource source;
+    private volatile boolean gracefulShutdown;
+    private volatile long shutdownDeadline;
+    private long lastLagNanos; // source-thread only
 
     // recordsPerSec EWMA (guarded by this)
     private long rateLastMs = -1;
@@ -86,6 +94,7 @@ public final class TaskRuntime {
         this.listener = listener == null ? (r, why) -> { } : listener;
         // A checkpoint restored from counts as the last one this runtime knows about.
         this.lastCheckpointId = assign.restoreCheckpointId();
+        this.highestCheckpointRequested = assign.restoreCheckpointId();
     }
 
     // ------------------------------------------------------------------ lifecycle
@@ -108,31 +117,58 @@ public final class TaskRuntime {
                 assign.startOffsets());
     }
 
-    /** Stops all threads, closes the consumer (in its own thread) and discards queued items without writing. */
+    /** Cancels work; queued outputs are replayed from the last checkpoint. */
     public void stop() {
+        stop(false);
+    }
+
+    /** Stops intake and finishes only the sink's current batch, with a shared 2.5 s deadline. */
+    public void shutdown() {
+        stop(true);
+    }
+
+    private void stop(boolean graceful) {
         List<Thread> toJoin;
+        long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(2500);
         synchronized (this) {
+            gracefulShutdown = graceful && state != State.STOPPED;
+            shutdownDeadline = deadline;
             running = false;
             state = State.STOPPED;
-            toJoin = new ArrayList<>(threads);
+            toJoin = List.copyOf(threads);
         }
-        for (Thread t : toJoin) {
-            if (t != Thread.currentThread()) {
+        RecordSource active = source;
+        if (active != null) {
+            active.wakeup();
+        }
+        for (int i = 0; i < toJoin.size(); i++) {
+            Thread t = toJoin.get(i);
+            if (t != Thread.currentThread() && !(gracefulShutdown && i == 2)) {
                 t.interrupt();
             }
         }
-        for (Thread t : toJoin) {
+        // The sink must not be interrupted during its in-flight transaction.
+        for (Thread t : toJoin.reversed()) {
             if (t != Thread.currentThread()) {
                 try {
-                    t.join(5000);
+                    long remaining = deadline - System.nanoTime();
+                    if (remaining > 0) {
+                        TimeUnit.NANOSECONDS.timedJoin(t, remaining);
+                    }
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                     break;
+                }
+                if (t.isAlive()) {
+                    t.interrupt();
                 }
             }
         }
         sourceQueue.clear();
         sinkQueue.clear();
+        synchronized (pendingBarriers) {
+            pendingBarriers.clear();
+        }
     }
 
     /** Stops from inside a runtime thread (fenced / fatal error) and tells the listener. */
@@ -155,34 +191,45 @@ public final class TaskRuntime {
         listener.stoppedByItself(this, reason);
     }
 
-    /** Queues a barrier request; the source thread picks it up between records. */
+    /** Coalesces requests without blocking the heartbeat thread on a full data queue. */
     public void triggerCheckpoint(long checkpointId) {
-        if (running) {
-            pendingBarriers.add(checkpointId);
+        synchronized (pendingBarriers) {
+            if (running && checkpointId > highestCheckpointRequested) {
+                highestCheckpointRequested = checkpointId;
+                if (pendingBarriers.size() == 2) {
+                    pendingBarriers.pollFirst();
+                }
+                pendingBarriers.add(checkpointId);
+            }
+        }
+    }
+
+    int pendingCheckpointCount() {
+        synchronized (pendingBarriers) {
+            return pendingBarriers.size();
         }
     }
 
     // ------------------------------------------------------------------ source thread
 
     private void sourceLoop() {
-        RecordSource source = null;
+        RecordSource localSource = null;
         try {
-            source = sourceFactory.create(assign.plan().topic());
+            localSource = sourceFactory.create(assign.plan().topic());
+            source = localSource;
+            if (!running) {
+                return;
+            }
+            localSource.assign(partitions, assign.startOffsets() == null ? Map.of() : assign.startOffsets());
             Map<Integer, Long> start = assign.startOffsets() == null ? Map.of() : assign.startOffsets();
-            source.assign(partitions, start);
             Map<Integer, Long> next = new TreeMap<>();
             for (int p : partitions) {
                 next.put(p, start.getOrDefault(p, 0L));
             }
-            long lastLagMs = 0;
             while (running) {
                 putPendingBarriers(next);
-                long now = System.currentTimeMillis();
-                if (now - lastLagMs >= LAG_REFRESH_MS) {
-                    lastLagMs = now;
-                    refreshLag(source, next);
-                }
-                for (RecordSource.SourceRecord r : source.poll(POLL_TIMEOUT)) {
+                refreshLagIfDue();
+                for (RecordSource.SourceRecord r : localSource.poll(POLL_TIMEOUT)) {
                     if (!running) {
                         break;
                     }
@@ -190,7 +237,13 @@ public final class TaskRuntime {
                     if (!next.containsKey(r.partition())) {
                         continue; // not ours
                     }
-                    sourceQueue.put(new Item.RecordItem(r.partition(), r.offset(), r.value()));
+                    Item.RecordItem item = new Item.RecordItem(r.partition(), r.offset(), r.value());
+                    while (running && !sourceQueue.offer(item, 50, TimeUnit.MILLISECONDS)) {
+                        refreshLagIfDue();
+                    }
+                    if (!running) {
+                        break;
+                    }
                     next.put(r.partition(), r.offset() + 1);
                 }
             }
@@ -202,26 +255,45 @@ public final class TaskRuntime {
                 stopByItself("source failed: " + e);
             }
         } finally {
-            if (source != null) {
+            if (localSource != null) {
+                // Kafka close must run on the consumer thread, without a leftover interrupt flag.
+                Thread.interrupted();
                 try {
-                    source.close();
+                    localSource.close();
                 } catch (RuntimeException e) {
                     log.debug("closing source failed", e);
                 }
             }
+            source = null;
         }
     }
 
     private void putPendingBarriers(Map<Integer, Long> next) throws InterruptedException {
-        Long id;
-        while ((id = pendingBarriers.poll()) != null) {
-            sourceQueue.put(new Item.BarrierItem(id, Map.copyOf(next), null));
+        while (running) {
+            synchronized (pendingBarriers) {
+                if (pendingBarriers.isEmpty()) {
+                    return;
+                }
+                if (sourceQueue.remainingCapacity() > 0) {
+                    long id = pendingBarriers.pollFirst();
+                    sourceQueue.add(new Item.BarrierItem(id, Map.copyOf(next), null));
+                    continue;
+                }
+            }
+            refreshLagIfDue();
+            Thread.sleep(10);
         }
     }
 
-    private void refreshLag(RecordSource source, Map<Integer, Long> next) {
+    private void refreshLagIfDue() {
+        long now = System.nanoTime();
+        if (lastLagNanos != 0 && now - lastLagNanos < TimeUnit.MILLISECONDS.toNanos(LAG_REFRESH_MS)) {
+            return;
+        }
+        lastLagNanos = now;
         try {
             Map<Integer, Long> end = source.endOffsets();
+            Map<Integer, Long> next = source.nextOffsets();
             Map<Integer, Long> l = new TreeMap<>();
             for (Map.Entry<Integer, Long> e : next.entrySet()) {
                 Long endOffset = end.get(e.getKey());
@@ -322,7 +394,11 @@ public final class TaskRuntime {
                 if (item != null) {
                     long delay = sinkDelayMs.getAsLong();
                     if (delay > 0) {
-                        Thread.sleep(delay);
+                        long until = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(delay);
+                        while (running && System.nanoTime() < until) {
+                            Thread.sleep(Math.min(50, Math.max(1,
+                                    TimeUnit.NANOSECONDS.toMillis(until - System.nanoTime()))));
+                        }
                     }
                     if (item instanceof Item.OutputBatch batch) {
                         pending.addAll(batch.rows());
@@ -337,7 +413,9 @@ public final class TaskRuntime {
                             return;
                         }
                         lastFlush = System.currentTimeMillis();
-                        completeCheckpoint(barrier);
+                        if (running) {
+                            completeCheckpoint(barrier);
+                        }
                     }
                 }
                 if (!pending.isEmpty() && System.currentTimeMillis() - lastFlush >= FLUSH_INTERVAL_MS) {
@@ -348,6 +426,9 @@ public final class TaskRuntime {
                 if (pending.isEmpty() && System.currentTimeMillis() - lastFlush >= FLUSH_INTERVAL_MS) {
                     lastFlush = System.currentTimeMillis();
                 }
+            }
+            if (gracefulShutdown && !pending.isEmpty()) {
+                flush(pending);
             }
         } catch (InterruptedException e) {
             // stopping: queued and pending outputs are discarded (replayed from the last checkpoint)
@@ -361,7 +442,7 @@ public final class TaskRuntime {
 
     /** One fenced transaction; retries transient failures. Returns false when fenced (runtime is then stopped). */
     private boolean flush(List<SinkRow> pending) throws InterruptedException {
-        while (running) {
+        while (running || (gracefulShutdown && System.nanoTime() < shutdownDeadline)) {
             boolean ok;
             try {
                 ok = sink.write(assign.executionId(), assign.generation(), List.copyOf(pending));
@@ -381,6 +462,7 @@ public final class TaskRuntime {
                 stopByItself("fenced: generation " + assign.generation() + " is no longer current");
                 return false;
             }
+            sinkBatches.incrementAndGet();
             pending.clear();
             return true;
         }
@@ -426,6 +508,7 @@ public final class TaskRuntime {
     public int sinkQueueSize() { return sinkQueue.size(); }
     public long processedRecords() { return processedRecords.get(); }
     public long lastCheckpointId() { return lastCheckpointId; }
+    public long sinkBatchesTotal() { return sinkBatches.get(); }
     public Map<Integer, Long> lag() { return lag; }
 
     /** True when either queue is at least 90% full. */

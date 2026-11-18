@@ -55,6 +55,15 @@ public final class KafkaRecordSource implements RecordSource {
     }
 
     @Override
+    public Map<Integer, Long> nextOffsets() {
+        Map<Integer, Long> out = new TreeMap<>();
+        for (TopicPartition tp : assigned) {
+            out.put(tp.partition(), consumer.position(tp, Duration.ofMillis(250)));
+        }
+        return out;
+    }
+
+    @Override
     public Map<Integer, Long> endOffsets() {
         Map<Integer, Long> out = new TreeMap<>();
         if (assigned.isEmpty()) {
@@ -65,7 +74,12 @@ public final class KafkaRecordSource implements RecordSource {
     }
 
     @Override
+    public void wakeup() {
+        consumer.wakeup();
+    }
+
+    @Override
     public void close() {
-        consumer.close();
+        consumer.close(Duration.ofMillis(250));
     }
 }

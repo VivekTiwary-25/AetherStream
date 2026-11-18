@@ -28,6 +28,10 @@ public final class Worker {
     private String executionId;           // execution of the latest accepted command
     private long generation;              // generation of the latest accepted command for executionId
     private long lastCheckpointId;
+    private boolean shuttingDown;
+    private long completedRecords;
+    private long completedSinkBatches;
+    private long completedFenced;
 
     public Worker(String workerId, RecordSourceFactory sourceFactory, ResultSink sink, CheckpointStore store,
                   CoordinatorClient coordinator, Runnable halt) {
@@ -55,6 +59,11 @@ public final class Worker {
     }
 
     public void handle(Command command) {
+        synchronized (this) {
+            if (shuttingDown) {
+                return;
+            }
+        }
         if (command instanceof Command.Kill) {
             log.warn("KILL received: halting");
             halt.run();
@@ -66,6 +75,9 @@ public final class Worker {
             return;
         }
         synchronized (this) {
+            if (shuttingDown) {
+                return;
+            }
             if (command instanceof Command.Assign a) {
                 assign(a);
             } else if (command instanceof Command.Cancel c) {
@@ -119,10 +131,17 @@ public final class Worker {
 
     private void stopRuntime() {
         if (runtime != null) {
-            lastCheckpointId = Math.max(lastCheckpointId, runtime.lastCheckpointId());
             runtime.stop();
+            retainCounters(runtime);
             runtime = null;
         }
+    }
+
+    private void retainCounters(TaskRuntime r) {
+        completedRecords += r.processedRecords();
+        completedSinkBatches += r.sinkBatchesTotal();
+        completedFenced += r.isFenced() ? 1 : 0;
+        lastCheckpointId = Math.max(lastCheckpointId, r.lastCheckpointId());
     }
 
     private void onStoppedByItself(TaskRuntime r, String reason) {
@@ -152,7 +171,24 @@ public final class Worker {
                 r.backpressured(), r.processedRecords(), r.recordsPerSec(), r.lastCheckpointId(), r.lag());
     }
 
+    /** Prometheus counters span assignments; protocol status remains assignment-scoped. */
+    public synchronized String metrics() {
+        TaskRuntime r = runtime;
+        return WorkerMetrics.render(status(),
+                completedRecords + (r == null ? 0 : r.processedRecords()),
+                completedSinkBatches + (r == null ? 0 : r.sinkBatchesTotal()),
+                completedFenced + (r != null && r.isFenced() ? 1 : 0));
+    }
+
     public synchronized void shutdown() {
-        stopRuntime();
+        if (shuttingDown) {
+            return;
+        }
+        shuttingDown = true;
+        if (runtime != null) {
+            runtime.shutdown();
+            retainCounters(runtime);
+            runtime = null;
+        }
     }
 }

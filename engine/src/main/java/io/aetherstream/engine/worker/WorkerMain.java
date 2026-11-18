@@ -1,6 +1,7 @@
 package io.aetherstream.engine.worker;
 
 import com.sun.net.httpserver.HttpServer;
+import com.zaxxer.hikari.HikariDataSource;
 import io.aetherstream.common.protocol.HeartbeatResponse;
 import io.aetherstream.common.protocol.Protocol;
 import io.aetherstream.common.protocol.RegisterRequest;
@@ -13,11 +14,13 @@ import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
-import javax.sql.DataSource;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Worker process: register, heartbeat loop executing returned commands, health server on 8090. */
+/** Worker process: coordinator heartbeats, health and Prometheus on 8090, bounded JVM-hook shutdown. */
 public final class WorkerMain {
     public static final int HEALTH_PORT = 8090;
     private static final Logger log = LoggerFactory.getLogger(WorkerMain.class);
@@ -30,9 +33,7 @@ public final class WorkerMain {
         String host = env("WORKER_HOST", defaultHost());
         String requestedId = env("WORKER_ID", null);
 
-        startHealthServer(HEALTH_PORT);
-
-        DataSource dataSource = DataSources.fromEnv("worker-sink");
+        HikariDataSource dataSource = DataSources.fromEnv("worker-sink");
         CheckpointStore store = connectStore();
         CoordinatorClient coordinator = new HttpCoordinatorClient(coordinatorUrl);
 
@@ -44,22 +45,31 @@ public final class WorkerMain {
         RecordSourceFactory sources = topic -> new KafkaRecordSource(bootstrap, topic, "worker-" + workerId);
         Worker worker = new Worker(workerId, sources, new PostgresResultSink(dataSource), store, coordinator,
                 () -> Runtime.getRuntime().halt(137));
-        Runtime.getRuntime().addShutdownHook(new Thread(worker::shutdown, "worker-shutdown"));
+        HttpServer health = startHealthServer(HEALTH_PORT, worker::metrics);
+        Shutdown shutdown = new Shutdown(worker, coordinator, dataSource, health, Thread.currentThread());
+        Runtime.getRuntime().addShutdownHook(new Thread(shutdown, "worker-shutdown"));
 
-        while (true) {
-            long started = System.currentTimeMillis();
-            try {
-                HeartbeatResponse resp = coordinator.heartbeat(workerId, worker.status());
-                if (resp != null) {
-                    worker.handleAll(resp.commands());
+        try {
+            while (!shutdown.closing.get()) {
+                long started = System.currentTimeMillis();
+                try {
+                    HeartbeatResponse resp = coordinator.heartbeat(workerId, worker.status());
+                    if (resp != null && !shutdown.closing.get()) {
+                        worker.handleAll(resp.commands());
+                    }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    break;
+                } catch (Exception e) {
+                    log.warn("Heartbeat failed: {}", e.toString());
                 }
-            } catch (Exception e) {
-                log.warn("Heartbeat failed: {}", e.toString());
+                long sleep = interval - (System.currentTimeMillis() - started);
+                if (sleep > 0 && !shutdown.closing.get()) {
+                    Thread.sleep(sleep);
+                }
             }
-            long sleep = interval - (System.currentTimeMillis() - started);
-            if (sleep > 0) {
-                Thread.sleep(sleep);
-            }
+        } finally {
+            shutdown.run();
         }
     }
 
@@ -87,7 +97,7 @@ public final class WorkerMain {
         }
     }
 
-    static HttpServer startHealthServer(int port) throws IOException {
+    static HttpServer startHealthServer(int port, Supplier<String> metrics) throws IOException {
         HttpServer server = HttpServer.create(new InetSocketAddress(port), 0);
         server.createContext("/health", ex -> {
             byte[] body = "{\"status\":\"UP\"}".getBytes(StandardCharsets.UTF_8);
@@ -98,8 +108,90 @@ public final class WorkerMain {
                 os.write(body);
             }
         });
+        server.createContext("/metrics", ex -> {
+            int code = !"/metrics".equals(ex.getRequestURI().getPath()) ? 404
+                    : "GET".equals(ex.getRequestMethod()) ? 200 : 405;
+            byte[] body = (code == 200 ? metrics.get() : "").getBytes(StandardCharsets.UTF_8);
+            ex.getResponseHeaders().set("Content-Type", "text/plain; version=0.0.4; charset=utf-8");
+            ex.sendResponseHeaders(code, body.length);
+            try (OutputStream os = ex.getResponseBody()) {
+                os.write(body);
+            }
+        });
         server.start();
         return server;
+    }
+
+    /** JVM-hook coordinator: no new commands, one final IDLE report, shared deadline below the 4 s timeout. */
+    static final class Shutdown implements Runnable {
+        private final Worker worker;
+        private final CoordinatorClient coordinator;
+        private final AutoCloseable pool;
+        private final HttpServer health;
+        private final Thread heartbeatThread;
+        private final AtomicBoolean closing = new AtomicBoolean();
+
+        Shutdown(Worker worker, CoordinatorClient coordinator, AutoCloseable pool, HttpServer health,
+                 Thread heartbeatThread) {
+            this.worker = worker;
+            this.coordinator = coordinator;
+            this.pool = pool;
+            this.health = health;
+            this.heartbeatThread = heartbeatThread;
+        }
+
+        @Override
+        public void run() {
+            if (!closing.compareAndSet(false, true)) {
+                return;
+            }
+            long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(3800);
+            if (heartbeatThread != Thread.currentThread()) {
+                heartbeatThread.interrupt();
+                joinUntil(heartbeatThread, Math.min(deadline,
+                        System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(200)));
+            }
+            // Clear a main-loop interrupt so cleanup can wait for the current sink transaction.
+            boolean interrupted = Thread.interrupted();
+            try {
+                worker.shutdown();
+                Thread closePool = Thread.ofVirtual().name("worker-close-pool").start(() -> {
+                    try {
+                        pool.close();
+                    } catch (Exception e) {
+                        log.warn("Closing worker DB pool failed: {}", e.toString());
+                    }
+                });
+                Thread reportIdle = Thread.ofVirtual().name("worker-idle-report").start(() -> {
+                    try {
+                        coordinator.heartbeat(worker.workerId(), worker.status());
+                    } catch (Exception e) {
+                        log.warn("Final IDLE heartbeat failed: {}", e.toString());
+                    }
+                });
+                joinUntil(closePool, deadline);
+                joinUntil(reportIdle, deadline);
+            } finally {
+                health.stop(0);
+                if (interrupted) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+        }
+
+        private static void joinUntil(Thread thread, long deadline) {
+            try {
+                long remaining = deadline - System.nanoTime();
+                if (remaining > 0) {
+                    TimeUnit.NANOSECONDS.timedJoin(thread, remaining);
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            if (thread.isAlive()) {
+                thread.interrupt();
+            }
+        }
     }
 
     private static String defaultHost() {
