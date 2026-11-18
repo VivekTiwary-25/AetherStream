@@ -1,6 +1,6 @@
 # Boss STATE (single source of truth)
 
-Updated: 19 Nov 01:24 IST. Milestone: M1 (due 02:30) — sim -> Kafka -> engine -> Postgres == reference, in CI.
+Updated: 19 Nov 01:37 IST. Milestone: M1 (due 02:30) — sim -> Kafka -> engine -> Postgres == reference, in CI.
 
 ## Plain-language update for Vivek (newest first)
 - 01:24 Vivek asked: keep STATE fresh every loop; pre-queue the next task behind every busy worker. Done; doing it each loop.
@@ -8,26 +8,24 @@ Updated: 19 Nov 01:24 IST. Milestone: M1 (due 02:30) — sim -> Kafka -> engine 
   operator runtime, coordinator, simulator, control-api core and the first city UI are merged. Deploy runner
   `vivek-pc-deploy` is online. cloudflared at C:\Users\Arena\bin\cloudflared.exe.
 
-## Task board
-done (merged): T01 compose infra · T02 web scaffold · T03 ops PartitionPipeline · T04 compiler · T05 simulator ·
-  T06 coordinator · T07 control-api core · T08 Dockerfiles · T10 city v1 · T12 docs/ux
-waiting review: T16 compose app services (ci-compose running) · T21 CD (cd lint fails only on node20 action deprecation -> boss bumps action versions on main after T16 merges)
-running (worker, started) -> queued next on the same worker:
-- vivek-pc/vachana-claude: T14 worker runtime (01:10) -> T31 coordinator rejoin/rebalance + metrics
-- vivek-pc/codex-sol: T15 api pipelines + start execution (01:10) -> (T25 compare once T13 merges)
-- vivek-pc/codex-luna: T11 API client + panels (01:04) -> R02 review infra+web
-- vivek-pc/grok: T09 mock server (00:54, slow) -> R01 review ops+coordinator -> T24 architecture doc
-- utkarsh-pc/codex-sol: T13 reference executor (01:10) -> (T22 E2E once T14 merges)
-- utkarsh-pc/codex-luna: T19 pipeline editor (01:13) -> T27 README + DEMO
-- upendra-pc/codex-sol: T29 compose e2e chaos script + ci-e2e (01:20)
-- upendra-pc/codex-luna: T20 chaos panel + compare view (01:13)
-- vimlesh-pc/codex-sol: T18 control-api WebSocket (01:11)
-- vimlesh-pc/codex-luna: T17 integration base ITs (01:16)
-- vimlesh-pc/claude: T30 city polish (01:21)
-ready (written, waiting on a dependency):
-- T22 E2E engine == reference IT (needs T14, T17) · T23 crash/fencing/incomplete-checkpoint ITs (needs T22)
-- T25 /api/compare (needs T13) · T26 UI integration (needs T11, T19, T20, T30)
-ideas next: savepoints, Prometheus+Grafana in compose, late-event watermark UI, rescale button, report/presentation docs.
+## Task board (01:37)
+done (merged): T01 compose infra · T02 web scaffold · T03 ops · T04 compiler · T05 simulator · T06 coordinator ·
+  T07 control-api core · T08 Dockerfiles · T09 mock server · T10 city v1 · T11 API client+panels · T12 docs/ux ·
+  T14 worker runtime · T16 compose app services · T17 integration base (boss fixed init) · T18 WebSocket · T19 pipeline editor ·
+  T20 chaos+compare UI · T21 CD workflow · R02 review (its BLOCKER already fixed by T16)
+running -> queued next on same worker:
+- utkarsh-pc/codex-sol: T13 reference executor (01:10, long) -> (T25 compare after T13 merges)
+- vivek-pc/codex-sol: T15 api pipelines (01:10) -> T22 E2E engine==reference IT (M1 critical)
+- vivek-pc/codex-luna: T31 coordinator rejoin/rebalance + metrics (from vachana)
+- vivek-pc/grok: R01 review ops+coordinator -> T24 architecture doc
+- utkarsh-pc/codex-luna: T27 README + DEMO
+- upendra-pc/codex-sol: T29 compose e2e chaos script + ci-e2e
+- upendra-pc/codex-luna: T33 report + presentation docs
+- vimlesh-pc/codex-luna (21% left): R03 review worker runtime
+- vimlesh-pc/codex-sol: idle -> needs task
+- vimlesh-pc/claude: T30 city polish
+- vivek-pc/vachana-claude: OUT (5-hour limit, resets 03:10) -> then T23 recovery ITs / hard engine work
+ready (waiting on a dependency): T23 crash/fencing ITs (needs T22) · T25 /api/compare (needs T13) · T26 UI integration (needs T30)
 
 ## Lanes
 1 engine: coordinator merged; worker T14 running · 2 compiler/reference: ops+compiler merged; T13 running ·
@@ -36,7 +34,8 @@ ideas next: savepoints, Prometheus+Grafana in compose, late-event watermark UI, 
 8 tests: T17 running · 9 docs: ux merged; T24, T27 queued
 
 ## Last integration result
-none end-to-end yet. CI: compose infra smoke green (T01); main builds (`./gradlew build` local 01:05 OK).
+01:30 local: ./gradlew :tests:integrationTest on vivek-pc Docker -> Postgres repo, S3 store, Kafka offsets ITs PASSED.
+01:37 first CD run on main started (publish to GHCR + deploy on vivek-pc-deploy) — result pending.
 
 ## Deploy
 Runner: vivek-pc-deploy (label aether-deploy), Scheduled Task "AetherStream-Deploy-Runner" at logon. Public link: none yet.
