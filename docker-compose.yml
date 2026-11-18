@@ -1,9 +1,51 @@
-# Local infra for contract 00. Network name is `aether`.
-# App services are commented placeholders; later tasks fill them in.
+# Full local stack for contract 00. Network name is `aether`.
+ 
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-app: &app
+  environment: &app-environment
+    KAFKA_BOOTSTRAP: kafka:9092
+    KAFKA_TOPIC: truck-events
+    PG_URL: jdbc:postgresql://postgres:5432/aether
+    PG_USER: aether
+    PG_PASSWORD: ${PG_PASSWORD:-aether}
+    S3_ENDPOINT: http://minio:9000
+    S3_ACCESS_KEY: ${S3_ACCESS_KEY:-aether}
+    S3_SECRET_KEY: ${S3_SECRET_KEY:-aether-secret}
+    S3_BUCKET: aether-checkpoints
+    COORDINATOR_URL: http://coordinator:8081
+    SIMULATOR_URL: http://simulator:8070
+    GIT_SHA: ${GIT_SHA:-dev}
+  logging: *logging
+  networks:
+    - aether
+
+x-worker: &worker
+  <<: *app
+  image: aether/engine:local
+  # Coordinator owns the build; workers reuse its image without pulling.
+  pull_policy: never
+  entrypoint: ["/app/bin/worker"]
+  depends_on:
+    coordinator:
+      condition: service_healthy
+  healthcheck:
+    test: ["CMD", "curl", "-fsS", "--max-time", "3", "http://localhost:8090/health"]
+    interval: 5s
+    timeout: 5s
+    retries: 30
+    start_period: 10s
+  restart: unless-stopped
+  stop_grace_period: 5s
 
 services:
   kafka:
     image: apache/kafka:4.3.2
+    logging: *logging
     hostname: kafka
     ports:
       - "19092:19092"
@@ -41,6 +83,7 @@ services:
 
   kafka-init:
     image: apache/kafka:4.3.2
+    logging: *logging
     depends_on:
       kafka:
         condition: service_healthy
@@ -60,6 +103,7 @@ services:
 
   postgres:
     image: postgres:17-alpine
+    logging: *logging
     environment:
       POSTGRES_DB: aether
       POSTGRES_USER: aether
@@ -80,6 +124,7 @@ services:
 
   minio:
     image: pgsty/minio:RELEASE.2026-08-04T00-00-00Z
+    logging: *logging
     command: ["server", "/data", "--console-address", ":9001"]
     environment:
       MINIO_ROOT_USER: ${S3_ACCESS_KEY:-aether}
@@ -103,6 +148,7 @@ services:
     # pgsty/mc entrypoint is /usr/bin/mc (no shell). MC_HOST_* skips `mc alias set`.
     # Pin matches a published tag; do not float to latest.
     image: pgsty/mc:RELEASE.2026-11-12T00-00-00Z
+    logging: *logging
     depends_on:
       minio:
         condition: service_healthy
@@ -113,20 +159,114 @@ services:
     networks:
       - aether
 
-  # ---------------------------------------------------------------------
-  # Placeholders — later tasks fill these in. Do not uncomment here.
-  # coordinator: container 8081, host 18081
-  # worker-1, worker-2, worker-3: container 8090 (health only), no host port
-  # simulator: container 8070, host 18070
-  # control-api: container 8080, host 18080
-  # web: container 80, host 8088 (nginx; proxies /api and /ws to control-api)
-  # Shared env defaults (contract 00): KAFKA_BOOTSTRAP=kafka:9092,
-  # KAFKA_TOPIC=truck-events, PG_URL=jdbc:postgresql://postgres:5432/aether,
-  # PG_USER=aether, PG_PASSWORD=aether, S3_ENDPOINT=http://minio:9000,
-  # S3_ACCESS_KEY=aether, S3_SECRET_KEY=aether-secret,
-  # S3_BUCKET=aether-checkpoints, COORDINATOR_URL=http://coordinator:8081,
-  # SIMULATOR_URL=http://simulator:8070, GIT_SHA=dev, WORKER_ID optional.
-  # ---------------------------------------------------------------------
+  coordinator:
+    <<: *app
+    image: aether/engine:local
+    build:
+      context: .
+      dockerfile: infra/docker/engine.Dockerfile
+      args:
+        GIT_SHA: ${GIT_SHA:-dev}
+    environment:
+      <<: *app-environment
+      CHECKPOINT_INTERVAL_MS: "10000"
+    ports:
+      - "18081:8081"
+    depends_on:
+      kafka-init:
+        condition: service_completed_successfully
+      minio-init:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "--max-time", "3", "http://localhost:8081/coord/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+    restart: unless-stopped
+
+  worker-1:
+    <<: *worker
+    environment:
+      <<: *app-environment
+      WORKER_ID: worker-1
+
+  worker-2:
+    <<: *worker
+    environment:
+      <<: *app-environment
+      WORKER_ID: worker-2
+
+  worker-3:
+    <<: *worker
+    environment:
+      <<: *app-environment
+      WORKER_ID: worker-3
+
+  simulator:
+    <<: *app
+    build:
+      context: .
+      dockerfile: infra/docker/simulator.Dockerfile
+      args:
+        GIT_SHA: ${GIT_SHA:-dev}
+    environment:
+      <<: *app-environment
+      SIM_SEED: "42"
+      SIM_TIME_SCALE: "10"
+    ports:
+      - "18070:8070"
+    depends_on:
+      kafka-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "--max-time", "3", "http://localhost:8070/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
+
+  control-api:
+    <<: *app
+    build:
+      context: .
+      dockerfile: infra/docker/control-api.Dockerfile
+      args:
+        GIT_SHA: ${GIT_SHA:-dev}
+    ports:
+      - "18080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      coordinator:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "--max-time", "3", "http://localhost:8080/api/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
+  web:
+    <<: *app
+    build:
+      context: .
+      dockerfile: infra/docker/web.Dockerfile
+      args:
+        VITE_GIT_SHA: ${GIT_SHA:-dev}
+    ports:
+      - "8088:80"
+    depends_on:
+      control-api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "-T", "3", "http://127.0.0.1/"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 5s
 
 networks:
   aether:
