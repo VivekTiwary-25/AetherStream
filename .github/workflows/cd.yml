@@ -1,0 +1,131 @@
+name: cd
+
+on:
+  push:
+    branches: [main, "task/**"]
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: "Image commit SHA to deploy (use a previous SHA for rollback)"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  lint-cd:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Lint GitHub Actions workflow
+        uses: reviewdog/action-actionlint@v1
+      - name: Check deployment scripts
+        run: |
+          set -euo pipefail
+          bash -n infra/deploy/deploy.sh infra/deploy/smoke-deploy.sh
+          sudo apt-get update
+          sudo apt-get install --yes shellcheck
+          shellcheck infra/deploy/deploy.sh infra/deploy/smoke-deploy.sh
+
+  publish:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish engine image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: infra/docker/engine.Dockerfile
+          push: true
+          tags: |
+            ghcr.io/vivektiwary-25/aetherstream-engine:${{ github.sha }}
+            ghcr.io/vivektiwary-25/aetherstream-engine:main
+          build-args: GIT_SHA=${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: false
+      - name: Publish simulator image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: infra/docker/simulator.Dockerfile
+          push: true
+          tags: |
+            ghcr.io/vivektiwary-25/aetherstream-simulator:${{ github.sha }}
+            ghcr.io/vivektiwary-25/aetherstream-simulator:main
+          build-args: GIT_SHA=${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: false
+      - name: Publish control-api image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: infra/docker/control-api.Dockerfile
+          push: true
+          tags: |
+            ghcr.io/vivektiwary-25/aetherstream-control-api:${{ github.sha }}
+            ghcr.io/vivektiwary-25/aetherstream-control-api:main
+          build-args: GIT_SHA=${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: false
+      - name: Publish web image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: infra/docker/web.Dockerfile
+          push: true
+          tags: |
+            ghcr.io/vivektiwary-25/aetherstream-web:${{ github.sha }}
+            ghcr.io/vivektiwary-25/aetherstream-web:main
+          build-args: VITE_GIT_SHA=${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: false
+
+  deploy:
+    needs: publish
+    if: >-
+      always() && github.repository == 'VivekTiwary-25/AetherStream' &&
+      github.ref == 'refs/heads/main' &&
+      (needs.publish.result == 'success' || (github.event_name == 'workflow_dispatch' && needs.publish.result == 'skipped'))
+    runs-on: [self-hosted, aether-deploy]
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy requested image SHA
+        shell: bash
+        env:
+          DEPLOY_SHA: ${{ inputs.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          bash infra/deploy/deploy.sh "$DEPLOY_SHA"
+      - name: Smoke-test deployment
+        shell: bash
+        env:
+          DEPLOY_SHA: ${{ inputs.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          bash infra/deploy/smoke-deploy.sh "$DEPLOY_SHA"
+      - name: Show deployment logs on failure
+        if: failure()
+        shell: bash
+        run: docker compose -p aether -f docker-compose.yml -f infra/deploy/docker-compose.deploy.yml logs --tail 200
