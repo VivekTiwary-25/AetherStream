@@ -2,6 +2,9 @@ package io.aetherstream.api;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.aetherstream.common.Json;
+import io.aetherstream.common.api.ExecutionInfo;
+import io.aetherstream.common.protocol.StartExecutionRequest;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -48,6 +51,9 @@ class CoordinatorClient extends JsonUpstreamClient {
     JsonNode health() { return get("/coord/health"); }
     JsonNode state() { return get("/coord/state"); }
     JsonNode stop(String id) { return post("/coord/executions/" + id + "/stop", null); }
+    ExecutionInfo startExecution(StartExecutionRequest request) {
+        return Json.MAPPER.convertValue(post("/coord/executions", Json.MAPPER.valueToTree(request)), ExecutionInfo.class);
+    }
     JsonNode chaos(String path, JsonNode body) { return post(path, body); }
 }
 
