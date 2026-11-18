@@ -37,8 +37,6 @@ jobs:
     needs: lint
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    # TEMPORARY (boss, 01:40): non-blocking until the full backend is on main; remove once green.
-    continue-on-error: true
     steps:
       - name: Checkout
         uses: actions/checkout@v7
