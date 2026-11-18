@@ -37,6 +37,16 @@
         "routine"
       ],
       "enabled": true
+    },
+    {
+      "name": "vachana-claude",
+      "harness": "claude",
+      "model": "opus",
+      "profile": "vachana-claude",
+      "usage_provider": "anthropic",
+      "usage_match": "",
+      "kinds": [],
+      "enabled": true
     }
   ]
 }
