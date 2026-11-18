@@ -22,6 +22,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 @RestController
 @RequestMapping("/api")
@@ -143,6 +144,10 @@ class ApiException extends RuntimeException {
 
 @RestControllerAdvice
 class ApiErrorHandler {
+    @ExceptionHandler(NoResourceFoundException.class)
+    ResponseEntity<Map<String,String>> notFound(NoResourceFoundException e) {
+        return ResponseEntity.status(e.getStatusCode()).body(Map.of("error", "NOT_FOUND", "message", "endpoint not found"));
+    }
     @ExceptionHandler(UpstreamException.class)
     ResponseEntity<Map<String,String>> upstream(UpstreamException e) {
         return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(Map.of("error", "UPSTREAM_DOWN", "message", "coordinator is not reachable"));
