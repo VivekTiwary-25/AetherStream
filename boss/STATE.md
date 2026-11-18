@@ -1,6 +1,6 @@
 # Boss STATE (single source of truth)
 
-Updated: 19 Nov 02:57 IST. M1 DONE. M2 DONE (crash recovery matches reference in CI). Now M3 (12:30): UI integration + live panels bug (T69).
+Updated: 19 Nov 03:16 IST. M1 + M2 DONE. M3 (12:30): T26 UI integration running; restore-from-savepoint bug (T86) queued.
 
 ## Plain-language update for Vivek (newest first)
 - 02:57 M2 DONE (4.5 h early). In GitHub Actions: a worker is crashed mid-stream; the coordinator recovers in 6.0 s from
@@ -35,18 +35,22 @@ Updated: 19 Nov 02:57 IST. M1 DONE. M2 DONE (crash recovery matches reference in
   operator runtime, coordinator, simulator, control-api core and the first city UI are merged. Deploy runner
   `vivek-pc-deploy` is online. cloudflared at C:\Users\Arena\bin\cloudflared.exe.
 
-## Task board (02:52)
-done (merged): T01-T22, T24, T25, T27, T29-T31, T33, T35-T37, T39, T41-T45, T47, T48, T51, T54, T55, T57-T60 · R01-R06
+## Task board (03:16)
+merged since 02:53: T23 (M2) T37 T42 T51 T52 T54 T59 T60 T63 T65 T69 T74 · reviews R05 R06
 running -> queued next:
-- utkarsh-pc/codex-sol: T23 crash/fencing/incomplete-checkpoint ITs (M2 critical)
-- utkarsh-pc/codex-luna: T61 editor example picker
-- upendra-pc/codex-sol: T63 benchmark harness
-- upendra-pc/codex-luna: T26 UI INTEGRATION + R06 fixes (M3 critical; moved off vimlesh-pc after its push failure)
-- vivek-pc/codex-sol: T65 Playwright UI e2e vs real stack
-- vivek-pc/codex-luna: T52 scenario panel
+- upendra-pc/codex-luna: T26 UI INTEGRATION + R06 fixes (M3 critical)
+- upendra-pc/codex-sol: T78 chaos soak (15 min)
+- utkarsh-pc/codex-sol: T75 coordinator-restart / rescale / savepoint ITs
+- utkarsh-pc/codex-luna: T89 web coverage   [T61 editor examples in review]
+- vivek-pc/vachana-claude: T81 engine hardening (Opus) -> T86 restore-from-savepoint bug
+- vivek-pc/codex-sol: T84 org-scoped access (cross-org denied; schema org_id added by boss)
+- vivek-pc/codex-luna: T72 ops panel
 - vivek-pc/grok: T66 docs refresh
-- vimlesh-pc/claude: idle but its last push failed - needs `swarm fix` on vimlesh-pc (in NEEDS_VIVEK)
-- OUT: vimlesh-pc codex x2 (reset 04:49) · vachana-claude (reset 03:10) -> next: final UI polish pass after T26
+- vimlesh-pc/claude: T91 live screenshots + visual QA   [T80 presenter tour in review]
+- OUT: vimlesh-pc codex x2 (reset 04:49)
+after T26: mount ops/timeline/scenario/tour, then Claude polish pass from visual-qa.md; flip ci-ui-e2e to blocking.
+known bug: restored-from-savepoint execution never completes 2 checkpoints (ci-e2e steps 9-11 gated with E2E_EXTENDED=0).
+
 ## Lanes
 1 engine: coordinator merged; worker T14 running · 2 compiler/reference: ops+compiler merged; T13 running ·
 3 control-api: core merged; T15, T18 running · 4 simulator: merged · 5 city: v1 merged; T30 polish running ·
