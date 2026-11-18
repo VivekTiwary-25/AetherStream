@@ -21,6 +21,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sun.net.httpserver.HttpServer;
+import io.aetherstream.api.org.OrgContext;
 import io.aetherstream.common.api.ExecutionInfo;
 import io.aetherstream.common.pipeline.PipelineDefinition;
 import io.aetherstream.common.protocol.StartExecutionRequest;
@@ -56,7 +57,7 @@ class PipelineControllerTest {
 
     @BeforeEach void setup() {
         when(pipelines.latest(demo.id())).thenReturn(Optional.of(demo));
-        when(jdbc.update(startsWith("UPDATE executions SET idempotency_key="), anyString(), anyString())).thenReturn(1);
+        when(jdbc.update(startsWith("UPDATE executions SET idempotency_key="), anyString(), anyString(), anyString())).thenReturn(1);
         when(coordinator.startExecution(any())).thenAnswer(invocation -> {
             StartExecutionRequest request = invocation.getArgument(0);
             return new ExecutionInfo(request.executionId(), request.plan().pipelineId(), request.plan().pipelineVersion(),
@@ -110,16 +111,31 @@ class PipelineControllerTest {
         var summary = new PipelineRepository.PipelineSummary(demo.id(), 2, demo.name(), CREATED_AT);
         when(database.queryForObject(startsWith("INSERT INTO pipelines"),
                 ArgumentMatchers.<RowMapper<PipelineRepository.PipelineSummary>>any(),
-                eq(demo.id()), eq(2), eq(demo.name()), anyString())).thenReturn(summary);
+                eq(demo.id()), eq(2), eq(demo.name()), anyString(), eq("demo"))).thenReturn(summary);
         assertThat(new PipelineRepository(database, mapper).create(demo)).isEqualTo(summary);
         ArgumentCaptor<String> definition = ArgumentCaptor.forClass(String.class);
         verify(database).queryForObject(startsWith("INSERT INTO pipelines"),
                 ArgumentMatchers.<RowMapper<PipelineRepository.PipelineSummary>>any(),
-                eq(demo.id()), eq(2), eq(demo.name()), definition.capture());
+                eq(demo.id()), eq(2), eq(demo.name()), definition.capture(), eq("demo"));
         PipelineDefinition stored = mapper.readValue(definition.getValue(), PipelineDefinition.class);
         assertThat(stored.version()).isEqualTo(2);
         assertThat(stored.nodes()).isEqualTo(demo.nodes());
-        verify(database).update(contains("'pipeline.created'"), eq(mapper.writeValueAsString(summary)));
+        ArgumentCaptor<String> audit = ArgumentCaptor.forClass(String.class);
+        verify(database).update(contains("'pipeline.created'"), audit.capture());
+        assertThat(mapper.readTree(audit.getValue())).isEqualTo(OrgContext.detail(summary));
+    }
+
+    @Test void creatingAnotherOrganisationsPipelineIdFailsWithoutWriting() throws Exception {
+        JdbcTemplate database = mock(JdbcTemplate.class);
+        when(database.queryForObject(anyString(), eq(Boolean.class), eq(demo.id()), eq("demo"))).thenReturn(true);
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> new PipelineRepository(database, mapper).create(demo))
+                .isInstanceOf(io.aetherstream.api.org.OrgException.class)
+                .satisfies(error -> {
+                    var denied = (io.aetherstream.api.org.OrgException) error;
+                    assertThat(denied.status().value()).isEqualTo(409);
+                    assertThat(denied.code()).isEqualTo("PIPELINE_ID_TAKEN");
+                });
+        verify(database, never()).update(anyString(), any(Object[].class));
     }
 
     @Test void readingUsesTheLatestDefinitionAndMissingIdsReturnNotFound() throws Exception {
@@ -135,7 +151,7 @@ class PipelineControllerTest {
     @Test void startStopsRecoveringExecutionPlansLatestVersionAndReusesTheKey() throws Exception {
         PipelineDefinition latest = version(2);
         when(pipelines.latest(demo.id())).thenReturn(Optional.of(latest));
-        when(jdbc.query(contains("state IN ('RUNNING','RECOVERING')"), ArgumentMatchers.<RowMapper<String>>any()))
+        when(jdbc.query(contains("state IN ('RUNNING','RECOVERING')"), ArgumentMatchers.<RowMapper<String>>any(), eq("demo")))
                 .thenReturn(List.of("exec-recovering"));
         String response = mvc.perform(post("/api/pipelines/" + demo.id() + "/executions")
                         .contentType("application/json").content("{\"idempotencyKey\":\"" + KEY + "\"}"))
@@ -148,9 +164,11 @@ class PipelineControllerTest {
         ArgumentCaptor<StartExecutionRequest> request = ArgumentCaptor.forClass(StartExecutionRequest.class);
         order.verify(coordinator).startExecution(request.capture());
         assertThat(request.getValue().plan()).isEqualTo(new PipelineCompiler().plan(latest, 6));
-        order.verify(jdbc).update(startsWith("UPDATE executions SET idempotency_key="), eq(KEY), eq(execution.id()));
+        order.verify(jdbc).update(startsWith("UPDATE executions SET idempotency_key="),
+                eq(OrgContext.idempotencyKey(KEY)), eq("demo"), eq(execution.id()));
         order.verify(jdbc).update(contains("'execution.started'"), anyString());
-        when(jdbc.query(contains("WHERE idempotency_key=?"), ArgumentMatchers.<RowMapper<ExecutionInfo>>any(), eq(KEY)))
+        when(jdbc.query(contains("WHERE idempotency_key=?"), ArgumentMatchers.<RowMapper<ExecutionInfo>>any(),
+                eq(OrgContext.idempotencyKey(KEY)), eq("demo")))
                 .thenReturn(List.of(execution));
         String retried = mvc.perform(post("/api/pipelines/" + demo.id() + "/executions")
                         .contentType("application/json").content("{\"idempotencyKey\":\"" + KEY + "\"}"))
@@ -165,8 +183,16 @@ class PipelineControllerTest {
         mvc.perform(post("/api/pipelines/" + demo.id() + "/executions").contentType("application/json")
                         .content("{\"idempotencyKey\":\"" + KEY + "\"}"))
                 .andExpect(status().isBadGateway()).andExpect(jsonPath("$.error").value("UPSTREAM_DOWN"));
-        verify(jdbc, never()).update(startsWith("UPDATE executions"), anyString(), anyString());
+        verify(jdbc, never()).update(startsWith("UPDATE executions"), anyString(), anyString(), anyString());
         verify(jdbc, never()).update(contains("'execution.started'"), anyString());
+    }
+
+    @Test void startCannotDisplaceAnotherOrganisationsExecution() throws Exception {
+        when(jdbc.queryForObject(anyString(), eq(Boolean.class), eq("demo"))).thenReturn(true);
+        mvc.perform(post("/api/pipelines/" + demo.id() + "/executions")
+                        .contentType("application/json").content("{\"idempotencyKey\":\"new\"}"))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.error").value("EXECUTION_BUSY"));
+        verifyNoInteractions(coordinator);
     }
 
     @Test void missingPipelineAndMissingKeyDoNotStopAnExecution() throws Exception {

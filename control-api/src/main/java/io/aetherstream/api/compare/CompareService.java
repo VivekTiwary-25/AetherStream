@@ -3,6 +3,7 @@ package io.aetherstream.api.compare;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.aetherstream.api.org.OrgContext;
 import io.aetherstream.common.api.CompareResult;
 import io.aetherstream.common.pipeline.ExecutionPlan;
 import io.aetherstream.reference.EngineAlertRow;
@@ -60,8 +61,9 @@ public class CompareService {
         try {
             // Keep selection identical to ResultRepository.currentExecutionId, including stopped executions.
             List<Execution> executions = jdbc.query(
-                    "SELECT id,plan::text FROM executions ORDER BY (state <> 'STOPPED') DESC, created_at DESC LIMIT 1",
-                    (rs, row) -> new Execution(rs.getString("id"), readJson(rs.getString("plan"), ExecutionPlan.class)));
+                    "SELECT id,plan::text FROM executions WHERE org_id=? ORDER BY (state <> 'STOPPED') DESC, created_at DESC LIMIT 1",
+                    (rs, row) -> new Execution(rs.getString("id"), readJson(rs.getString("plan"), ExecutionPlan.class)),
+                    OrgContext.current());
             if (executions.isEmpty()) {
                 throw new CompareException(HttpStatus.CONFLICT, "NO_EXECUTION", "No current execution to compare");
             }

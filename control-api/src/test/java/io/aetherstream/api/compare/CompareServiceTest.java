@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import io.aetherstream.api.org.OrgFilter;
 import io.aetherstream.common.Json;
 import io.aetherstream.common.api.CompareResult;
 import io.aetherstream.common.pipeline.ExecutionPlan;
@@ -69,6 +70,32 @@ class CompareServiceTest {
     }
 
     @Test
+    void comparesOnlyTheCallersCurrentExecution() throws Exception {
+        Fixture fixture = new Fixture();
+        fixture.expectedOrg = "acme";
+        fixture.executionOrg = "acme";
+        mvc(fixture.service(fixture::readRange))
+                .perform(post("/api/compare").header("X-Org", "acme").contentType("application/json").content("{}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.match").value(true));
+    }
+
+    @Test
+    void anotherOrgsCurrentExecutionDoesNotReadKafkaOrResults() throws Exception {
+        Fixture fixture = new Fixture();
+        fixture.expectedOrg = "acme";
+        AtomicInteger reads = new AtomicInteger();
+        CompareService service = fixture.service((bootstrap, topic, from, to) -> {
+            reads.incrementAndGet();
+            return fixture.readRange(bootstrap, topic, from, to);
+        });
+        mvc(service).perform(post("/api/compare").header("X-Org", "acme")
+                        .contentType("application/json").content("{}"))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.error").value("NO_EXECUTION"));
+        assertThat(reads.get()).isZero();
+        assertThat(fixture.resultQueries).isZero();
+    }
+
+    @Test
     void concurrentCompareReturns429AndReaderFailureReleasesLock() throws Exception {
         Fixture fixture = new Fixture();
         CountDownLatch entered = new CountDownLatch(1);
@@ -110,7 +137,7 @@ class CompareServiceTest {
     }
 
     private static MockMvc mvc(CompareService service) {
-        return MockMvcBuilders.standaloneSetup(new CompareController(service)).build();
+        return MockMvcBuilders.standaloneSetup(new CompareController(service)).addFilter(new OrgFilter()).build();
     }
 
     private static final class Fixture {
@@ -120,6 +147,9 @@ class CompareServiceTest {
         private final List<Map<String, Object>> windows = new ArrayList<>();
         private final List<Map<String, Object>> alerts = new ArrayList<>();
         private boolean hasCompletedCheckpoint = true;
+        private String expectedOrg = "demo";
+        private String executionOrg = "demo";
+        private int resultQueries;
 
         Fixture() throws Exception {
             for (int partition = 0; partition < 2; partition++) {
@@ -166,8 +196,12 @@ class CompareServiceTest {
                 RowMapper<?> rowMapper = (RowMapper<?>) args[1];
                 List<Map<String, Object>> rows;
                 if (sql.contains("FROM executions")) {
-                    rows = List.of(Map.of("id", "exec-current", "plan", plan));
+                    assertThat(sql).contains("WHERE org_id=?");
+                    assertThat((Object[]) args[2]).containsExactly(expectedOrg);
+                    rows = executionOrg.equals(expectedOrg)
+                            ? List.of(Map.of("id", "exec-current", "plan", plan)) : List.of();
                 } else {
+                    resultQueries++;
                     assertThat((Object[]) args[2]).containsExactly("exec-current");
                     if (sql.contains("FROM checkpoints")) {
                         if (sql.contains("checkpoint_id=0")) rows = List.of(Map.of("source_offsets", from));

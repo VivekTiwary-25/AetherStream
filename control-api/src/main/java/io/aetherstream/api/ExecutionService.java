@@ -1,6 +1,7 @@
 package io.aetherstream.api;
 
-import io.aetherstream.common.Json;
+import io.aetherstream.api.org.OrgAccess;
+import io.aetherstream.api.org.OrgContext;
 import io.aetherstream.common.api.ExecutionInfo;
 import io.aetherstream.common.pipeline.ExecutionPlan;
 import io.aetherstream.common.pipeline.PipelineDefinition;
@@ -35,32 +36,34 @@ class ExecutionService {
             throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_REQUEST", "idempotencyKey must not be empty");
         // Serialize API starts across instances, without locking rows the coordinator needs to update.
         jdbc.execute("SELECT pg_advisory_xact_lock(1095062612)");
+        PipelineDefinition pipeline = pipelines.latest(pipelineId)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "NOT_FOUND", "pipeline not found"));
+        String scopedKey = OrgContext.idempotencyKey(idempotencyKey);
         List<ExecutionInfo> existing = jdbc.query(
                 "SELECT e.*, (SELECT max(checkpoint_id) FROM checkpoints WHERE execution_id=e.id AND state='COMPLETED') " +
-                        "AS last_completed_checkpoint FROM executions e WHERE idempotency_key=?",
+                        "AS last_completed_checkpoint FROM executions e WHERE idempotency_key=? AND org_id=?",
                 (rs, row) -> {
                     Number restored = (Number) rs.getObject("restored_from_checkpoint");
                     Number completed = (Number) rs.getObject("last_completed_checkpoint");
                     return new ExecutionInfo(rs.getString("id"), rs.getString("pipeline_id"), rs.getInt("pipeline_version"),
                             rs.getString("state"), rs.getLong("generation"), restored == null ? null : restored.longValue(),
                             completed == null ? null : completed.longValue(), rs.getTimestamp("created_at").toInstant().toString());
-                }, idempotencyKey);
+                }, scopedKey, OrgContext.current());
         if (!existing.isEmpty()) return existing.get(0);
 
-        PipelineDefinition pipeline = pipelines.latest(pipelineId)
-                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "NOT_FOUND", "pipeline not found"));
-        List<String> running = jdbc.query("SELECT id FROM executions WHERE state IN ('RUNNING','RECOVERING') ORDER BY created_at",
-                (rs, row) -> rs.getString("id"));
+        OrgAccess.requireAvailableCluster(jdbc);
+        List<String> running = jdbc.query("SELECT id FROM executions WHERE state IN ('RUNNING','RECOVERING') AND org_id=? ORDER BY created_at",
+                (rs, row) -> rs.getString("id"), OrgContext.current());
         for (String id : running) coordinator.stop(id);
         ExecutionPlan plan = compiler.plan(pipeline, 6);
         String executionId = "exec-" + EXECUTION_TIME.format(Instant.now()) + "-" + UUID.randomUUID().toString().substring(0, 4);
         ExecutionInfo execution = coordinator.startExecution(new StartExecutionRequest(executionId, plan));
-        // The coordinator owns insertion; only attach the API's idempotency key after it has succeeded.
-        int updated = jdbc.update("UPDATE executions SET idempotency_key=?,updated_at=now() WHERE id=?",
-                idempotencyKey, execution.id());
+        // The coordinator owns insertion; attach API ownership and idempotency after it has succeeded.
+        int updated = jdbc.update("UPDATE executions SET idempotency_key=?,org_id=?,updated_at=now() WHERE id=?",
+                scopedKey, OrgContext.current(), execution.id());
         if (updated != 1) throw new IllegalStateException("coordinator did not persist the execution");
         jdbc.update("INSERT INTO audit_log(actor,action,detail) VALUES ('ui','execution.started',?::jsonb)",
-                Json.MAPPER.valueToTree(execution).toString());
+                OrgContext.detail(execution).toString());
         return execution;
     }
 }
