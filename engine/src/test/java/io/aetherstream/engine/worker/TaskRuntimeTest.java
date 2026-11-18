@@ -1,0 +1,211 @@
+package io.aetherstream.engine.worker;
+
+import static io.aetherstream.engine.worker.WorkerFixtures.await;
+import static org.assertj.core.api.Assertions.assertThat;
+
+import io.aetherstream.common.pipeline.ExecutionPlan;
+import io.aetherstream.common.protocol.CheckpointAck;
+import io.aetherstream.common.protocol.CheckpointManifest;
+import io.aetherstream.common.protocol.Command;
+import io.aetherstream.common.protocol.WorkerSnapshot;
+import io.aetherstream.compiler.ops.ListCollector;
+import io.aetherstream.engine.storage.InMemoryCheckpointStore;
+import io.aetherstream.engine.worker.WorkerFixtures.FakeCoordinator;
+import io.aetherstream.engine.worker.WorkerFixtures.FakeSource;
+import io.aetherstream.engine.worker.WorkerFixtures.MemorySink;
+import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
+
+class TaskRuntimeTest {
+    private static final int PARTITIONS = 3;
+    private static final String EXEC = "exec-test";
+
+    private final ExecutionPlan plan = WorkerFixtures.plan(PARTITIONS);
+    private final Map<Integer, List<String>> data = WorkerFixtures.workload(PARTITIONS, 600);
+    private final Map<Integer, List<SinkRow>> expected = WorkerFixtures.direct(plan, data);
+    private final InMemoryCheckpointStore store = new InMemoryCheckpointStore();
+    private final FakeCoordinator coordinator = new FakeCoordinator();
+    private TaskRuntime runtime;
+
+    @AfterEach
+    void tearDown() {
+        if (runtime != null) {
+            runtime.stop();
+        }
+    }
+
+    private Command.Assign assign(long generation, long restoreCheckpointId, String manifestKey,
+                                  Map<Integer, Long> startOffsets) {
+        return new Command.Assign(EXEC, generation, plan, List.of(0, 1, 2), restoreCheckpointId, manifestKey,
+                startOffsets);
+    }
+
+    private static Map<Integer, Long> zeros() {
+        return Map.of(0, 0L, 1, 0L, 2, 0L);
+    }
+
+    private TaskRuntime start(Command.Assign a, FakeSource source, MemorySink sink, long delayMs,
+                              TaskRuntime.Listener listener) {
+        TaskRuntime r = new TaskRuntime("w-1", a, topic -> source, sink, store, coordinator, () -> delayMs, listener);
+        r.start();
+        return r;
+    }
+
+    private int totalRecords() {
+        return data.values().stream().mapToInt(List::size).sum();
+    }
+
+    private int totalExpected() {
+        return expected.values().stream().mapToInt(List::size).sum();
+    }
+
+    @Test
+    void workloadIsMeaningful() {
+        List<ListCollector.Output> all = expected.values().stream().flatMap(List::stream).map(SinkRow::output).toList();
+        assertThat(all).anySatisfy(o -> assertThat(o).isInstanceOf(ListCollector.WindowOutput.class));
+        assertThat(all).anySatisfy(o -> assertThat(o).isInstanceOf(ListCollector.AlertOutput.class));
+        assertThat(all).anySatisfy(o -> assertThat(o).isInstanceOf(ListCollector.DeadLetterOutput.class));
+    }
+
+    @Test
+    void outputsEqualDirectPartitionPipeline() throws Exception {
+        FakeSource source = new FakeSource(data);
+        MemorySink sink = new MemorySink();
+        runtime = start(assign(1, 0, null, zeros()), source, sink, 0, null);
+
+        await("all outputs", 20_000, () -> sink.rows.size() >= totalExpected()
+                && runtime.processedRecords() == totalRecords());
+        Thread.sleep(300);
+
+        assertThat(runtime.state()).isEqualTo(TaskRuntime.State.RUNNING);
+        assertThat(sink.rows).hasSize(totalExpected());
+        for (int p = 0; p < PARTITIONS; p++) {
+            assertThat(sink.partition(p)).as("partition %d", p).containsExactlyElementsOf(expected.get(p));
+        }
+        await("lag refreshed", 5_000, () -> runtime.lag().size() == PARTITIONS
+                && runtime.lag().values().stream().allMatch(l -> l == 0));
+    }
+
+    @Test
+    void barrierAckOffsetsAndRestoreEquivalence() throws Exception {
+        FakeSource source1 = new FakeSource(data);
+        source1.limit.set(700);
+        MemorySink sink1 = new MemorySink();
+        runtime = start(assign(1, 0, null, zeros()), source1, sink1, 0, null);
+
+        await("700 processed", 20_000, () -> runtime.processedRecords() == 700);
+        Map<Integer, Long> before = source1.nextOffsets();
+        runtime.triggerCheckpoint(1);
+        await("ack", 10_000, () -> coordinator.acks.size() == 1);
+
+        CheckpointAck ack = coordinator.acks.get(0);
+        assertThat(ack.checkpointId()).isEqualTo(1);
+        assertThat(ack.generation()).isEqualTo(1);
+        assertThat(ack.executionId()).isEqualTo(EXEC);
+        assertThat(ack.workerId()).isEqualTo("w-1");
+        assertThat(ack.partitions()).isEqualTo(before);
+        assertThat(ack.partitions().values().stream().mapToLong(Long::longValue).sum()).isEqualTo(700);
+        assertThat(ack.objectKey()).isEqualTo("executions/" + EXEC + "/checkpoints/1/worker-w-1.json");
+        assertThat(runtime.lastCheckpointId()).isEqualTo(1);
+
+        // Everything before the barrier was committed before the ack.
+        for (int p = 0; p < PARTITIONS; p++) {
+            long cut = ack.partitions().get(p);
+            List<SinkRow> prefix = expected.get(p).stream().filter(r -> r.offset() < cut).toList();
+            assertThat(sink1.partition(p)).as("partition %d before barrier", p).containsExactlyElementsOf(prefix);
+        }
+        WorkerSnapshot snapshot = store.getJson(ack.objectKey(), WorkerSnapshot.class);
+        assertThat(snapshot.checkpointId()).isEqualTo(1);
+        assertThat(snapshot.generation()).isEqualTo(1);
+        assertThat(snapshot.partitions().keySet()).containsExactlyInAnyOrder(0, 1, 2);
+        assertThat(snapshot.partitions().get(0).nextOffset()).isEqualTo(ack.partitions().get(0));
+
+        runtime.stop();
+        assertThat(source1.closed).isTrue();
+
+        // The coordinator would write this manifest once all partitions are acked.
+        Map<Integer, CheckpointManifest.PartitionEntry> entries = new TreeMap<>();
+        ack.partitions().forEach((p, o) -> entries.put(p, new CheckpointManifest.PartitionEntry(o, ack.objectKey())));
+        String manifestKey = WorkerKeys.manifestKey(EXEC, 1);
+        store.putJson(manifestKey, new CheckpointManifest(EXEC, 1, 1, plan.pipelineId(), plan.pipelineVersion(), 1,
+                "2026-11-19T00:00:00Z", entries));
+
+        FakeSource source2 = new FakeSource(data);
+        MemorySink sink2 = new MemorySink();
+        runtime = start(assign(2, 1, manifestKey, ack.partitions()), source2, sink2, 0, null);
+
+        Map<Integer, List<SinkRow>> remaining = new TreeMap<>();
+        for (int p = 0; p < PARTITIONS; p++) {
+            long cut = ack.partitions().get(p);
+            remaining.put(p, expected.get(p).stream().filter(r -> r.offset() >= cut).toList());
+        }
+        int remainingCount = remaining.values().stream().mapToInt(List::size).sum();
+        assertThat(remainingCount).isPositive();
+        await("remaining outputs", 20_000, () -> sink2.rows.size() >= remainingCount
+                && runtime.processedRecords() == totalRecords() - 700);
+        Thread.sleep(300);
+        assertThat(sink2.rows).hasSize(remainingCount);
+        for (int p = 0; p < PARTITIONS; p++) {
+            assertThat(sink2.partition(p)).as("partition %d after restore", p)
+                    .containsExactlyElementsOf(remaining.get(p));
+        }
+    }
+
+    @Test
+    void fencedSinkStopsRuntimeAndWritesNothingMore() throws Exception {
+        FakeSource source = new FakeSource(data);
+        source.limit.set(300);
+        MemorySink sink = new MemorySink();
+        AtomicReference<String> stopReason = new AtomicReference<>();
+        runtime = start(assign(1, 0, null, zeros()), source, sink, 0, (r, why) -> stopReason.set(why));
+
+        await("300 processed", 20_000, () -> runtime.processedRecords() == 300 && runtime.sinkQueueSize() == 0);
+        Thread.sleep(2 * TaskRuntime.FLUSH_INTERVAL_MS + 100);
+        int written = sink.rows.size();
+
+        sink.fenced.set(true);
+        source.limit.set(Long.MAX_VALUE);
+
+        await("runtime stopped", 10_000, () -> runtime.isStopped() && stopReason.get() != null);
+        assertThat(runtime.isFenced()).isTrue();
+        assertThat(stopReason.get()).contains("fenced");
+        assertThat(sink.rejectedWrites.get()).isEqualTo(1);
+        long emittedAtStop = source.emitted.get();
+        long processedAtStop = runtime.processedRecords();
+        Thread.sleep(500);
+        assertThat(sink.rows).hasSize(written);
+        assertThat(sink.rejectedWrites.get()).isEqualTo(1);
+        assertThat(source.emitted.get()).isEqualTo(emittedAtStop);
+        assertThat(runtime.processedRecords()).isEqualTo(processedAtStop);
+        await("consumer closed", 5_000, () -> source.closed.get());
+    }
+
+    @Test
+    void sinkDelayFillsQueuesAndBlocksSource() throws Exception {
+        FakeSource source = new FakeSource(data);
+        MemorySink sink = new MemorySink();
+        AtomicLong delay = new AtomicLong(20);
+        runtime = new TaskRuntime("w-1", assign(1, 0, null, zeros()), topic -> source, sink, store, coordinator,
+                delay::get, null);
+        runtime.start();
+
+        await("sink queue full", 20_000, () -> runtime.sinkQueueSize() == TaskRuntime.QUEUE_CAPACITY);
+        assertThat(runtime.backpressured()).isTrue();
+        await("source queue full", 20_000, () -> runtime.sourceQueueSize() == TaskRuntime.QUEUE_CAPACITY);
+        // Bounded memory: emitted = processed (sunk or in queue 2) + queue 1 + one in-hand item + rest of a poll batch.
+        long bound = runtime.processedRecords() + TaskRuntime.QUEUE_CAPACITY + 1 + 500 + 50;
+        assertThat(source.emitted.get()).isLessThanOrEqualTo(bound);
+        assertThat(source.emitted.get()).isLessThan(totalRecords());
+
+        long emitted = source.emitted.get();
+        Thread.sleep(300);
+        // At ~50 items/s drained by the sink, the source can only advance a little (at most one more poll batch).
+        assertThat(source.emitted.get() - emitted).isLessThanOrEqualTo(500 + 50);
+        assertThat(runtime.backpressured()).isTrue();
+    }
+}
