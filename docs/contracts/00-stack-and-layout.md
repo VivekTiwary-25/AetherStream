@@ -81,5 +81,7 @@ All run on `push` to `main` and `task/**`, and on `pull_request` to main.
 | `.github/workflows/ci-web.yml` | `web` | in `web/`: `npm ci && npm run lint && npm run test --if-present && npm run build` |
 | `.github/workflows/ci-integration.yml` | `integration` | `./gradlew :tests:integrationTest` (Testcontainers), uploads reports |
 | `.github/workflows/ci-compose.yml` | `compose` | builds all images, `docker compose up -d`, waits for health, runs `infra/scripts/smoke.sh`, dumps logs |
+| `.github/workflows/ci-images.yml` | `images` | builds every Dockerfile in infra/docker (no push) and smoke-runs them |
+| `.github/workflows/ci-mock.yml` | `mock` | dev mock server self-test |
 | `.github/workflows/cd.yml` | `publish`, `deploy` | push to main only: images to GHCR tagged with commit SHA; deploy on self-hosted runner label `aether-deploy` |
 Every task's acceptance check runs in this CI. A task is accepted only when CI on its `task/<id>` branch is green.

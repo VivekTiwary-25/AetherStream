@@ -1,0 +1,45 @@
+# T08: Custom Dockerfiles for every service + image build workflow
+
+Lane 7 (infra). Write production-quality Dockerfiles and a CI workflow that builds them all and checks each container starts.
+
+Files (create only these):
+- infra/docker/engine.Dockerfile (one image for both coordinator and worker)
+- infra/docker/simulator.Dockerfile
+- infra/docker/control-api.Dockerfile
+- infra/docker/web.Dockerfile
+- infra/docker/nginx.conf
+- .dockerignore (repo root)
+- .github/workflows/ci-images.yml
+
+Requirements:
+1. Java images: multi-stage. Build stage `eclipse-temurin:21-jdk` copying the Gradle wrapper + build files first (layer cache),
+   then sources, running `./gradlew --no-daemon :engine:installDist` (resp. `:simulator:installDist`,
+   `:control-api:bootJar`). Runtime stage `eclipse-temurin:21-jre`, non-root user `aether`, `WORKDIR /app`, labels
+   `org.opencontainers.image.source` and `org.opencontainers.image.revision` (build arg GIT_SHA, default "dev"),
+   `ENV GIT_SHA=$GIT_SHA`, a HEALTHCHECK using curl (install curl in the runtime stage) on the service health URL
+   (coordinator :8081/coord/health, worker: none needed - use `HEALTHCHECK NONE` override in compose later; simulator :8070/health;
+   control-api :8080/api/health). JVM flags `-XX:MaxRAMPercentage=75 -XX:+ExitOnOutOfMemoryError`.
+   engine image: default `ENTRYPOINT ["/app/bin/engine"]` (coordinator); the worker runs with command override
+   `/app/bin/worker` (both scripts are produced by `:engine:installDist`, see engine/build.gradle.kts).
+2. web image: build stage `node:22-alpine` running `npm ci` (or `npm install` if there is no package-lock.json) and
+   `npm run build` in web/ with build arg `VITE_GIT_SHA`; runtime `nginx:1.29-alpine` serving web/dist with
+   infra/docker/nginx.conf: SPA fallback to index.html, gzip, `location /api/` proxy to `http://control-api:8080`,
+   `location /ws` proxy with WebSocket upgrade headers to `http://control-api:8080/ws`, long read timeout for /ws.
+   If web/ does not exist yet on your branch, still write the Dockerfile correctly (CI will build it once web/ lands; make the
+   web build step in the workflow `if: hashFiles('web/package.json') != ''`).
+3. .dockerignore: exclude .git, **/build, **/.gradle, **/node_modules, web/dist, swarm, boss, docs.
+4. .github/workflows/ci-images.yml: on push to main and task/**, pull_request to main. Job `images` (ubuntu-latest) using
+   docker/setup-buildx-action and docker/build-push-action with `push: false`, `load: true`, GitHub Actions cache
+   (`cache-from: type=gha`), building all four images tagged `aether/<name>:ci` with build arg GIT_SHA=${{ github.sha }}.
+   Then a smoke step: `docker run --rm --entrypoint java aether/engine:ci -version`, same for simulator and control-api,
+   and `docker image ls` + `docker inspect` of the revision label (print it).
+
+Acceptance check: `ci-images` workflow green on your branch, log shows the four images built and the revision label = commit SHA.
+
+## Rules (apply to every task)
+- Read every file in docs/contracts/ first and follow them exactly. Do not edit docs/contracts/ or infra/db/schema.sql. If a contract looks wrong, follow it anyway and say so in your result.
+- Never open, read or change anything in swarm/.
+- Only create/edit the files listed under "Files". If you truly need another file, say so in your result instead of editing it.
+- Your PC may not have Java, Node or Docker. The acceptance check runs in GitHub Actions on your task branch (CI runs on push to task/**). Write code carefully so it compiles first time; keep it simple and readable.
+- Do not commit secrets, build outputs, node_modules or .gradle/ folders.
+- In your result, list what you built, how the acceptance check proves it, and anything left undone.
