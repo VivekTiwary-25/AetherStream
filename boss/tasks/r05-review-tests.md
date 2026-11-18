@@ -1,0 +1,20 @@
+# R05: Review the integration tests for real evidence value (read-only, write a verdict)
+
+You are a reviewer. Do NOT change code. Read docs/contracts/02, 03, 04, then review on main:
+tests/src/test/java/io/aetherstream/tests/** (EngineMatchesReferenceIT, WorkerAdaptersIT, PostgresExecutionRepositoryIT,
+S3CheckpointStoreIT, KafkaOffsetsLookupIT, support/EngineCluster, support/WorkloadGenerator, support/IntegrationInfrastructure).
+
+Question to answer: would these tests catch a real bug, or could they pass while the engine is wrong? Check: the comparison
+really uses independent reference execution (not engine output compared with itself); the workload includes late, duplicate
+and malformed records; the assertion counts are non-trivial (> 100 results, alerts present); waits have timeouts and fail
+loudly; no test silently skips; the engine runs with 3 workers on 6 partitions; checkpoints actually complete during the run;
+flakiness risks (sleeps instead of polling, ordering assumptions, shared static state between test classes, port clashes).
+Also list the acceptance criteria from handoff.md section 10 that are NOT yet covered by any test.
+
+Files (create only this):
+- docs/reviews/R05-tests.md — `VERDICT: PASS` or `VERDICT: FAIL`, numbered findings with file:line, why it matters, severity
+  (BLOCKER = test can pass with a wrong engine, MAJOR = flaky / weak, MINOR), one-line fix; then "Uncovered criteria". Under 70 lines.
+
+## Rules
+- Do not change anything in swarm/ (except your own report file if the swarm asks you to write one).
+- Only create docs/reviews/R05-tests.md.
