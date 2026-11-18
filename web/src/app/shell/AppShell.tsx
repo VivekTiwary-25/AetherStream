@@ -1,4 +1,4 @@
-import { CityPlaceholder } from '../../city/CityPlaceholder'
+import { CityView } from '../../city/CityView'
 import { StatusPill } from '../ui/StatusPill'
 import { Footer } from './Footer'
 
@@ -7,7 +7,7 @@ const panelSlots = ['windows', 'deliveries', 'alerts', 'deadLetters', 'workers',
 export function AppShell() {
   return (
     <main className="app-shell">
-      <CityPlaceholder />
+      <CityView />
       <header className="app-heading">
         <div>
           <p className="app-eyebrow">STREAM PROCESSING CONTROL</p>
