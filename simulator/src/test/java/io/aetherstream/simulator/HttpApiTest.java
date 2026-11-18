@@ -101,6 +101,66 @@ class HttpApiTest {
     }
 
     @Test
+    void appliesBreakdownToSelectedTruckAndReportsScenario() throws Exception {
+        String truckId = json(success("GET", "/state", null))
+                .path("trucks").get(0).path("truckId").textValue();
+        JsonNode state = json(success("POST", "/scenario",
+                "{\"name\":\"breakdown\",\"truckId\":\"" + truckId + "\"}"));
+        assertThat(state.path("scenario").textValue()).isEqualTo("breakdown");
+        assertThat(state.path("trucks").get(0).path("status").textValue()).isEqualTo("STOPPED");
+        assertThat(state.path("trucks").get(0).path("speedKmh").doubleValue()).isZero();
+        assertThat(json(success("GET", "/state", null))).isEqualTo(state);
+    }
+
+    @Test
+    void breakdownDefaultsToTruck005() throws Exception {
+        for (int i = 0; i < 4; i++) {
+            success("POST", "/trucks", "{}");
+        }
+        JsonNode state = json(success("POST", "/scenario", "{\"name\":\"breakdown\"}"));
+        JsonNode truck = state.path("trucks").get(4);
+        assertThat(truck.path("truckId").textValue()).isEqualTo("truck-005");
+        assertThat(truck.path("status").textValue()).isEqualTo("STOPPED");
+    }
+
+    @Test
+    void surgeAddsSixTrucksAndResetPreservesTimeAndEmittedCount() throws Exception {
+        JsonNode initial = json(success("GET", "/state", null));
+        assertThat(initial.path("scenario").textValue()).isEqualTo("none");
+        JsonNode surge = json(success("POST", "/scenario", "{\"name\":\"surge\"}"));
+        assertThat(surge.path("scenario").textValue()).isEqualTo("surge");
+        synchronized (simulation) {
+            simulation.step(simulation.now() + 60_000);
+        }
+        JsonNode expanded = json(success("GET", "/state", null));
+        assertThat(expanded.path("trucks").size()).isEqualTo(initial.path("trucks").size() + 6);
+        assertThat(expanded.path("emitted").longValue()).isPositive();
+        JsonNode reset = json(success("POST", "/scenario", "{\"name\":\"reset\"}"));
+        assertThat(reset.path("scenario").textValue()).isEqualTo("none");
+        assertThat(reset.path("trucks").size()).isEqualTo(initial.path("trucks").size());
+        assertThat(reset.path("trucks").get(0).path("truckId"))
+                .isEqualTo(initial.path("trucks").get(0).path("truckId"));
+        assertThat(reset.path("simTime")).isEqualTo(expanded.path("simTime"));
+        assertThat(reset.path("emitted")).isEqualTo(expanded.path("emitted"));
+    }
+
+    @Test
+    void rejectsInvalidScenariosWithoutMutatingCurrentScenario() throws Exception {
+        JsonNode before = json(success("POST", "/scenario", "{\"name\":\"rush-hour\"}"));
+        assertThat(before.path("scenario").textValue()).isEqualTo("rush-hour");
+        for (String body : List.of("{}", "{\"name\":null}", "{\"name\":1}", "{\"name\":true}",
+                "{\"name\":[]}", "{\"name\":\"\"}", "{\"name\":\" \"}", "{\"name\":\"unknown\"}",
+                "{\"name\":\"surge\",\"truckId\":null}", "{\"name\":\"surge\",\"truckId\":1}",
+                "{\"name\":\"surge\",\"truckId\":true}", "{\"name\":\"surge\",\"truckId\":[]}",
+                "{\"name\":\"surge\",\"truckId\":\"\"}", "{\"name\":\"surge\",\"truckId\":\"  \"}",
+                "{\"name\":\"breakdown\",\"truckId\":\"missing\"}", "{\"name\":\"breakdown\"}",
+                "[]", "null", "", "   ", "{", "{\"name\":\"reset\"} {}")) {
+            assertError(request("POST", "/scenario", body), 400);
+            assertThat(json(success("GET", "/state", null))).as(body).isEqualTo(before);
+        }
+    }
+
+    @Test
     void invalidControlNeverPartiallyMutatesState() throws Exception {
         List<String> invalid = List.of(
                 "{\"running\":false,\"timeScale\":0}",
@@ -203,7 +263,8 @@ class HttpApiTest {
     @Test
     void enforcesExactPathsAndMethodsWithJsonErrors() throws Exception {
         for (String route : List.of("/health/", "/healthcheck", "/state/extra", "/trucks/",
-                "/trucks/truck-001/extra", "/chaos/late/", "/control/", "/missing", "/%68ealth")) {
+                "/trucks/truck-001/extra", "/chaos/late/", "/control/", "/scenario/",
+                "/scenario/extra", "/missing", "/%68ealth")) {
             assertError(request("GET", route, null), 404);
         }
         for (String route : List.of("/health", "/state")) {
@@ -211,7 +272,8 @@ class HttpApiTest {
             assertError(response, 405);
             assertThat(response.headers().firstValue("Allow")).hasValue("GET");
         }
-        for (String route : List.of("/trucks", "/chaos/late", "/chaos/duplicates", "/chaos/malformed", "/control")) {
+        for (String route : List.of("/trucks", "/chaos/late", "/chaos/duplicates",
+                "/chaos/malformed", "/control", "/scenario")) {
             HttpResponse<String> response = request("GET", route, null);
             assertError(response, 405);
             assertThat(response.headers().firstValue("Allow")).hasValue("POST");
@@ -219,6 +281,20 @@ class HttpApiTest {
         HttpResponse<String> wrongDelete = request("POST", "/trucks/truck-001", "{}");
         assertError(wrongDelete, 405);
         assertThat(wrongDelete.headers().firstValue("Allow")).hasValue("DELETE");
+    }
+
+    @Test
+    void rejectsNonPostScenarioMethodsWithoutMutation() throws Exception {
+        JsonNode before = json(success("GET", "/state", null));
+        for (String method : List.of("PUT", "PATCH", "DELETE", "OPTIONS", "HEAD")) {
+            HttpResponse<String> response = request(method, "/scenario", "{\"name\":\"surge\"}");
+            assertThat(response.statusCode()).as(method).isEqualTo(405);
+            assertThat(response.headers().firstValue("Allow")).hasValue("POST");
+            if (!method.equals("HEAD")) {
+                assertError(response, 405);
+            }
+            assertThat(json(success("GET", "/state", null))).isEqualTo(before);
+        }
     }
 
     private HttpResponse<String> success(String method, String path, String body) throws Exception {

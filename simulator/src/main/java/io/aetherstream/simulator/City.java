@@ -52,5 +52,14 @@ public final class City {
         return Math.abs(x - gridX) <= Math.abs(y - gridY) ? new Point(gridX, y) : new Point(x, gridY);
     }
 
+    static boolean inCentre(double x, double y) {
+        return x >= 600 && x <= 1400 && y >= 600 && y <= 1400;
+    }
+
+    static double speedLimit(Point start, Point end) {
+        double street = start.x() == end.x() ? start.x() : start.y();
+        return street % 600 == 0 ? 50 : 35;
+    }
+
     static double grid(double coordinate) { return Math.round(coordinate / GRID) * GRID; }
 }

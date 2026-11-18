@@ -11,7 +11,23 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Plain Java entry point; run with {@code :simulator:run} or the installed application script.
- * HTTP listens on 8070. {@code SimulatorConfig} documents environment settings and defaults.
+ * Environment defaults: {@code SIM_SEED=42}, {@code SIM_TIME_SCALE=10},
+ * {@code SIM_INITIAL_TRUCKS=8}, {@code SIM_MALFORMED_RATE=0.0025},
+ * {@code SIM_STUCK_TRUCK_DEMO=true}, {@code KAFKA_BOOTSTRAP=kafka:9092},
+ * {@code KAFKA_TOPIC=truck-events}.
+ * HTTP on 8070: {@code GET /health}, {@code GET /state}, {@code POST /trucks},
+ * {@code DELETE /trucks/{truckId}}, {@code POST /control},
+ * {@code POST /chaos/late}, {@code POST /chaos/duplicates},
+ * {@code POST /chaos/malformed}, and {@code POST /scenario}.
+ * Scenarios use simulation time: {@code rush-hour} slows centre traffic by 40% for 10 minutes
+ * (centre means both x and y in 600..1400 inclusive); {@code breakdown} stops a truck for
+ * 12 minutes (default {@code truck-005}); {@code surge} adds six trucks over one minute.
+ * {@code reset} restores the initial fleet and normal traffic without rewinding the clock
+ * or reusing event IDs. Send {@code POST /scenario {"name":"breakdown","truckId":"truck-005"}};
+ * {@code truckId} is optional, but when supplied must be textual and nonblank.
+ * Each request replaces the active scenario; reset also cancels pending surge joins and the
+ * automatic stuck-truck demo. Surge joins occur every 10 sim-seconds; {@code GET /state}
+ * reports {@code scenario} ({@code none} after reset or a timed scenario expires).
  * Kafka outages leave HTTP and simulation ticks active; unsent records are buffered in memory,
  * not durably, and can exhaust the heap during a prolonged outage.
  */
