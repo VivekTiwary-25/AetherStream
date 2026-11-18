@@ -33,3 +33,6 @@ build/
 .idea/
 out/
 !.env.example
+.terraform/
+*.tfstate
+*.tfstate.*
