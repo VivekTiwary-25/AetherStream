@@ -1,0 +1,34 @@
+[versions]
+springBoot = "4.1.2"
+kafka = "4.3.2"
+jackson = "2.22.4"
+postgres = "42.7.14"
+minio = "8.5.17"
+hikari = "6.3.0"
+junit = "5.13.4"
+assertj = "3.27.6"
+testcontainers = "2.0.5"
+slf4j = "2.0.17"
+logback = "1.5.18"
+
+[libraries]
+kafka-clients = { module = "org.apache.kafka:kafka-clients", version.ref = "kafka" }
+jackson-databind = { module = "com.fasterxml.jackson.core:jackson-databind", version.ref = "jackson" }
+jackson-jdk8 = { module = "com.fasterxml.jackson.datatype:jackson-datatype-jdk8", version.ref = "jackson" }
+postgres = { module = "org.postgresql:postgresql", version.ref = "postgres" }
+minio = { module = "io.minio:minio", version.ref = "minio" }
+hikari = { module = "com.zaxxer:HikariCP", version.ref = "hikari" }
+slf4j-api = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
+logback = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
+junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
+junit-jupiter = { module = "org.junit.jupiter:junit-jupiter" }
+junit-launcher = { module = "org.junit.platform:junit-platform-launcher" }
+assertj = { module = "org.assertj:assertj-core", version.ref = "assertj" }
+testcontainers-bom = { module = "org.testcontainers:testcontainers-bom", version.ref = "testcontainers" }
+testcontainers-core = { module = "org.testcontainers:testcontainers" }
+testcontainers-junit = { module = "org.testcontainers:testcontainers-junit-jupiter" }
+testcontainers-kafka = { module = "org.testcontainers:testcontainers-kafka" }
+testcontainers-postgresql = { module = "org.testcontainers:testcontainers-postgresql" }
+
+[plugins]
+spring-boot = { id = "org.springframework.boot", version.ref = "springBoot" }
