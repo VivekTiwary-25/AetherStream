@@ -108,6 +108,7 @@ public final class HttpApi implements AutoCloseable {
             case "/trucks" -> addTruck(exchange);
             case "/chaos/late", "/chaos/duplicates", "/chaos/malformed" -> chaos(exchange, path);
             case "/control" -> updateControl(exchange);
+            case "/scenario" -> applyScenario(exchange);
             default -> {
                 String prefix = "/trucks/";
                 if (!path.startsWith(prefix) || path.length() == prefix.length()
@@ -157,6 +158,23 @@ public final class HttpApi implements AutoCloseable {
             // Submission belongs to the same critical section as generation, preserving record order.
             emit.accept(emissions);
             return ok(Json.MAPPER.createObjectNode().put("sent", emissions.size()));
+        }
+    }
+
+    private Response applyScenario(HttpExchange exchange) throws IOException {
+        requireMethod(exchange, "POST");
+        ObjectNode body = body(exchange, false);
+        JsonNode name = body.get("name");
+        JsonNode truckId = body.get("truckId");
+        if (name == null || !name.isTextual()) {
+            throw badRequest("name must be a scenario name");
+        }
+        if (truckId != null && (!truckId.isTextual() || truckId.textValue().isBlank())) {
+            throw badRequest("truckId must be a nonblank string");
+        }
+        synchronized (simulation) {
+            simulation.applyScenario(name.textValue(), truckId == null ? null : truckId.textValue());
+            return ok(state());
         }
     }
 

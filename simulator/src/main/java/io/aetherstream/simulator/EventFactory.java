@@ -12,7 +12,7 @@ final class EventFactory {
 
     ObjectNode position(Truck truck) {
         return Json.MAPPER.createObjectNode()
-                .put("truckId", truck.id).put("x", truck.x).put("y", truck.y)
+                .put("truckId", truck.id).put("x", truck.laneX()).put("y", truck.laneY())
                 .put("speedKmh", truck.speed).put("heading", truck.heading)
                 .put("routeId", truck.routeId).put("status", truck.status);
     }
