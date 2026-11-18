@@ -1,6 +1,6 @@
 # Boss STATE (single source of truth)
 
-Updated: 19 Nov 02:00 IST. Milestone: M1 engine proof DONE in CI; M1 remaining = deployed stack; next M2 (07:30) crash recovery.
+Updated: 19 Nov 02:06 IST. Milestone: M1 engine proof DONE in CI; waiting for first successful deploy; M2 (07:30) crash recovery next.
 
 ## Plain-language update for Vivek (newest first)
 - 02:00 M1 engine proof: GitHub Actions ran the real engine (coordinator + 3 workers, Kafka, Postgres, MinIO) on a fixed
@@ -16,10 +16,10 @@ Updated: 19 Nov 02:00 IST. Milestone: M1 engine proof DONE in CI; M1 remaining =
 done (merged): T01-T22 (all), T27 T29 T33 T35 T36 · reviews R01 PASS, R02 (blocker fixed), R03 (1 minor -> T39)
 running -> queued next:
 - vivek-pc/codex-sol: T39 worker hardening + metrics (01:47)
-- vivek-pc/codex-luna: T31 coordinator rejoin/rebalance + metrics (01:32)
+- vivek-pc/codex-luna: T42 checkpoint/recovery timeline panel (01:51)  [T31 merged 02:04]
 - vivek-pc/grok: T24 architecture doc
 - utkarsh-pc/codex-sol: T25 /api/compare (01:41) -> T23 crash/fencing ITs (M2 critical)
-- utkarsh-pc/codex-luna: R04 review control-api
+- utkarsh-pc/codex-luna: T43 runbook (01:51)  [R04 merged: only blocker = compare endpoint, T25 in progress]
 - upendra-pc/codex-sol: T41 simulator scenarios (01:47)
 - upendra-pc/codex-luna: T37 UI states + a11y (01:45)
 - vimlesh-pc/claude: T30 city polish (01:21, long)
