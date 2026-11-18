@@ -13,3 +13,4 @@
 - 00:57 vimlesh-pc/claude is down (no agent): its UI share goes to vachana-claude (city) and codex-luna (panels) until fixed.
 - 01:10 Spring Boot 4.1.2 -> 3.5.16 — Boot 4 auto-configures Jackson 3; our :common records/JsonNode are Jackson 2, mixing breaks controller JSON. Fixed T07 compile errors on its branch myself (rejecting would delete the work).
 - 01:23 Queue-ahead policy (Vivek's request): every busy worker always has 1 task queued behind it; a pre-queued task must never depend on the task running before it (it branches from main when it starts). STATE.md rewritten every loop.
+- 01:30 Manual conflict merges: after pushing the merge, run 'swarm reject <id>' (no requeue) so the swarm drops the task instead of re-queuing it.
