@@ -111,7 +111,7 @@ public final class Worker {
         stopRuntime();
         executionId = a.executionId();
         generation = a.generation();
-        lastCheckpointId = a.restoreCheckpointId();
+        lastCheckpointId = TaskRuntime.checkpointBaseline(a);
         runtime = new TaskRuntime(workerId, a, sourceFactory, sink, store, coordinator, sinkDelayMs::get,
                 this::onStoppedByItself);
         runtime.start();

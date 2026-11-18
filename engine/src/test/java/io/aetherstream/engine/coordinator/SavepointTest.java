@@ -12,8 +12,10 @@ import io.aetherstream.common.pipeline.PlannedOperator;
 import io.aetherstream.common.protocol.CheckpointAck;
 import io.aetherstream.common.protocol.CheckpointManifest;
 import io.aetherstream.common.protocol.Command;
+import io.aetherstream.common.protocol.QueueStatus;
 import io.aetherstream.common.protocol.RegisterRequest;
 import io.aetherstream.common.protocol.StartExecutionRequest;
+import io.aetherstream.common.protocol.WorkerStatus;
 import io.aetherstream.engine.storage.InMemoryCheckpointStore;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -299,5 +301,47 @@ class SavepointTest {
                 .filter(Command.Assign.class::isInstance).map(Command.Assign.class::cast).findFirst().orElseThrow();
         assertThat(assign.manifestKey()).isEqualTo(saved.manifestKey());
         assertThat(assign.startOffsets()).isEqualTo(SAVED_OFFSETS);
+    }
+
+    @Test
+    void executionRestoredFromSavepointCompletesItsOwnCheckpointsOneAndTwo() throws Exception {
+        // Savepoint taken at checkpoint 3 of the source execution: its id must not leak into the new numbering.
+        for (int i = 0; i < 2; i++) {
+            complete(coordinator.triggerCheckpointNow(EXEC));
+        }
+        repo.triggered.clear();
+        SavepointInfo saved = savepoint();
+        assertThat(saved.checkpointId()).isEqualTo(3);
+
+        String restoredExec = "restored-exec";
+        coordinator.startExecutionFromSavepoint(new StartFromSavepointRequest(restoredExec,
+                plan("pipeline", 1, 2, 60_000, true), saved.savepointId()));
+        Command.Assign assign = coordinator.heartbeat("w-a", null).commands().stream()
+                .filter(Command.Assign.class::isInstance).map(Command.Assign.class::cast).findFirst().orElseThrow();
+        assertThat(assign.executionId()).isEqualTo(restoredExec);
+        assertThat(assign.restoreCheckpointId()).isEqualTo(3);
+        assertThat(repo.findCheckpoint(restoredExec, 0).orElseThrow().state()).isEqualTo(CheckpointRecord.COMPLETED);
+
+        for (long expected = 1; expected <= 2; expected++) {
+            WorkerStatus running = new WorkerStatus(1, "w-a", restoredExec, assign.generation(), "RUNNING",
+                    List.of(0, 1), new QueueStatus(0, 1000), new QueueStatus(0, 1000), false, 0, 0.0,
+                    expected - 1, Map.of());
+            clock.now += 10_000;
+            coordinator.heartbeat("w-a", running);
+            coordinator.tick();
+            Command.TriggerCheckpoint trigger = coordinator.heartbeat("w-a", running).commands().stream()
+                    .filter(Command.TriggerCheckpoint.class::isInstance).map(Command.TriggerCheckpoint.class::cast)
+                    .findFirst().orElseThrow();
+            assertThat(trigger.executionId()).isEqualTo(restoredExec);
+            assertThat(trigger.generation()).isEqualTo(assign.generation());
+            assertThat(trigger.checkpointId()).isEqualTo(expected);
+            assertThat(coordinator.ack(new CheckpointAck(1, "w-a", restoredExec, assign.generation(), expected,
+                    SAVED_OFFSETS, "executions/" + restoredExec + "/checkpoints/" + expected + "/worker-w-a.json"))
+                    .accepted()).isTrue();
+            assertThat(repo.findCheckpoint(restoredExec, expected).orElseThrow().state())
+                    .isEqualTo(CheckpointRecord.COMPLETED);
+        }
+        assertThat(coordinator.clusterState().execution().lastCompletedCheckpoint()).isEqualTo(2L);
+        assertThat(coordinator.clusterState().execution().restoredFromCheckpoint()).isEqualTo(3L);
     }
 }

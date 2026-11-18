@@ -284,4 +284,38 @@ class TaskRuntimeTest {
         assertThat(source.lagRefreshNanos.size()).isGreaterThanOrEqualTo(2);
         assertThat(source.lagThread).isSameAs(source.owner);
     }
+
+    @Test
+    void restoreFromAnotherExecutionsSavepointAcceptsCheckpointsFromOne() throws Exception {
+        // Savepoint manifest of checkpoint 5 of another execution, copied under savepoints/ (empty state, offsets 0).
+        Map<Integer, CheckpointManifest.PartitionEntry> entries = new TreeMap<>();
+        for (int p = 0; p < PARTITIONS; p++) {
+            String objectKey = "executions/old-exec/checkpoints/5/worker-w-9.json";
+            entries.put(p, new CheckpointManifest.PartitionEntry(0L, objectKey));
+        }
+        FakeSource warm = new FakeSource(data);
+        warm.limit.set(0);
+        TaskRuntime empty = new TaskRuntime("w-9", new Command.Assign("old-exec", 1, plan, List.of(0, 1, 2), 0, null,
+                zeros()), topic -> warm, new MemorySink(), store, new FakeCoordinator(), () -> 0, null);
+        empty.start();
+        empty.triggerCheckpoint(5);
+        await("old snapshot", 10_000, () -> empty.lastCheckpointId() == 5);
+        empty.stop();
+        String savepointKey = "savepoints/sp-old-exec-5/manifest.json";
+        store.putJson(savepointKey, new CheckpointManifest("old-exec", 5, 1, plan.pipelineId(), plan.pipelineVersion(), 1,
+                "2026-11-19T00:00:00Z", entries));
+
+        FakeSource source = new FakeSource(data);
+        source.limit.set(100);
+        runtime = start(assign(1, 5, savepointKey, zeros()), source, new MemorySink(), 0, null);
+        assertThat(runtime.lastCheckpointId()).isZero();
+        await("100 processed", 20_000, () -> runtime.processedRecords() == 100);
+        runtime.triggerCheckpoint(1);
+        await("ack 1", 10_000, () -> coordinator.acks.size() == 1);
+        runtime.triggerCheckpoint(2);
+        await("ack 2", 10_000, () -> coordinator.acks.size() == 2);
+        assertThat(coordinator.acks).extracting(CheckpointAck::checkpointId).containsExactly(1L, 2L);
+        assertThat(coordinator.acks).allSatisfy(a -> assertThat(a.executionId()).isEqualTo(EXEC));
+        assertThat(runtime.lastCheckpointId()).isEqualTo(2);
+    }
 }
