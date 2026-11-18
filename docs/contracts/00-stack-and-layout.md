@@ -73,7 +73,13 @@ Created by the compose `kafka-init` one-shot service (and by tests).
 ## Database
 Schema file: `infra/db/schema.sql` (owned by contracts; mounted into postgres `docker-entrypoint-initdb.d`; tests load it too).
 
-## CI
-`.github/workflows/ci.yml` runs on `push` to `main` and `task/**`, and on `pull_request`. Jobs: `java` (`./gradlew build`),
-`web` (`npm ci && npm run lint && npm run build` in `web/`), `integration` (`./gradlew :tests:integrationTest`),
-`images` (docker build of every Dockerfile). Every task's acceptance check runs in this CI.
+## CI (one workflow file per concern, so lanes never edit the same file)
+All run on `push` to `main` and `task/**`, and on `pull_request` to main.
+| File | Job(s) | Command |
+|---|---|---|
+| `.github/workflows/ci-java.yml` | `java` | `./gradlew build` (compile + unit tests of every module), uploads test reports |
+| `.github/workflows/ci-web.yml` | `web` | in `web/`: `npm ci && npm run lint && npm run test --if-present && npm run build` |
+| `.github/workflows/ci-integration.yml` | `integration` | `./gradlew :tests:integrationTest` (Testcontainers), uploads reports |
+| `.github/workflows/ci-compose.yml` | `compose` | builds all images, `docker compose up -d`, waits for health, runs `infra/scripts/smoke.sh`, dumps logs |
+| `.github/workflows/cd.yml` | `publish`, `deploy` | push to main only: images to GHCR tagged with commit SHA; deploy on self-hosted runner label `aether-deploy` |
+Every task's acceptance check runs in this CI. A task is accepted only when CI on its `task/<id>` branch is green.
