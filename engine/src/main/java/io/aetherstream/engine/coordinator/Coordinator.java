@@ -48,7 +48,12 @@ public class Coordinator {
     private final OffsetsLookup offsetsLookup;
     private final Clock clock;
     private final long checkpointIntervalMs;
+    private final boolean autoRebalance;
     private final Random random = new Random();
+    private static final long REBALANCE_STABILITY_MS = 5_000;
+    private static final long REBALANCE_RATE_LIMIT_MS = 30_000;
+    private static final long REBALANCE_NEVER = Long.MIN_VALUE;
+
 
     /** Sorted by workerId (assignment order). */
     private final TreeMap<String, WorkerEntry> workers = new TreeMap<>();
@@ -59,6 +64,7 @@ public class Coordinator {
     private static final class WorkerEntry {
         final String id;
         final String host;
+        long rebalanceCandidateSinceMs = REBALANCE_NEVER;
         long lastHeartbeatMs;
         boolean alive = true;
         long deadSinceMs;
@@ -107,6 +113,14 @@ public class Coordinator {
         long lastTriggerMs;
         Long lastCompleted;
         Long lastDurationMs;
+        boolean rebalanceRequested;
+        boolean rebalanceInProgress;
+        long lastRebalanceMs = REBALANCE_NEVER;
+        long checkpointsCompleted;
+        long checkpointsAborted;
+        long recoveriesCompleted;
+        long lastRecoveryDurationMs;
+
 
         ExecState(String id, String pipelineId, int pipelineVersion, ExecutionPlan plan, String createdAt) {
             this.id = id;
@@ -123,11 +137,18 @@ public class Coordinator {
 
     public Coordinator(ExecutionRepository repo, CheckpointStore store, OffsetsLookup offsetsLookup, Clock clock,
                        long checkpointIntervalMs) {
+        this(repo, store, offsetsLookup, clock, checkpointIntervalMs,
+                Boolean.parseBoolean(System.getenv().getOrDefault("AUTO_REBALANCE", "true")));
+    }
+
+    Coordinator(ExecutionRepository repo, CheckpointStore store, OffsetsLookup offsetsLookup, Clock clock,
+               long checkpointIntervalMs, boolean autoRebalance) {
         this.repo = repo;
         this.store = store;
         this.offsetsLookup = offsetsLookup;
         this.clock = clock;
         this.checkpointIntervalMs = checkpointIntervalMs;
+        this.autoRebalance = autoRebalance;
     }
 
     public static String manifestKey(String executionId, long checkpointId) {
@@ -187,6 +208,10 @@ public class Coordinator {
             w.queue.add(new Command.SetSinkDelay(sinkDelayMs));
         }
         log.info("Worker {} registered (host {})", id, req.host());
+        if (!lostWork && autoRebalance && exec != null && RUNNING.equals(exec.state)
+                && !exec.assignment.isEmpty() && !exec.assignment.containsKey(id)) {
+            w.rebalanceCandidateSinceMs = now;
+        }
         if (lostWork) {
             // Same id re-registered while it owned partitions: its in-memory state is gone, treat as a failure.
             repo.audit("worker.dead", detail("workerId", id, "executionId", exec.id,
@@ -228,6 +253,7 @@ public class Coordinator {
         }
         maybeAssign(now);
         checkRecoveryComplete(now);
+        maybeScheduleAutoRebalance(now);
         List<Command> commands = new ArrayList<>(w.queue);
         w.queue.clear();
         return new HeartbeatResponse(commands);
@@ -410,6 +436,66 @@ public class Coordinator {
     public synchronized ExecutionInfo executionInfo(String executionId) {
         return info(requireExecution(executionId));
     }
+    public synchronized long requestRebalance(String executionId) {
+        ExecState e = requireExecution(executionId);
+        long now = clock.nowMs();
+        if (!RUNNING.equals(e.state)) {
+            throw new IllegalStateException("execution " + executionId + " is " + e.state);
+        }
+        if (!rebalanceNeeded(e) || !allAssignedRunning(e)) {
+            throw new IllegalStateException("execution " + executionId + " does not need a rebalance");
+        }
+        if (rateLimited(e, now)) {
+            throw new IllegalStateException("execution " + executionId + " was rebalanced less than 30 s ago");
+        }
+        return scheduleRebalance(e, now);
+    }
+
+    public synchronized String metricsText() {
+        ExecState e = exec;
+        StringBuilder out = new StringBuilder(512);
+        out.append("# TYPE aether_worker_records_per_sec gauge\n")
+                .append("# TYPE aether_worker_queue_size gauge\n")
+                .append("# TYPE aether_worker_backpressured gauge\n");
+        metric(out, "aether_workers_alive", "gauge", workers.values().stream().filter(w -> w.alive).count());
+        metric(out, "aether_execution_generation", "gauge", e == null ? 0 : e.generation);
+        metric(out, "aether_checkpoints_completed_total", "counter", e == null ? 0 : e.checkpointsCompleted);
+        metric(out, "aether_checkpoints_aborted_total", "counter", e == null ? 0 : e.checkpointsAborted);
+        metric(out, "aether_last_checkpoint_duration_ms", "gauge",
+                e == null || e.lastDurationMs == null ? 0 : e.lastDurationMs);
+        metric(out, "aether_recoveries_total", "counter", e == null ? 0 : e.recoveriesCompleted);
+        metric(out, "aether_last_recovery_duration_ms", "gauge", e == null ? 0 : e.lastRecoveryDurationMs);
+        for (WorkerEntry w : workers.values()) {
+            WorkerStatus s = w.status;
+            sample(out, "aether_worker_records_per_sec", "worker", w.id, null, null,
+                    s == null ? 0 : s.recordsPerSec());
+            sample(out, "aether_worker_queue_size", "worker", w.id, "queue", "source",
+                    s == null || s.sourceQueue() == null ? 0 : s.sourceQueue().size());
+            sample(out, "aether_worker_queue_size", "worker", w.id, "queue", "sink",
+                    s == null || s.sinkQueue() == null ? 0 : s.sinkQueue().size());
+            sample(out, "aether_worker_backpressured", "worker", w.id, null, null,
+                    s != null && s.backpressured() ? 1 : 0);
+        }
+        return out.toString();
+    }
+
+    private static void metric(StringBuilder out, String name, String type, long value) {
+        out.append("# TYPE ").append(name).append(' ').append(type).append('\n')
+                .append(name).append(' ').append(value).append('\n');
+    }
+
+    private static void sample(StringBuilder out, String name, String label, String value, String label2,
+                               String value2, double sample) {
+        out.append(name).append('{').append(label).append("=\"").append(prometheusEscape(value)).append('"');
+        if (label2 != null) {
+            out.append(',').append(label2).append("=\"").append(prometheusEscape(value2)).append('"');
+        }
+        out.append("} ").append(sample).append('\n');
+    }
+
+    private static String prometheusEscape(String value) {
+        return value.replace("\\", "\\\\").replace("\n", "\\n").replace("\"", "\\\"");
+    }
 
     // ------------------------------------------------------------------ periodic driver
 
@@ -421,6 +507,7 @@ public class Coordinator {
         checkRecoveryComplete(now);
         checkCheckpointTimeout(now);
         maybeTriggerCheckpoint(now);
+        maybeScheduleAutoRebalance(now);
         pruneDeadWorkers(now);
     }
 
@@ -454,6 +541,8 @@ public class Coordinator {
             e.state = RECOVERING;
             repo.updateState(e.id, RECOVERING);
         }
+        e.rebalanceRequested = false;
+        e.rebalanceInProgress = false;
         if (e.recoveryStartedMs == null) {
             e.recoveryStartedMs = now;
         }
@@ -564,8 +653,16 @@ public class Coordinator {
         long duration = e.recoveryStartedMs == null ? 0 : now - e.recoveryStartedMs;
         e.recoveryStartedMs = null;
         e.lastTriggerMs = now;
-        repo.audit("execution.recovered", detail("executionId", e.id, "checkpointId", e.restoredFrom,
-                "generation", e.generation, "recoveryDurationMs", duration));
+        if (e.rebalanceInProgress) {
+            repo.audit("execution.rebalanced", detail("executionId", e.id, "checkpointId", e.restoredFrom,
+                    "generation", e.generation, "assignment", e.assignment, "durationMs", duration));
+            e.rebalanceInProgress = false;
+        } else {
+            e.recoveriesCompleted++;
+            e.lastRecoveryDurationMs = duration;
+            repo.audit("execution.recovered", detail("executionId", e.id, "checkpointId", e.restoredFrom,
+                    "generation", e.generation, "recoveryDurationMs", duration));
+        }
         log.info("Execution {} RECOVERED from checkpoint {} (generation {}) in {} ms", e.id, e.restoredFrom,
                 e.generation, duration);
     }
@@ -582,6 +679,87 @@ public class Coordinator {
             }
         }
         return true;
+    }
+
+    private boolean rebalanceNeeded(ExecState e) {
+        List<String> live = liveWorkerIds();
+        if (live.isEmpty()) {
+            return false;
+        }
+        int minimum = Integer.MAX_VALUE;
+        int maximum = 0;
+        for (String id : live) {
+            int count = e.assignment.getOrDefault(id, List.of()).size();
+            minimum = Math.min(minimum, count);
+            maximum = Math.max(maximum, count);
+        }
+        return maximum - minimum >= 2 || minimum == 0;
+    }
+
+    private boolean rateLimited(ExecState e, long now) {
+        return e.lastRebalanceMs != REBALANCE_NEVER && now - e.lastRebalanceMs < REBALANCE_RATE_LIMIT_MS;
+    }
+
+    private long scheduleRebalance(ExecState e, long now) {
+        e.rebalanceRequested = true;
+        e.lastRebalanceMs = now;
+        for (WorkerEntry worker : workers.values()) {
+            worker.rebalanceCandidateSinceMs = REBALANCE_NEVER;
+        }
+        return e.pending == null ? triggerCheckpoint(e, now) : e.pending.id;
+    }
+
+    private void maybeScheduleAutoRebalance(long now) {
+        ExecState e = exec;
+        if (!autoRebalance || e == null || !RUNNING.equals(e.state) || e.rebalanceRequested
+                || !rebalanceNeeded(e) || !allAssignedRunning(e) || rateLimited(e, now)) {
+            return;
+        }
+        for (WorkerEntry worker : workers.values()) {
+            if (worker.alive && worker.rebalanceCandidateSinceMs != REBALANCE_NEVER
+                    && now - worker.rebalanceCandidateSinceMs >= REBALANCE_STABILITY_MS) {
+                scheduleRebalance(e, now);
+                return;
+            }
+        }
+    }
+
+    private void performRebalance(ExecState e, long now) {
+        List<String> live = liveWorkerIds();
+        if (live.isEmpty() || !RUNNING.equals(e.state)) {
+            return;
+        }
+        CheckpointRecord cp = repo.latestCompleted(e.id)
+                .orElseThrow(() -> new IllegalStateException("execution " + e.id + " has no COMPLETED checkpoint"));
+        Map<Integer, Long> offsets = new TreeMap<>();
+        String key = null;
+        if (cp.checkpointId() == 0) {
+            if (cp.sourceOffsets() != null) {
+                offsets.putAll(cp.sourceOffsets());
+            }
+        } else {
+            key = cp.manifestKey() != null ? cp.manifestKey() : manifestKey(e.id, cp.checkpointId());
+            CheckpointManifest manifest = store.getJson(key, CheckpointManifest.class);
+            if (manifest == null) {
+                throw new IllegalStateException("manifest " + key + " of COMPLETED checkpoint is missing");
+            }
+            manifest.partitions().forEach((partition, entry) -> offsets.put(partition, entry.nextOffset()));
+        }
+        long oldGeneration = e.generation;
+        e.state = RECOVERING;
+        e.rebalanceInProgress = true;
+        e.recoveryStartedMs = now;
+        repo.updateState(e.id, RECOVERING);
+        e.generation = repo.bumpGeneration(e.id);
+        e.restoredFrom = cp.checkpointId();
+        repo.setRestoredFrom(e.id, cp.checkpointId());
+        for (WorkerEntry worker : workers.values()) {
+            if (worker.alive) {
+                worker.queue.removeIf(c -> isForExecution(c, e.id));
+                worker.queue.add(new Command.Cancel(e.id, oldGeneration));
+            }
+        }
+        assign(e, live, cp.checkpointId(), key, offsets, now);
     }
 
     private void maybeTriggerCheckpoint(long now) {
@@ -619,6 +797,7 @@ public class Coordinator {
             log.error("Manifest upload for checkpoint {} failed; aborting it", p.id, ex);
             repo.abortCheckpoint(e.id, p.id);
             e.pending = null;
+            e.checkpointsAborted++;
             return;
         }
         Map<Integer, Long> offsets = new TreeMap<>();
@@ -628,6 +807,11 @@ public class Coordinator {
         e.pending = null;
         e.lastCompleted = p.id;
         e.lastDurationMs = duration;
+        e.checkpointsCompleted++;
+        if (e.rebalanceRequested) {
+            e.rebalanceRequested = false;
+            performRebalance(e, now);
+        }
         log.info("Checkpoint {} of execution {} COMPLETED in {} ms", p.id, e.id, duration);
     }
 
@@ -636,6 +820,7 @@ public class Coordinator {
         if (e == null || e.pending == null || now - e.pending.startedMs < CHECKPOINT_TIMEOUT_MS) {
             return;
         }
+        e.checkpointsAborted++;
         log.warn("Checkpoint {} of execution {} timed out; ABORTED", e.pending.id, e.id);
         repo.abortCheckpoint(e.id, e.pending.id);
         removeQueuedTriggers(e.id);
@@ -644,6 +829,9 @@ public class Coordinator {
     }
 
     private void abortPending(ExecState e) {
+        if (e.pending != null) {
+            e.checkpointsAborted++;
+        }
         repo.abortPendingCheckpoints(e.id);
         e.pending = null;
         removeQueuedTriggers(e.id);
