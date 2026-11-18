@@ -1,0 +1,16 @@
+VERDICT: FAIL
+
+Checked, not findings: `EngineMatchesReferenceIT.replay` (lines 133-191) reads Kafka and runs `PartitionPipeline`, then compares those outputs to Postgres. That is an independent run, not engine output compared with itself. A bug inside the shared `ops` class is invisible by contract 02 §4. Waits are deadline polls that throw `AssertionError` (lines 120-129 and 154-158; `WorkerAdaptersIT.java:86-90,327-341`). No `assumeTrue` or `@Disabled`. The workload inserts 20 duplicates, 20 late events, and 5 negative-speed records (`WorkloadGenerator.java:21-26`). `matched > 100` and a `truck-007` alert are asserted (lines 87-92). Sink fencing, Kafka seek/order, repo abort, and S3 round-trip would fail on those bugs. Coordinator and containers use ephemeral ports (`EngineCluster.java:40`).
+
+1. **BLOCKER** — `EngineMatchesReferenceIT.java:76-78` only checks that each of 3 workers has a partition list of size 2. Seed 42 emits only `truck-001`..`truck-008` (`WorkloadGenerator.java:14`, `EventFactory.java:33`); Kafka murmur2 leaves partition 1 empty, so its end offset is 0 and line 125 does not require anyone to own it. Overlapping lists that omit partition 1 still match, because sinks upsert. Fix: assert the three lists are disjoint and equal `{0,1,2,3,4,5}`.
+2. **MAJOR** — `EngineMatchesReferenceIT.java:298-299` accepts `LATE >= 1` and `REJECTED >= 5`. The inlined replay drops dead letters (lines 180-188), so 19 of 20 late letters can be lost while windows still match. Fix: compare the dead-letter multiset to `ReferenceExecutor`.
+3. **MAJOR** — Completion is a Postgres row whose offsets equal the topic end (`EngineMatchesReferenceIT.java:125`). Nothing checks the S3 manifest or restores, so a COMPLETED row with a missing snapshot still passes. `S3CheckpointStoreIT.java:15-28` only round-trips a hand-built object. Fix: assert the manifest exists, kill one worker, and compare again.
+4. **MAJOR** — `IntegrationInfrastructure.java:31` is a JVM-wide singleton and never resets `truck-events`. `KafkaOffsetsLookupIT.java:22-27` requires partition 2 latest `== 10` and the others `0`. Isolation is only `tests/build.gradle.kts:28` (`forkEvery = 1`); an IDE run shares the topic and fails by class order. Fix: use a private topic, or assert a delta from offsets taken before produce.
+5. **MINOR** — `EngineMatchesReferenceIT.java:132` reimplements `ReferenceExecutor` and `ResultComparator` even though `:reference` is on the test classpath. Fix: call those classes so contract 04 is what the IT locks.
+
+Uncovered criteria (handoff.md §10; no test asserts the observation):
+- Cross-organisation access — no test denies another organisation's resources.
+- Incompatible savepoint — no test rejects a restore with an explanation.
+- Rescale, "results remain correct" — `CoordinatorTest.java:483-485` checks disjoint assignment only.
+
+Not listed: invalid pipeline, reference match, duplicates, out-of-order windows, interrupted checkpoint, stale generation, slow sink, coordinator restart, and deploy smoke have tests outside this IT suite (`PipelineCompilerTest`, `CoordinatorTest`, `TaskRuntimeTest`, `infra/deploy/smoke-deploy.sh`). Worker-termination output is unit-tested (`TaskRuntimeTest.java:140-157`), not by killing a cluster worker.
