@@ -16,6 +16,8 @@ import io.aetherstream.engine.worker.WorkerFixtures.MemorySink;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterEach;
@@ -207,5 +209,79 @@ class TaskRuntimeTest {
         // At ~50 items/s drained by the sink, the source can only advance a little (at most one more poll batch).
         assertThat(source.emitted.get() - emitted).isLessThanOrEqualTo(500 + 50);
         assertThat(runtime.backpressured()).isTrue();
+    }
+
+    @Test
+    void checkpointFloodRetainsOnlyTwoNewestRequestsBeforeAdmission() throws Exception {
+        CountDownLatch creating = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        FakeSource source = new FakeSource(Map.of());
+        runtime = new TaskRuntime("w-1", assign(1, 0, null, zeros()), topic -> {
+            creating.countDown();
+            try {
+                release.await();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new IllegalStateException(e);
+            }
+            return source;
+        }, new MemorySink(), store, coordinator, () -> 0, null);
+        runtime.start();
+        try {
+            assertThat(creating.await(5, TimeUnit.SECONDS)).isTrue();
+            for (long id = 1; id <= 10_000; id++) {
+                runtime.triggerCheckpoint(id);
+                assertThat(runtime.pendingCheckpointCount()).isLessThanOrEqualTo(2);
+            }
+            runtime.triggerCheckpoint(12);
+            runtime.triggerCheckpoint(10_000);
+            assertThat(runtime.pendingCheckpointCount()).isEqualTo(2);
+        } finally {
+            release.countDown();
+        }
+        await("two retained checkpoints acknowledged", 5_000, () -> coordinator.acks.size() == 2);
+        assertThat(coordinator.acks).extracting(CheckpointAck::checkpointId).containsExactly(9999L, 10000L);
+        assertThat(coordinator.acks).allSatisfy(ack -> assertThat(ack.partitions()).isEqualTo(zeros()));
+        assertThat(runtime.lastCheckpointId()).isEqualTo(10000);
+    }
+
+    @Test
+    void lagUsesPerPartitionConsumerPositionsAndStaysOffStatusThread() throws Exception {
+        FakeSource source = new FakeSource(data);
+        source.limit.set(0);
+        Map<Integer, Long> starts = Map.of(0, 5L, 1, 11L, 2, 17L);
+        runtime = start(assign(1, 0, null, starts), source, new MemorySink(), 0, null);
+        Map<Integer, Long> initialLag = new TreeMap<>();
+        starts.forEach((p, offset) -> initialLag.put(p, data.get(p).size() - offset));
+        await("initial lag at restored offsets", 5_000, () -> runtime.lag().equals(initialLag));
+        int calls = source.lagRefreshNanos.size();
+        for (int i = 0; i < 1000; i++) {
+            runtime.lag();
+            runtime.recordsPerSec();
+        }
+        assertThat(source.lagRefreshNanos).hasSize(calls);
+        source.limit.set(37);
+        await("37 consumed", 5_000, () -> source.emitted.get() == 37);
+        Map<Integer, Long> expectedLag = new TreeMap<>();
+        source.nextOffsets().forEach((p, offset) -> expectedLag.put(p, data.get(p).size() - offset));
+        await("lag after poll", 5_000, () -> runtime.lag().equals(expectedLag));
+        assertThat(source.lagThread).isSameAs(source.owner).isNotSameAs(Thread.currentThread());
+        for (int i = 1; i < source.lagRefreshNanos.size(); i++) {
+            assertThat(source.lagRefreshNanos.get(i) - source.lagRefreshNanos.get(i - 1))
+                    .isGreaterThanOrEqualTo(TimeUnit.MILLISECONDS.toNanos(TaskRuntime.LAG_REFRESH_MS - 1));
+        }
+    }
+
+    @Test
+    void lagRefreshesWhileSourceQueueIsFullUsingFetchedNotCheckpointOffsets() throws Exception {
+        FakeSource source = new FakeSource(data);
+        runtime = start(assign(1, 0, null, zeros()), source, new MemorySink(), 60_000, null);
+        await("both queues full", 10_000, () -> runtime.sourceQueueSize() == TaskRuntime.QUEUE_CAPACITY
+                && runtime.sinkQueueSize() == TaskRuntime.QUEUE_CAPACITY);
+        Map<Integer, Long> expectedLag = new TreeMap<>();
+        source.nextOffsets().forEach((p, offset) -> expectedLag.put(p, data.get(p).size() - offset));
+        await("lag refreshed under backpressure", 5_000, () -> runtime.lag().equals(expectedLag));
+        assertThat(source.lagRefreshNanos.size()).isGreaterThanOrEqualTo(2);
+        assertThat(source.lagThread).isSameAs(source.owner);
     }
 }

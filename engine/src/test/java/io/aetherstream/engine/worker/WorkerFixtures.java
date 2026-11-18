@@ -117,6 +117,10 @@ final class WorkerFixtures {
         final AtomicLong limit = new AtomicLong(Long.MAX_VALUE);
         final AtomicLong emitted = new AtomicLong();
         final AtomicBoolean closed = new AtomicBoolean();
+        final List<Long> lagRefreshNanos = new CopyOnWriteArrayList<>();
+        volatile Thread owner;
+        volatile Thread lagThread;
+        volatile Thread closeThread;
         private final Map<Integer, Long> next = new TreeMap<>();
         private final Map<Integer, Long> emittedPerPartition = new TreeMap<>();
 
@@ -126,6 +130,7 @@ final class WorkerFixtures {
 
         @Override
         public synchronized void assign(Collection<Integer> partitions, Map<Integer, Long> startOffsets) {
+            owner = Thread.currentThread();
             for (int p : partitions) {
                 next.put(p, startOffsets.getOrDefault(p, 0L));
                 emittedPerPartition.put(p, 0L);
@@ -166,12 +171,15 @@ final class WorkerFixtures {
             return out;
         }
 
-        synchronized Map<Integer, Long> nextOffsets() {
+        @Override
+        public synchronized Map<Integer, Long> nextOffsets() {
             return new TreeMap<>(next);
         }
 
         @Override
         public synchronized Map<Integer, Long> endOffsets() {
+            lagThread = Thread.currentThread();
+            lagRefreshNanos.add(System.nanoTime());
             Map<Integer, Long> end = new TreeMap<>();
             for (int p : next.keySet()) {
                 end.put(p, (long) data.getOrDefault(p, List.of()).size());
@@ -180,8 +188,17 @@ final class WorkerFixtures {
         }
 
         @Override
+        public void wakeup() {
+            Thread thread = owner;
+            if (thread != null) {
+                thread.interrupt();
+            }
+        }
+
+        @Override
         public void close() {
             closed.set(true);
+            closeThread = Thread.currentThread();
         }
     }
 

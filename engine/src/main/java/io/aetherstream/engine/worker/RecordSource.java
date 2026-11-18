@@ -6,8 +6,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Source of raw records for one TaskRuntime. Used only from the runtime's source thread (KafkaConsumer is not
- * thread-safe), including {@link #close()}.
+ * Source of raw records for one TaskRuntime. Except for {@link #wakeup()}, methods run only on its source thread,
+ * including {@link #close()} (KafkaConsumer is not thread-safe).
  */
 public interface RecordSource extends AutoCloseable {
     /** Manually assigns the partitions and seeks each one to its start offset (missing = offset 0). */
@@ -16,8 +16,14 @@ public interface RecordSource extends AutoCloseable {
     /** Returns the next records (possibly none), waiting at most timeout. */
     List<SourceRecord> poll(Duration timeout);
 
+    /** Consumer positions after the last poll, distinct from offsets admitted to the checkpoint queue. */
+    Map<Integer, Long> nextOffsets();
+
     /** Current end offset (next offset to be written) per assigned partition; used for lag. */
     Map<Integer, Long> endOffsets();
+
+    /** Thread-safe: unblocks a pending consumer operation during shutdown. */
+    void wakeup();
 
     @Override
     void close();
