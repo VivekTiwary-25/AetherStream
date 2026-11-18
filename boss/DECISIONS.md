@@ -21,3 +21,4 @@
 - 02:22 T26 push from vimlesh-pc failed (swarm says run 'swarm fix' there - human). Left re-queued; reroute to vachana-claude at 03:10 if it fails again.
 - 02:36 New task rule: workers on vivek-pc must not start Docker stacks/kind locally (live demo + memory ~2 GB free); rely on CI. Add the line to every new task.
 - 03:00 Live bug: simulator clock restarts on every deploy -> all new events LATE for the restored execution -> empty panels. T69 (vivek-sol) anchors sim time to wall clock + Kafka tail. Until it lands, after a deploy start a fresh execution (new pipeline run) to see live panels.
+- 03:17 Contract: added org_id (default 'demo') to pipelines + executions in schema.sql; existing DBs get it via control-api startup migration (T84). X-Org header is additive to contract 04.

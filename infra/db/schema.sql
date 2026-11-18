@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS pipelines (
     version       INT         NOT NULL,
     name          TEXT        NOT NULL,
     definition    JSONB       NOT NULL,           -- contract 02 pipeline JSON
+    org_id        TEXT        NOT NULL DEFAULT 'demo', -- owning organisation (X-Org header); also added by control-api migration
     created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
     PRIMARY KEY (id, version)
 );
@@ -19,6 +20,7 @@ CREATE TABLE IF NOT EXISTS executions (
     generation         BIGINT      NOT NULL DEFAULT 1,  -- fencing token, +1 on every (re)assignment
     restored_from_checkpoint BIGINT,              -- checkpoint id used by the latest recovery, NULL if none
     idempotency_key    TEXT        UNIQUE,
+    org_id             TEXT        NOT NULL DEFAULT 'demo', -- owning organisation; also added by control-api migration
     created_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at         TIMESTAMPTZ NOT NULL DEFAULT now()
 );
