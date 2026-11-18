@@ -13,17 +13,23 @@ import org.junit.jupiter.api.Test;
 class KafkaOffsetsLookupIT {
     @Test
     void returnsEarliestAndLatestOffsetsForAllPartitions() {
+        KafkaOffsetsLookup lookup = new KafkaOffsetsLookup(IntegrationInfrastructure.bootstrap());
+        var earliestBefore = lookup.offsets(IntegrationInfrastructure.TOPIC, 6, "earliest");
+        var latestBefore = lookup.offsets(IntegrationInfrastructure.TOPIC, 6, "latest");
         List<ProducerRecord<String, String>> records = java.util.stream.IntStream.range(0, 10)
                 .mapToObj(i -> new ProducerRecord<>(IntegrationInfrastructure.TOPIC, 2, "truck-" + i, "event-" + i))
                 .toList();
         IntegrationInfrastructure.produce(records);
-        KafkaOffsetsLookup lookup = new KafkaOffsetsLookup(IntegrationInfrastructure.bootstrap());
 
-        assertThat(lookup.offsets(IntegrationInfrastructure.TOPIC, 6, "earliest"))
-                .containsEntry(0, 0L).containsEntry(1, 0L).containsEntry(2, 0L)
-                .containsEntry(3, 0L).containsEntry(4, 0L).containsEntry(5, 0L);
-        assertThat(lookup.offsets(IntegrationInfrastructure.TOPIC, 6, "latest"))
-                .containsEntry(0, 0L).containsEntry(1, 0L).containsEntry(2, 10L)
-                .containsEntry(3, 0L).containsEntry(4, 0L).containsEntry(5, 0L);
+        assertThat(earliestBefore).containsOnlyKeys(0, 1, 2, 3, 4, 5);
+        assertThat(latestBefore).containsOnlyKeys(0, 1, 2, 3, 4, 5);
+        assertThat(lookup.offsets(IntegrationInfrastructure.TOPIC, 6, "earliest")).isEqualTo(earliestBefore);
+        var latestAfter = lookup.offsets(IntegrationInfrastructure.TOPIC, 6, "latest");
+        assertThat(latestAfter).containsOnlyKeys(0, 1, 2, 3, 4, 5);
+        for (int partition = 0; partition < 6; partition++) {
+            assertThat(latestAfter.get(partition) - latestBefore.get(partition))
+                    .as("latest offset delta for partition %s", partition)
+                    .isEqualTo(partition == 2 ? records.size() : 0L);
+        }
     }
 }
