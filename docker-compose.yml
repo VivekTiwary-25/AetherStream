@@ -20,6 +20,8 @@ x-app: &app
     COORDINATOR_URL: http://coordinator:8081
     SIMULATOR_URL: http://simulator:8070
     GIT_SHA: ${GIT_SHA:-dev}
+    # Cap JVM heaps: the demo PC runs 10 containers; MaxRAMPercentage alone lets each JVM take 75% of the Docker VM.
+    JAVA_OPTS: ${AETHER_JAVA_OPTS:--Xms64m -Xmx384m -XX:+ExitOnOutOfMemoryError}
   logging: *logging
   networks:
     - aether
@@ -51,6 +53,7 @@ services:
       - "19092:19092"
     environment:
       KAFKA_NODE_ID: 1
+      KAFKA_HEAP_OPTS: "-Xms512m -Xmx768m"
       KAFKA_PROCESS_ROLES: broker,controller
       # INTERNAL is for containers (kafka:9092). EXTERNAL is for the host (localhost:19092).
       KAFKA_LISTENERS: CONTROLLER://:9093,INTERNAL://:9092,EXTERNAL://:19092
