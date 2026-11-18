@@ -367,6 +367,24 @@ try {
   }
   Ok "Project is at $CloneDir"
 
+  # 6b. Check this GitHub account can PUSH (the swarm pushes heartbeats and task branches)
+  Step 'GitHub push access'
+  $pushOk = $false
+  for ($i = 1; $i -le 3; $i++) {
+    Say '  Checking push access (a GitHub login window may open - log in with YOUR GitHub account)...'
+    $code = Run-Ext 'git' @('-C', $CloneDir, 'push', '--dry-run', 'origin', ('HEAD:refs/heads/hb/' + $Who.Machine))
+    if ($code -eq 0) { $pushOk = $true; break }
+    if ($i -lt 3) {
+      Write-Host ''
+      Write-Host '  This GitHub account cannot push to the AetherStream repo yet. Usually this means:' -ForegroundColor Yellow
+      Write-Host '   - you have not accepted Vivek''s collaborator invite (check your email or github.com/notifications)'
+      Write-Host '   - you logged in to GitHub with a different account than the one Vivek invited'
+      Write-Host '   - the GitHub login window was closed before finishing'
+      Read-Host '  Fix that, then press Enter to try again'
+    }
+  }
+  if ($pushOk) { Ok 'This GitHub account can push to the repo' } else { Stop-With 'No push access to the repo (collaborator invite not accepted, or wrong GitHub account)' }
+
   # 7. Keep the PC awake while plugged in
   Step 'Keep this PC awake while plugged in'
   $a = Run-Ext 'powercfg' @('/change', 'standby-timeout-ac', '0')

@@ -140,5 +140,17 @@
       "routine"
     ],
     "enabled": true
+  },
+  "claude": {
+    "name": "claude",
+    "harness": "claude",
+    "model": "",
+    "profile": null,
+    "usage_provider": "anthropic",
+    "usage_match": "",
+    "kinds": [
+      "hard"
+    ],
+    "enabled": true
   }
 }
