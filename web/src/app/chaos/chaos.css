@@ -1,0 +1,112 @@
+.chaos-panel__actions,
+.chaos-panel__secondary,
+.chaos-panel__confirm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.chaos-panel__secondary {
+  flex-direction: row;
+  flex-wrap: wrap;
+}
+
+.chaos-panel__delay,
+.chaos-panel__confirm label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  color: var(--color-text-muted);
+}
+
+.chaos-panel__delay select,
+.chaos-panel__confirm select {
+  max-width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-raised);
+  color: var(--color-text);
+}
+
+.chaos-panel__delay--active {
+  color: var(--color-amber);
+  text-shadow: 0 0 12px rgb(251 191 36 / 45%);
+}
+
+.chaos-panel__hint,
+.chaos-panel__muted,
+.compare-panel__explanation {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+
+.chaos-panel__notice {
+  margin: 0;
+  color: var(--color-green);
+}
+
+.chaos-panel__error {
+  margin: 0;
+  color: var(--color-red);
+}
+
+.compare-panel__result {
+  padding-top: var(--space-3);
+}
+
+.compare-panel__result h3 {
+  margin: 0;
+  font-size: clamp(var(--text-lg), 4vw, 2rem);
+}
+
+.compare-panel__result--match h3 {
+  color: var(--color-green);
+}
+
+.compare-panel__result--mismatch h3 {
+  color: var(--color-amber);
+}
+
+.compare-panel__result > p {
+  margin: var(--space-2) 0;
+}
+
+.compare-panel__table-wrap {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.compare-panel__table-wrap table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-xs);
+  text-align: left;
+}
+
+.compare-panel__table-wrap th,
+.compare-panel__table-wrap td {
+  padding: var(--space-2);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.compare-panel__shimmer {
+  height: 0.35rem;
+  overflow: hidden;
+  border-radius: var(--radius-pill);
+  background: linear-gradient(90deg, transparent, var(--color-cyan), transparent);
+  background-size: 200% 100%;
+  animation: compare-shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes compare-shimmer {
+  from { background-position: 100% 0; }
+  to { background-position: -100% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .compare-panel__shimmer { animation: none; background: var(--color-cyan); }
+}
