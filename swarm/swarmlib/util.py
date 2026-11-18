@@ -141,6 +141,28 @@ def _import_login_path():
         _login_path_done = True
 
 
+def _refresh_windows_path():
+    """Merge the current Machine and User PATH from the registry, plus common per-user tool dirs."""
+    parts = []
+    try:
+        import winreg
+        for root, sub in ((winreg.HKEY_LOCAL_MACHINE, r"SYSTEM\CurrentControlSet\Control\Session Manager\Environment"),
+                          (winreg.HKEY_CURRENT_USER, r"Environment")):
+            try:
+                with winreg.OpenKey(root, sub) as key:
+                    value, _ = winreg.QueryValueEx(key, "Path")
+                    parts += os.path.expandvars(value).split(";")
+            except OSError:
+                pass
+    except ImportError:
+        pass
+    home = Path.home()
+    appdata = os.environ.get("APPDATA", str(home / "AppData" / "Roaming"))
+    parts += [str(home / ".local" / "bin"), str(home / ".omp" / "bin"), str(home / ".bun" / "bin"),
+              str(Path(appdata) / "npm")]
+    current = os.environ.get("PATH", "").split(";")
+    os.environ["PATH"] = ";".join(dict.fromkeys(p for p in current + parts if p))
+
 def which(name):
     found = shutil.which(name)
     if found:
@@ -148,6 +170,13 @@ def which(name):
     if is_windows():
         for ext in (".exe", ".cmd"):
             found = shutil.which(name + ext)
+            if found:
+                return found
+        # A listener started at login (or by the watchdog) keeps the PATH it was born with,
+        # so tools installed later are invisible. Reload PATH from the registry and retry.
+        _refresh_windows_path()
+        for cand in (name, name + ".exe", name + ".cmd"):
+            found = shutil.which(cand)
             if found:
                 return found
         return None
