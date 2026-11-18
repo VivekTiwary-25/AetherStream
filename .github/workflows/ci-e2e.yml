@@ -1,0 +1,68 @@
+name: ci-e2e
+
+on:
+  push:
+    branches:
+      - main
+      - "task/**"
+    paths-ignore:
+      - "swarm/**"
+      - "boss/**"
+      - "docs/**"
+      - "**/*.md"
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Install ShellCheck
+        run: sudo apt-get update && sudo apt-get install -y shellcheck
+      - name: Lint demo script
+        run: shellcheck infra/scripts/demo-e2e.sh
+
+  e2e:
+    needs: lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+      - name: Build and start stack
+        env:
+          GIT_SHA: ${{ github.sha }}
+        run: docker compose up -d --build
+      - name: Run full-system demo
+        env:
+          EXPECT_SHA: ${{ github.sha }}
+        run: bash infra/scripts/demo-e2e.sh
+      - name: Compose status
+        if: always()
+        run: docker compose ps
+      - name: Collect Compose logs
+        if: always()
+        run: docker compose logs --no-color > compose-logs.txt 2>&1
+      - name: Upload Compose logs
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: compose-logs-${{ github.run_id }}-${{ github.run_attempt }}
+          path: compose-logs.txt
+          if-no-files-found: warn
+      - name: Tear down stack
+        if: always()
+        run: docker compose down -v
