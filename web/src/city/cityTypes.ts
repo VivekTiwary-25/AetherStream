@@ -72,3 +72,10 @@ export interface TruckUpdate {
   simTime: number
   trucks: CityTruck[]
 }
+
+/** `execution` WebSocket message: ExecutionInfo plus what happened (contract 04). */
+export interface ExecutionMessage extends CityExecution {
+  event?: 'STARTED' | 'CHECKPOINT_COMPLETED' | 'WORKER_DEAD' | 'RECOVERING' | 'RECOVERED' | 'STOPPED'
+  checkpointId?: number
+  workerId?: string
+}
