@@ -1,0 +1,24 @@
+# T57: docs/faq.md (examiner Q&A) and docs/glossary.md
+
+Lane 9 (docs). Read handoff.md, docs/architecture.md, docs/contracts/ (all), docs/testing.md and docs/ci-cd.md on main.
+Plain, simple English; accurate to what exists; say "planned" where something is not built.
+
+Files (create only these):
+- docs/faq.md: 25 likely examiner questions with short, honest answers (2-5 sentences each), grouped: Engine (why not just
+  use Flink; what exactly-once means here and where it stops; why per-partition watermarks; what happens to late events;
+  how dedup works; what a checkpoint contains; why the manifest is written last; what generation fencing prevents; what
+  happens if the coordinator dies; how backpressure stays bounded; how rebalance/savepoints work), Testing (how do you know
+  results are correct; what the reference executor is; what fault tests exist), DevOps (CI workflows, how a commit reaches
+  the running demo, image tagging by SHA, self-hosted runner security, rollback, Kubernetes/Terraform status), UX (why a city,
+  accessibility choices), Team (how work was split: lanes, contracts, reviews).
+- docs/glossary.md: 30+ terms (event time, processing time, watermark, tumbling window, allowed lateness, keyed state,
+  partition, offset, consumer group, barrier, aligned checkpoint, snapshot, manifest, savepoint, generation/fencing token,
+  idempotent upsert, at-least-once, effectively-once, backpressure, bounded queue, reference executor, DAG, operator chaining,
+  heartbeat, KRaft, S3/MinIO, GHCR, self-hosted runner, IaC, smoke test, ...) each with a one-line definition and where it
+  appears in this repo (file path).
+
+Acceptance check: both files exist with real content.
+
+## Rules
+- Do not change anything in swarm/ (except your own report file if the swarm asks you to write one).
+- Only create the two files.
