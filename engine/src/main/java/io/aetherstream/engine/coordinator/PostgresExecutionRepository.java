@@ -219,6 +219,21 @@ public class PostgresExecutionRepository implements ExecutionRepository {
                 action, detail == null ? null : toJson(detail));
     }
 
+    @Override
+    public List<SavepointInfo> listSavepoints() {
+        return withConnection(c -> {
+            try (PreparedStatement ps = c.prepareStatement(
+                    "SELECT detail::text FROM audit_log WHERE action = 'savepoint.created' ORDER BY at DESC, id DESC");
+                 ResultSet rs = ps.executeQuery()) {
+                List<SavepointInfo> out = new ArrayList<>();
+                while (rs.next()) {
+                    out.add(fromJson(rs.getString(1), SavepointInfo.class));
+                }
+                return List.copyOf(out);
+            }
+        });
+    }
+
     private static String toJson(Object value) {
         try {
             return Json.MAPPER.writeValueAsString(value);

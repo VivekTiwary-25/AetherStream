@@ -118,6 +118,18 @@ public class InMemoryExecutionRepository implements ExecutionRepository {
         return List.copyOf(audit);
     }
 
+    @Override
+    public synchronized List<SavepointInfo> listSavepoints() {
+        List<SavepointInfo> out = new ArrayList<>();
+        for (int i = audit.size() - 1; i >= 0; i--) {
+            AuditRow row = audit.get(i);
+            if ("savepoint.created".equals(row.action())) {
+                out.add(io.aetherstream.common.Json.MAPPER.convertValue(row.detail(), SavepointInfo.class));
+            }
+        }
+        return List.copyOf(out);
+    }
+
     private TreeMap<Long, CheckpointRecord> checkpointsOf(String executionId) {
         return checkpoints.getOrDefault(executionId, new TreeMap<>());
     }
