@@ -1,0 +1,16 @@
+{
+  "id": "fleet-activity",
+  "version": 1,
+  "name": "Fleet activity",
+  "nodes": [
+    { "id": "src", "type": "source", "label": "Truck events", "position": {"x": 0, "y": 0}, "config": { "topic": "truck-events", "startFrom": "latest" } },
+    { "id": "scale", "type": "map", "label": "Convert speed to m/s", "position": {"x": 220, "y": 0}, "config": { "ops": [{"op": "scale", "field": "payload.speedKmh", "factor": 0.27778, "as": "payload.speedMs"}] } },
+    { "id": "kb", "type": "keyBy", "label": "Key by truck", "position": {"x": 440, "y": 0}, "config": { "field": "payload.truckId" } },
+    { "id": "activity5m", "type": "window", "label": "5-minute activity window", "position": {"x": 660, "y": 0}, "config": { "kind": "tumbling", "sizeMs": 300000, "outOfOrdernessMs": 5000, "aggregations": [{"name": "count", "fn": "count"}, {"name": "avgSpeedMs", "fn": "avg", "field": "payload.speedMs"}] } },
+    { "id": "windowsSink", "type": "sink", "label": "Window results", "position": {"x": 880, "y": 0}, "config": { "kind": "postgres.windows" } }
+  ],
+  "edges": [
+    {"from": "src", "to": "scale"}, {"from": "scale", "to": "kb"},
+    {"from": "kb", "to": "activity5m"}, {"from": "activity5m", "to": "windowsSink"}
+  ]
+}
