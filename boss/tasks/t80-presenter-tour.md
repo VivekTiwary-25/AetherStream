@@ -1,0 +1,29 @@
+# T80: Presenter tour overlay (guided demo steps) + first-load intro
+
+Lane 6 (web/app). For the live expo demo, add a small "Tour" mode that walks the presenter (and examiner) through the story
+on top of the real app. Read DEMO.md and README.md on main for the story, tokens.css and web/src/app/ui/** for the style.
+
+Files (create only these):
+- web/src/app/tour/** (TourOverlay.tsx, tourSteps.ts, index.ts exporting `TourOverlay` and `IntroSplash`)
+- web/src/app/tour/__tests__/**
+Do NOT edit any other file (an integration task mounts it: shell adds `<TourOverlay />` and a "Tour" button).
+
+TourOverlay: a glass card (bottom-centre) with step N of 8, title, 1-2 short sentences, Next/Back/Close (keyboard: arrows,
+Esc), optional spotlight that dims everything except a target region found by a CSS selector given per step (fallback: no
+spotlight if the target is missing - never crash). Steps: 1 The city - trucks are the data source; 2 The glowing stream into
+the engine (6 Kafka partitions); 3 Live panels - numbers computed by the engine (speed per truck per minute, deliveries/min,
+stuck-truck alert); 4 Pipeline editor - Validate shows plain-English compiler errors; 5 Chaos - late events and slow output
+(backpressure, bounded queues); 6 Kill a worker - recovery from checkpoint #N with a new generation; 7 Compare with
+reference - "N / N results match"; 8 DevOps - footer commit = deployed by GitHub Actions. Remember the last step in
+localStorage (try/catch). IntroSplash: a 2-second, skippable, reduced-motion-aware title card "AetherStream - a fault-
+tolerant stream engine" shown once per session (sessionStorage, try/catch).
+
+Tests (Vitest): navigation with keys; missing spotlight target does not crash; splash skipped with reduced motion.
+
+Acceptance check: `ci-web` green on your branch.
+
+## Rules (apply to every task)
+- Read every file in docs/contracts/ first and follow them exactly. Do not edit docs/contracts/ or infra/db/schema.sql.
+- Do not change anything in swarm/ (except your own report file if the swarm asks you to write one).
+- Only create/edit the files listed under "Files".
+- In your result, list what you built and anything left undone.
