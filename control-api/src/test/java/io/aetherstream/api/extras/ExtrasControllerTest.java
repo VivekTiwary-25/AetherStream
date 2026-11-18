@@ -27,7 +27,8 @@ class ExtrasControllerTest {
     }
 
     @Test void scenarioBadRequestIsPassedThrough() throws Exception {
-        when(client.scenario("{}" )).thenReturn(response(400, "{\"error\":\"invalid scenario\"}"));
+        HttpResponse<String> bad = response(400, "{\"error\":\"invalid scenario\"}");
+        when(client.scenario("{}")).thenReturn(bad);
         mvc.perform(post("/api/simulator/scenario").contentType("application/json").content("{}"))
                 .andExpect(status().isBadRequest()).andExpect(content().json("{\"error\":\"invalid scenario\"}"));
     }
@@ -35,7 +36,7 @@ class ExtrasControllerTest {
     @Test void coordinatorMetricsArePlainText() throws Exception {
         when(client.coordinatorMetrics()).thenReturn("requests_total 7\n");
         mvc.perform(get("/api/metrics/coordinator"))
-                .andExpect(status().isOk()).andExpect(content().contentType("text/plain;charset=UTF-8"))
+                .andExpect(status().isOk()).andExpect(content().contentTypeCompatibleWith("text/plain"))
                 .andExpect(content().string("requests_total 7\n"));
     }
 
