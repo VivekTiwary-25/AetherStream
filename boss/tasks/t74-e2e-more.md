@@ -1,0 +1,28 @@
+# T74: Extend the full-system demo script: compare must match, savepoint + restore, rescale, scenario
+
+Lane 7/8 (infra). infra/scripts/demo-e2e.sh (run by .github/workflows/ci-e2e.yml against `docker compose up`) currently
+passes steps 1-8 with step 6 (compare) skipped on 404. `POST /api/compare` now exists. Also on main: savepoints/restore/
+rescale endpoints (`/api/executions/{id}/savepoints`, `/restore`, `/rescale`, `GET /api/savepoints`) and scenarios
+(`POST /api/simulator/scenario`). Read the script and the control-api controllers first.
+
+Files (edit only these):
+- infra/scripts/demo-e2e.sh
+- .github/workflows/ci-e2e.yml (only if needed, e.g. timeout)
+
+Changes:
+1. Step 6 compare: must PASS with match true and matched == referenceResults > 0 (keep SKIP only for 404, but print a loud
+   warning). Print "N / N results match".
+2. New step 9: POST savepoints -> savepointId; POST restore with that savepoint -> new execution RUNNING; within 60 s windows
+   keep arriving for the new execution; compare matches again.
+3. New step 10: POST rescale -> within 60 s generation increases, all 6 partitions assigned across alive workers with no
+   partition on two workers (check /api/workers).
+4. New step 11: POST scenario rush-hour -> 200 and simulator state scenario = rush-hour; then reset.
+5. Keep every step's PASS/FAIL line format; keep shellcheck clean.
+
+Acceptance check: `ci-e2e` green on your branch with PASS lines for steps 1-11.
+
+## Rules (apply to every task)
+- Read every file in docs/contracts/ first and follow them exactly. Do not edit docs/contracts/ or infra/db/schema.sql.
+- Do not change anything in swarm/ (except your own report file if the swarm asks you to write one).
+- Only edit the files listed. If a step fails because of a real backend bug, do not hide it - describe it in your result.
+- If you are running on vivek-pc: do NOT start Docker containers there.
