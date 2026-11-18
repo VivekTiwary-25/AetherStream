@@ -34,6 +34,7 @@ else
   printf 'Compose --wait unsupported; starting services and polling health.\n'
   "${compose[@]}" up -d --remove-orphans
   all_ready=false
+  deadline=$((SECONDS + 180))
   while (( SECONDS < deadline )); do
     ids="$("${compose[@]}" ps -q)"
     if [[ -n "$ids" ]]; then
