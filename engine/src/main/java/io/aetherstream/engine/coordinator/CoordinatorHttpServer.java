@@ -7,7 +7,6 @@ import com.sun.net.httpserver.HttpServer;
 import io.aetherstream.common.Json;
 import io.aetherstream.common.protocol.CheckpointAck;
 import io.aetherstream.common.protocol.RegisterRequest;
-import io.aetherstream.common.protocol.StartExecutionRequest;
 import io.aetherstream.common.protocol.WorkerStatus;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -70,8 +69,13 @@ public class CoordinatorHttpServer {
             send(ex, 400, error("BAD_REQUEST", e.getMessage()));
         } catch (NoSuchElementException e) {
             send(ex, 404, error("NOT_FOUND", e.getMessage()));
+        } catch (IncompatibleSavepointException e) {
+            send(ex, 409, error("INCOMPATIBLE_SAVEPOINT", e.getMessage()));
         } catch (IllegalStateException e) {
             send(ex, 409, error("CONFLICT", e.getMessage()));
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            send(ex, 503, error("UNAVAILABLE", "savepoint request interrupted"));
         } catch (Exception e) {
             log.error("Request {} {} failed", ex.getRequestMethod(), ex.getRequestURI(), e);
             send(ex, 500, error("INTERNAL", String.valueOf(e.getMessage())));
@@ -80,7 +84,7 @@ public class CoordinatorHttpServer {
         }
     }
 
-    private Object route(String method, String[] s, HttpExchange ex) throws IOException {
+    private Object route(String method, String[] s, HttpExchange ex) throws IOException, InterruptedException {
         boolean get = "GET".equals(method);
         boolean post = "POST".equals(method);
         if (s.length >= 2 && s[0].equals("internal")) {
@@ -101,8 +105,11 @@ public class CoordinatorHttpServer {
             if (get && s.length == 2 && s[1].equals("state")) {
                 return coordinator.clusterState();
             }
+            if (get && s.length == 2 && s[1].equals("savepoints")) {
+                return coordinator.listSavepoints();
+            }
             if (post && s.length == 2 && s[1].equals("executions")) {
-                return coordinator.startExecution(read(ex, StartExecutionRequest.class));
+                return coordinator.startExecutionFromSavepoint(read(ex, StartFromSavepointRequest.class));
             }
             if (get && s.length == 3 && s[1].equals("executions")) {
                 return coordinator.executionInfo(s[2]);
@@ -115,6 +122,11 @@ public class CoordinatorHttpServer {
             }
             if (post && s.length == 4 && s[1].equals("executions") && s[3].equals("checkpoint")) {
                 return Map.of("checkpointId", coordinator.triggerCheckpointNow(s[2]));
+            }
+            if (post && s.length == 4 && s[1].equals("executions") && s[3].equals("savepoint")) {
+                SavepointInfo saved = coordinator.createSavepoint(s[2]);
+                return Map.of("savepointId", saved.savepointId(), "checkpointId", saved.checkpointId(),
+                        "createdAt", saved.createdAt());
             }
             if (post && s.length == 3 && s[1].equals("chaos") && s[2].equals("kill")) {
                 JsonNode body = readTree(ex);

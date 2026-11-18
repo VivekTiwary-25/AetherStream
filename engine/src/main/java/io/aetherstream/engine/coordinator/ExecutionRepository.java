@@ -43,4 +43,7 @@ public interface ExecutionRepository {
 
     /** audit_log row with actor "coordinator". */
     void audit(String action, Map<String, Object> detail);
+
+    /** savepoint.created audit details, newest first (audit id breaks timestamp ties). */
+    List<SavepointInfo> listSavepoints();
 }

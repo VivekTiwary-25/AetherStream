@@ -1,7 +1,11 @@
 package io.aetherstream.engine.coordinator;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.aetherstream.common.Json;
 import io.aetherstream.common.api.ExecutionInfo;
 import io.aetherstream.common.pipeline.ExecutionPlan;
+import io.aetherstream.common.pipeline.PlannedOperator;
 import io.aetherstream.common.protocol.AckResponse;
 import io.aetherstream.common.protocol.CheckpointAck;
 import io.aetherstream.common.protocol.CheckpointManifest;
@@ -23,6 +27,8 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Random;
 import java.util.TreeMap;
+import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,6 +42,7 @@ public class Coordinator {
     public static final long HEARTBEAT_TIMEOUT_MS = 4000;
     public static final long CHECKPOINT_TIMEOUT_MS = 30_000;
     public static final long DEAD_WORKER_RETENTION_MS = 60_000;
+    public static final long SAVEPOINT_TIMEOUT_MS = 20_000;
 
     public static final String RUNNING = "RUNNING";
     public static final String RECOVERING = "RECOVERING";
@@ -104,6 +111,8 @@ public class Coordinator {
         TreeMap<String, List<Integer>> assignment = new TreeMap<>();
         /** Checkpoint 0 offsets, used for the very first assignment. */
         Map<Integer, Long> startOffsets = Map.of();
+        long initialRestoreCheckpointId;
+        String initialManifestKey;
         boolean assignedOnce;
         /** Coordinator restart: do not recover before this time (one heartbeat timeout after boot). */
         Long recoverAtMs;
@@ -300,6 +309,11 @@ public class Coordinator {
     // ------------------------------------------------------------------ control endpoints
 
     public ExecutionInfo startExecution(StartExecutionRequest req) {
+        return startExecutionFromSavepoint(req == null ? null
+                : new StartFromSavepointRequest(req.executionId(), req.plan(), null));
+    }
+
+    public ExecutionInfo startExecutionFromSavepoint(StartFromSavepointRequest req) {
         if (req == null || req.executionId() == null || req.executionId().isBlank() || req.plan() == null) {
             throw new IllegalArgumentException("executionId and plan are required");
         }
@@ -307,13 +321,18 @@ public class Coordinator {
         if (plan.partitions() <= 0 || plan.topic() == null) {
             throw new IllegalArgumentException("plan needs a topic and partitions > 0");
         }
+        RestoredSavepoint restored;
         synchronized (this) {
             if (exec != null && exec.id.equals(req.executionId())) {
                 return info(exec);
             }
+            // Validate before Kafka lookup or stopping the current execution.
+            restored = req.fromSavepoint() == null ? null : compatibleSavepoint(req.fromSavepoint(), plan);
         }
         // Kafka lookup outside the lock (it may take a while).
-        Map<Integer, Long> looked = offsetsLookup.offsets(plan.topic(), plan.partitions(), plan.startFrom());
+        Map<Integer, Long> looked = restored == null
+                ? offsetsLookup.offsets(plan.topic(), plan.partitions(), plan.startFrom())
+                : manifestOffsets(restored.manifest());
         Map<Integer, Long> offsets = new TreeMap<>();
         for (int p = 0; p < plan.partitions(); p++) {
             Long o = looked == null ? null : looked.get(p);
@@ -332,11 +351,17 @@ public class Coordinator {
             e.state = RUNNING;
             e.generation = 1;
             e.startOffsets = offsets;
+            if (restored != null) {
+                e.initialRestoreCheckpointId = restored.manifest().checkpointId();
+                e.initialManifestKey = restored.key();
+                e.restoredFrom = e.initialRestoreCheckpointId;
+            }
             e.lastCompleted = 0L;
             e.lastDurationMs = 0L;
             e.lastTriggerMs = now;
-            repo.insertExecution(new ExecutionRecord(e.id, e.pipelineId, e.pipelineVersion, plan, RUNNING, 1, null, now));
-            repo.insertCheckpoint(new CheckpointRecord(e.id, 0, 1, CheckpointRecord.COMPLETED, null, offsets, now,
+            repo.insertExecution(new ExecutionRecord(e.id, e.pipelineId, e.pipelineVersion, plan, RUNNING, 1,
+                    e.restoredFrom, now));
+            repo.insertCheckpoint(new CheckpointRecord(e.id, 0, 1, CheckpointRecord.COMPLETED, e.initialManifestKey, offsets, now,
                     now, 0L));
             repo.audit("execution.started", detail("executionId", e.id, "pipelineId", e.pipelineId,
                     "generation", 1L, "checkpoint0Offsets", offsets));
@@ -367,6 +392,141 @@ public class Coordinator {
             return e.pending.id;
         }
         return triggerCheckpoint(e, clock.nowMs());
+    }
+
+    /**
+     * Waits at most 20 seconds for the aligned checkpoint, releasing the monitor so heartbeat/ack requests can proceed.
+     * The copied manifest retains contract 03 fields and adds the immutable plan used for compatibility checks.
+     * Worker snapshot objects referenced by it must be retained with the savepoint.
+     */
+    public synchronized SavepointInfo createSavepoint(String executionId) throws InterruptedException {
+        ExecState e = requireExecution(executionId);
+        long checkpointId = triggerCheckpointNow(executionId);
+        long started = clock.nowMs();
+        long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(SAVEPOINT_TIMEOUT_MS);
+        CheckpointRecord cp;
+        while (true) {
+            cp = repo.findCheckpoint(executionId, checkpointId).orElseThrow();
+            if (CheckpointRecord.COMPLETED.equals(cp.state())) {
+                break;
+            }
+            if (!CheckpointRecord.PENDING.equals(cp.state())) {
+                throw new IllegalStateException("savepoint checkpoint " + checkpointId + " was " + cp.state());
+            }
+            long remaining = Math.min(SAVEPOINT_TIMEOUT_MS - (clock.nowMs() - started),
+                    TimeUnit.NANOSECONDS.toMillis(deadline - System.nanoTime()));
+            if (remaining <= 0) {
+                throw new IllegalStateException("savepoint checkpoint " + checkpointId + " did not complete within 20 seconds");
+            }
+            wait(remaining);
+        }
+        String id = "sp-" + executionId + "-" + checkpointId;
+        for (SavepointInfo existing : repo.listSavepoints()) {
+            if (existing.savepointId().equals(id)) {
+                return existing;
+            }
+        }
+        ObjectNode manifest = store.getJson(cp.manifestKey(), ObjectNode.class);
+        if (manifest == null) {
+            throw new IllegalStateException("completed checkpoint manifest is missing");
+        }
+        manifest.set("plan", Json.MAPPER.valueToTree(e.plan));
+        SavepointInfo saved = new SavepointInfo(id, executionId, checkpointId, e.pipelineId, e.pipelineVersion,
+                Protocol.VERSION, e.plan.operators().stream().map(PlannedOperator::id).toList(),
+                Instant.ofEpochMilli(clock.nowMs()).toString());
+        store.putJson(saved.manifestKey(), manifest);
+        repo.audit("savepoint.created", detail("savepointId", id, "executionId", executionId,
+                "checkpointId", checkpointId, "pipelineId", saved.pipelineId(), "pipelineVersion", saved.pipelineVersion(),
+                "protocolVersion", saved.protocolVersion(), "operatorIds", saved.operatorIds(), "createdAt", saved.createdAt()));
+        return saved;
+    }
+
+    public synchronized List<SavepointInfo> listSavepoints() {
+        return repo.listSavepoints();
+    }
+
+    private record RestoredSavepoint(CheckpointManifest manifest, String key) {}
+
+    private RestoredSavepoint compatibleSavepoint(String id, ExecutionPlan target) {
+        SavepointInfo saved = repo.listSavepoints().stream().filter(s -> s.savepointId().equals(id)).findFirst()
+                .orElseThrow(() -> new NoSuchElementException("unknown savepoint " + id));
+        CheckpointRecord cp = repo.findCheckpoint(saved.executionId(), saved.checkpointId()).orElseThrow();
+        if (!CheckpointRecord.COMPLETED.equals(cp.state())) {
+            throw new IllegalStateException("savepoint checkpoint is not COMPLETED");
+        }
+        JsonNode json = store.getJson(saved.manifestKey(), JsonNode.class);
+        if (json == null || !json.hasNonNull("plan")) {
+            throw new IllegalStateException("savepoint manifest or saved plan is missing");
+        }
+        CheckpointManifest manifest = Json.MAPPER.convertValue(json, CheckpointManifest.class);
+        ExecutionPlan source = Json.MAPPER.convertValue(json.get("plan"), ExecutionPlan.class);
+        if (!Objects.equals(manifest.pipelineId(), target.pipelineId())) {
+            throw new IncompatibleSavepointException("pipelineId differs: savepoint uses " + manifest.pipelineId()
+                    + " but requested pipeline is " + target.pipelineId());
+        }
+        if (manifest.protocolVersion() != Protocol.VERSION) {
+            throw new IncompatibleSavepointException("protocolVersion differs: savepoint uses " + manifest.protocolVersion()
+                    + " but coordinator uses " + Protocol.VERSION);
+        }
+        if (source.partitions() != target.partitions()) {
+            throw new IncompatibleSavepointException("partition count differs: savepoint has " + source.partitions()
+                    + " but requested plan has " + target.partitions());
+        }
+        if (!Objects.equals(source.topic(), target.topic())) {
+            throw new IncompatibleSavepointException("source topic differs: saved offsets belong to " + source.topic());
+        }
+        Map<String, PlannedOperator> previous = new TreeMap<>();
+        Map<String, PlannedOperator> next = new TreeMap<>();
+        source.operators().forEach(op -> previous.put(op.id(), op));
+        target.operators().forEach(op -> next.put(op.id(), op));
+        for (String operatorId : previous.keySet()) {
+            if (!next.containsKey(operatorId)) {
+                throw new IncompatibleSavepointException("operator '" + operatorId + "' was removed");
+            }
+        }
+        for (String operatorId : next.keySet()) {
+            if (!previous.containsKey(operatorId)) {
+                throw new IncompatibleSavepointException("operator '" + operatorId + "' was added");
+            }
+            PlannedOperator before = previous.get(operatorId);
+            PlannedOperator after = next.get(operatorId);
+            if (stateful(before) || stateful(after)) {
+                if (!Objects.equals(before.type(), after.type())) {
+                    throw new IncompatibleSavepointException("stateful operator '" + operatorId + "' type changed from "
+                            + before.type() + " to " + after.type());
+                }
+                if (!sameConfig(before.config(), after.config())) {
+                    throw new IncompatibleSavepointException("stateful " + before.type() + " operator '" + operatorId
+                            + "' configuration changed: saved " + before.config() + ", requested " + after.config());
+                }
+            }
+        }
+        if (manifest.partitions() == null || manifest.partitions().size() != target.partitions()) {
+            throw new IllegalStateException("savepoint manifest does not cover all partitions");
+        }
+        for (int p = 0; p < target.partitions(); p++) {
+            if (manifest.partitions().get(p) == null) {
+                throw new IllegalStateException("savepoint manifest is missing partition " + p);
+            }
+        }
+        return new RestoredSavepoint(manifest, saved.manifestKey());
+    }
+
+    private static boolean sameConfig(JsonNode before, JsonNode after) {
+        // JSON round trips can change IntNode/LongNode/DoubleNode without changing the numeric configuration.
+        return before == null ? after == null : after != null && before.equals((left, right) ->
+                left.isNumber() && right.isNumber() ? left.decimalValue().compareTo(right.decimalValue())
+                        : left.equals(right) ? 0 : 1, after);
+    }
+
+    private static boolean stateful(PlannedOperator op) {
+        return "window".equals(op.type()) || "rule".equals(op.type());
+    }
+
+    private static Map<Integer, Long> manifestOffsets(CheckpointManifest manifest) {
+        Map<Integer, Long> offsets = new TreeMap<>();
+        manifest.partitions().forEach((p, entry) -> offsets.put(p, entry.nextOffset()));
+        return offsets;
     }
 
     /** Chaos: KILL to the given worker, or (null) to the live worker owning the most partitions. */
@@ -509,6 +669,7 @@ public class Coordinator {
         maybeTriggerCheckpoint(now);
         maybeScheduleAutoRebalance(now);
         pruneDeadWorkers(now);
+        notifyAll();
     }
 
     // ------------------------------------------------------------------ internals (caller holds the lock)
@@ -567,7 +728,7 @@ public class Coordinator {
             return;
         }
         if (!e.assignedOnce) {
-            assign(e, live, 0, null, e.startOffsets, now);
+            assign(e, live, e.initialRestoreCheckpointId, e.initialManifestKey, e.startOffsets, now);
             log.info("Execution {} assigned (generation {}): {}", e.id, e.generation, e.assignment);
         } else {
             try {
@@ -594,7 +755,8 @@ public class Coordinator {
                 .orElseThrow(() -> new IllegalStateException("execution " + e.id + " has no COMPLETED checkpoint"));
         Map<Integer, Long> startOffsets = new TreeMap<>();
         String manifestKey = null;
-        if (cp.checkpointId() == 0) {
+        long restoreCheckpointId = cp.checkpointId();
+        if (cp.manifestKey() == null && cp.checkpointId() == 0) {
             if (cp.sourceOffsets() != null) {
                 startOffsets.putAll(cp.sourceOffsets());
             }
@@ -605,18 +767,19 @@ public class Coordinator {
                 throw new IllegalStateException("manifest " + manifestKey + " of COMPLETED checkpoint is missing");
             }
             manifest.partitions().forEach((p, entry) -> startOffsets.put(p, entry.nextOffset()));
+            restoreCheckpointId = manifest.checkpointId();
         }
         long oldGeneration = e.generation;
         long newGeneration = repo.bumpGeneration(e.id);
-        repo.setRestoredFrom(e.id, cp.checkpointId());
+        repo.setRestoredFrom(e.id, restoreCheckpointId);
         e.generation = newGeneration;
-        e.restoredFrom = cp.checkpointId();
+        e.restoredFrom = restoreCheckpointId;
         for (String id : live) {
             WorkerEntry w = workers.get(id);
             w.queue.removeIf(c -> isForExecution(c, e.id));
             w.queue.add(new Command.Cancel(e.id, oldGeneration));
         }
-        assign(e, live, cp.checkpointId(), manifestKey, startOffsets, now);
+        assign(e, live, restoreCheckpointId, manifestKey, startOffsets, now);
         repo.audit("execution.recovering", detail("executionId", e.id, "checkpointId", cp.checkpointId(),
                 "generation", newGeneration, "previousGeneration", oldGeneration, "assignment", e.assignment));
         log.warn("Execution {} RECOVERING from checkpoint {} with generation {}: {}", e.id, cp.checkpointId(),
@@ -733,7 +896,8 @@ public class Coordinator {
                 .orElseThrow(() -> new IllegalStateException("execution " + e.id + " has no COMPLETED checkpoint"));
         Map<Integer, Long> offsets = new TreeMap<>();
         String key = null;
-        if (cp.checkpointId() == 0) {
+        long restoreCheckpointId = cp.checkpointId();
+        if (cp.manifestKey() == null && cp.checkpointId() == 0) {
             if (cp.sourceOffsets() != null) {
                 offsets.putAll(cp.sourceOffsets());
             }
@@ -744,6 +908,7 @@ public class Coordinator {
                 throw new IllegalStateException("manifest " + key + " of COMPLETED checkpoint is missing");
             }
             manifest.partitions().forEach((partition, entry) -> offsets.put(partition, entry.nextOffset()));
+            restoreCheckpointId = manifest.checkpointId();
         }
         long oldGeneration = e.generation;
         e.state = RECOVERING;
@@ -751,15 +916,15 @@ public class Coordinator {
         e.recoveryStartedMs = now;
         repo.updateState(e.id, RECOVERING);
         e.generation = repo.bumpGeneration(e.id);
-        e.restoredFrom = cp.checkpointId();
-        repo.setRestoredFrom(e.id, cp.checkpointId());
+        e.restoredFrom = restoreCheckpointId;
+        repo.setRestoredFrom(e.id, restoreCheckpointId);
         for (WorkerEntry worker : workers.values()) {
             if (worker.alive) {
                 worker.queue.removeIf(c -> isForExecution(c, e.id));
                 worker.queue.add(new Command.Cancel(e.id, oldGeneration));
             }
         }
-        assign(e, live, cp.checkpointId(), key, offsets, now);
+        assign(e, live, restoreCheckpointId, key, offsets, now);
     }
 
     private void maybeTriggerCheckpoint(long now) {
@@ -798,6 +963,7 @@ public class Coordinator {
             repo.abortCheckpoint(e.id, p.id);
             e.pending = null;
             e.checkpointsAborted++;
+            notifyAll();
             return;
         }
         Map<Integer, Long> offsets = new TreeMap<>();
@@ -808,6 +974,7 @@ public class Coordinator {
         e.lastCompleted = p.id;
         e.lastDurationMs = duration;
         e.checkpointsCompleted++;
+        notifyAll();
         if (e.rebalanceRequested) {
             e.rebalanceRequested = false;
             performRebalance(e, now);
@@ -826,6 +993,7 @@ public class Coordinator {
         removeQueuedTriggers(e.id);
         e.pending = null;
         e.lastTriggerMs = now;
+        notifyAll();
     }
 
     private void abortPending(ExecState e) {
@@ -835,6 +1003,7 @@ public class Coordinator {
         repo.abortPendingCheckpoints(e.id);
         e.pending = null;
         removeQueuedTriggers(e.id);
+        notifyAll();
     }
 
     private void stopInternal(ExecState e, String reason) {
