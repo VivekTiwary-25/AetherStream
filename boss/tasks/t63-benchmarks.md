@@ -1,0 +1,37 @@
+# T63: Repeatable benchmark harness (throughput, latency, checkpoint duration, recovery time) + CI report
+
+Lane 8 (tests/benchmarks). handoff.md section 10: "Record input count, accepted/rejected records, output correctness,
+throughput, latency percentiles, checkpoint duration and recovery time. Do not invent benchmark results." Build a harness
+that MEASURES these on the real engine and writes a report; numbers come only from actual runs.
+
+Read first: tests/src/test/java/io/aetherstream/tests/support/** (IntegrationInfrastructure, EngineCluster, WorkloadGenerator)
+and EngineMatchesReferenceIT on main.
+
+Files (create only these):
+- tests/src/test/java/io/aetherstream/tests/bench/EngineBenchmarkIT.java (tag "benchmark", NOT "integration", so it does not
+  run in ci-integration)
+- tests/src/test/java/io/aetherstream/tests/bench/BenchReport.java (writes build/reports/benchmark/report.md and report.json)
+- benchmarks/README.md (what is measured, how, limitations, how to run)
+- .github/workflows/bench.yml
+- tests/build.gradle.kts: add a `benchmarkTest` task like integrationTest but `includeTags("benchmark")`
+
+Measure (single CI runner; say so in the report): 1) throughput: produce N = 200,000 records (WorkloadGenerator with more
+trucks/time) before start, measure time until a COMPLETED checkpoint covers all end offsets -> records/s; 2) end-to-end
+window latency: for windows fired, (written_at - wall time the triggering record was produced) p50/p95/p99 (record produce
+timestamps captured by the test); 3) checkpoint duration p50/p95 from the checkpoints table; 4) recovery time: crash one
+worker mid-run (EngineCluster has or will get a crash method - if missing, stop the worker's runtime/heartbeat abruptly using
+what exists), time from crash to execution RUNNING again with the new generation; 5) correctness: run the reference compare
+at the end - must match. Report inputs (N, partitions, workers, checkpoint interval, machine info from Runtime/OS MX beans).
+
+bench.yml: workflow_dispatch and push to main (paths: engine/**, compiler/**, tests/**, benchmarks/**); ubuntu-latest;
+`./gradlew :tests:benchmarkTest`; upload build/reports/benchmark as an artifact; also append report.md to
+$GITHUB_STEP_SUMMARY. Use current action majors (actions/checkout@v7, setup-java@v6, setup-gradle@v6, upload-artifact@v7).
+
+Acceptance check: `bench` workflow green on your branch (add task/** to its push branches) with a filled report in the
+step summary.
+
+## Rules (apply to every task)
+- Read every file in docs/contracts/ first and follow them exactly. Do not edit docs/contracts/ or infra/db/schema.sql.
+- Do not change anything in swarm/ (except your own report file if the swarm asks you to write one).
+- Only create/edit the files listed under "Files". Do not edit support/EngineCluster.java (another task edits it).
+- In your result, paste the measured numbers from CI and list anything left undone.
