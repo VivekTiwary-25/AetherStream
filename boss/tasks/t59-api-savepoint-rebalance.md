@@ -1,0 +1,35 @@
+# T59: control-api endpoints for savepoints, restore-from-savepoint and rebalance
+
+Lane 3 (control-api). The coordinator on main now has: `POST /coord/executions/{id}/savepoint`,
+`GET /coord/savepoints`, `POST /coord/executions` with optional `fromSavepoint` (409 INCOMPATIBLE_SAVEPOINT with a
+plain-English message), and `POST /coord/executions/{id}/rebalance` (controlled pause at a checkpoint). Read
+engine/src/main/java/io/aetherstream/engine/coordinator/CoordinatorHttpServer.java for exact shapes. handoff.md section 13
+lists `POST /executions/{id}/savepoints`, `POST /executions/{id}/restore`, `POST /executions/{id}/rescale`.
+
+Files (create only these):
+- control-api/src/main/java/io/aetherstream/api/ops/OpsController.java
+- control-api/src/main/java/io/aetherstream/api/ops/OpsCoordinatorClient.java (own small java.net.http client, env
+  COORDINATOR_URL; do not edit UpstreamClients.java)
+- control-api/src/test/java/io/aetherstream/api/ops/OpsControllerTest.java
+
+Endpoints:
+- `POST /api/executions/{id}/savepoints` -> proxied; returns `{savepointId, checkpointId, createdAt}`; audit_log row
+  `savepoint.requested` (actor "ui").
+- `GET /api/savepoints` -> proxied list.
+- `POST /api/executions/{id}/restore` `{"savepointId": "...", "idempotencyKey": "..."}` -> stops the current execution via
+  the coordinator, starts a new one from the savepoint with the latest plan of the same pipeline (load plan from the
+  executions table row of {id}); passes 409 INCOMPATIBLE_SAVEPOINT through unchanged; audit row `execution.restored`.
+- `POST /api/executions/{id}/rescale` -> proxied to `/coord/executions/{id}/rebalance`; returns the coordinator's response;
+  audit row `execution.rescaled`. Document in a Javadoc that this is a controlled pause at a checkpoint, not online migration.
+Errors: upstream down 502 UPSTREAM_DOWN; unknown execution 404.
+
+Tests: WebMvc tests with a mocked OpsCoordinatorClient for each endpoint, the 409 passthrough and the 502 case.
+
+Acceptance check: `ci-java` green on your branch.
+
+## Rules (apply to every task)
+- Read every file in docs/contracts/ first and follow them exactly. Do not edit docs/contracts/ or infra/db/schema.sql.
+- Do not change anything in swarm/ (except your own report file if the swarm asks you to write one).
+- Only create/edit the files listed under "Files".
+- The acceptance check runs in GitHub Actions on your task branch. Write code carefully so it compiles first time.
+- In your result, list what you built and anything left undone.
