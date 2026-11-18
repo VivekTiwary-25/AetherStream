@@ -1,0 +1,8 @@
+.git
+**/build
+**/.gradle
+**/node_modules
+web/dist
+swarm
+boss
+docs
