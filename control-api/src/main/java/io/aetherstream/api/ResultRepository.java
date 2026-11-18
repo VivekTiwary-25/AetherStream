@@ -24,7 +24,7 @@ class ResultRepository {
 
     List<Map<String, Object>> windows(String executionId, String sinkId, int limit) {
         return jdbc.query("SELECT sink_id,key,window_start,window_end,values::text,event_count FROM window_results " +
-                        "WHERE execution_id=? AND (? IS NULL OR sink_id=?) ORDER BY window_end DESC LIMIT ?",
+                        "WHERE execution_id=? AND (CAST(? AS TEXT) IS NULL OR sink_id=?) ORDER BY window_end DESC LIMIT ?",
                 this::windowRow, executionId, sinkId, sinkId, limit);
     }
 
@@ -43,7 +43,7 @@ class ResultRepository {
 
     List<Map<String, Object>> deadLetters(String executionId, String kind, int limit) {
         return jdbc.query("SELECT event_id,kind,reason,partition,\"offset\",event_time FROM dead_letters " +
-                        "WHERE execution_id=? AND (? IS NULL OR kind=?) ORDER BY written_at DESC LIMIT ?",
+                        "WHERE execution_id=? AND (CAST(? AS TEXT) IS NULL OR kind=?) ORDER BY written_at DESC LIMIT ?",
                 (rs, row) -> {
                     Map<String, Object> value = new java.util.LinkedHashMap<>();
                     value.put("eventId", rs.getString("event_id")); value.put("kind", rs.getString("kind"));
