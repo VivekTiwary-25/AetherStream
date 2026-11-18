@@ -1,6 +1,6 @@
 # Boss STATE (single source of truth)
 
-Updated: 19 Nov 02:04 IST. M1 DONE (engine proof in CI + live deploy). Next: M2 (07:30) automated crash-recovery test in CI.
+Updated: 19 Nov 02:09 IST. M1 DONE. Working on M2 (07:30: automated crash-recovery test in CI) and M3 UI integration.
 
 ## Plain-language update for Vivek (newest first)
 - 02:04 M1 DONE. What works now (all run by the boss, not just claimed):
@@ -21,19 +21,20 @@ Updated: 19 Nov 02:04 IST. M1 DONE (engine proof in CI + live deploy). Next: M2 
   operator runtime, coordinator, simulator, control-api core and the first city UI are merged. Deploy runner
   `vivek-pc-deploy` is online. cloudflared at C:\Users\Arena\bin\cloudflared.exe.
 
-## Task board (02:00)
-done (merged): T01-T22 (all), T27 T29 T33 T35 T36 · reviews R01 PASS, R02 (blocker fixed), R03 (1 minor -> T39)
-running -> queued next:
-- vivek-pc/codex-sol: T39 worker hardening + metrics (01:47)
-- vivek-pc/codex-luna: T42 checkpoint/recovery timeline panel (01:51)  [T31 merged 02:04]
-- vivek-pc/grok: T44 testing + ci-cd docs  [T24 architecture merged]
-- utkarsh-pc/codex-sol: T25 /api/compare (01:41) -> T23 crash/fencing ITs (M2 critical)
-- utkarsh-pc/codex-luna: T43 runbook (01:51)  [R04 merged: only blocker = compare endpoint, T25 in progress]
-- upendra-pc/codex-sol: T41 simulator scenarios (01:47) -> T45 savepoints
-- upendra-pc/codex-luna: T37 UI states + a11y (01:45)
-- vimlesh-pc/claude: T30 city polish (01:21, long)
-- OUT: vimlesh-pc codex-luna + codex-sol (reset 04:49) · vivek-pc/vachana-claude (reset 03:10)
-ready: T26 UI integration (needs T30) · after T23: savepoints, rescale button UI, late-event watermark view
+## Task board (02:09)
+done (merged): T01-T22, T24, T27, T29, T30, T31, T33, T35, T36, T39, T41, T43, T44 · reviews R01 R02 R03 R04
+running -> queued next on the same worker:
+- utkarsh-pc/codex-sol: T25 /api/compare -> T23 crash/fencing/incomplete-checkpoint ITs (M2 critical)
+- vivek-pc/codex-sol: T48 INTEGRATION ci-e2e green -> T54 Kubernetes + kind CI
+- upendra-pc/codex-sol: T45 savepoints -> T55 Terraform IaC
+- vivek-pc/codex-luna: T42 checkpoint timeline panel -> T52 scenario panel
+- upendra-pc/codex-luna: T37 UI states + a11y -> T51 api scenario/metrics proxies
+- utkarsh-pc/codex-luna: T47 example pipelines
+- vivek-pc/grok: R05 review integration tests
+- vimlesh-pc/claude: T26 UI INTEGRATION (one shell, one socket)
+- OUT: vimlesh-pc codex x2 (reset 04:49) · vachana-claude (reset 03:10) -> give vachana T23 follow-ups / hard engine work
+next ideas: mount timeline + scenario panels (after T26), compare UI wiring check, rescale button, late-event view,
+  report/presentation polish, Grafana screenshots.
 
 ## Lanes
 1 engine: coordinator merged; worker T14 running · 2 compiler/reference: ops+compiler merged; T13 running ·
