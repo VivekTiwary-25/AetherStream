@@ -1,0 +1,27 @@
+# T51: control-api: scenario + coordinator-metrics proxy endpoints
+
+Lane 3 (control-api). The simulator on main has `POST /scenario {"name": "rush-hour|breakdown|surge|reset", "truckId"?}`
+and GET /state includes `"scenario"`. The coordinator has `GET /coord/metrics` (Prometheus text). Add thin proxies in the
+existing style of control-api (see SimulatorClient / CoordinatorClient in UpstreamClients.java and ControlApiController).
+
+Files (create only these):
+- control-api/src/main/java/io/aetherstream/api/extras/ExtrasController.java
+- control-api/src/main/java/io/aetherstream/api/extras/ExtrasClient.java (its own small java.net.http client using env
+  SIMULATOR_URL / COORDINATOR_URL with the same timeouts; do not edit UpstreamClients.java)
+- control-api/src/test/java/io/aetherstream/api/extras/ExtrasControllerTest.java
+
+Endpoints: `POST /api/simulator/scenario` (body passed through, response passed through, 400 from upstream passed through),
+`GET /api/metrics/coordinator` (text/plain passthrough of /coord/metrics), `GET /api/scenarios` ->
+`[{"name":"rush-hour","label":"Rush hour","description":"..."}, ...]` (static list of the 4 scenarios). Upstream down ->
+502 `{"error":"UPSTREAM_DOWN","message":"simulator is not reachable"}`.
+
+Tests: WebMvc test with a mocked ExtrasClient for each endpoint and the 502 case.
+
+Acceptance check: `ci-java` green on your branch.
+
+## Rules (apply to every task)
+- Read every file in docs/contracts/ first and follow them exactly. Do not edit docs/contracts/ or infra/db/schema.sql.
+- Do not change anything in swarm/ (except your own report file if the swarm asks you to write one).
+- Only create/edit the files listed under "Files".
+- The acceptance check runs in GitHub Actions on your task branch. Write code carefully so it compiles first time.
+- In your result, list what you built and anything left undone.

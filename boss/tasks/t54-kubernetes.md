@@ -1,0 +1,33 @@
+# T54: Kubernetes manifests + a CI job that deploys them to a kind cluster and smoke-tests
+
+Lane 7 (infra). handoff.md section 6/9 proposes Kubernetes for the distributed runtime. Docker Compose (root
+docker-compose.yml) stays the demo environment; add a working Kubernetes deployment as extra DevOps evidence.
+Images exist on GHCR: ghcr.io/vivektiwary-25/aetherstream-{engine,simulator,control-api,web}:<sha> (built by cd.yml), and
+CI can also build them locally from infra/docker/*.Dockerfile.
+
+Files (create only these):
+- infra/kubernetes/kustomization.yaml, namespace.yaml, configmap.yaml (env from contract 00), secret.example.yaml (dev
+  values only, clearly marked), kafka.yaml (single-node KRaft StatefulSet + headless Service + topic-init Job),
+  postgres.yaml (StatefulSet + PVC + schema ConfigMap generated from infra/db/schema.sql via kustomize configMapGenerator),
+  minio.yaml (Deployment + PVC + bucket-init Job), coordinator.yaml (Deployment 1 replica + Service 8081 + readiness/liveness),
+  worker.yaml (StatefulSet `worker` with 3 replicas so each pod has a stable name used as WORKER_ID via the downward API),
+  simulator.yaml, control-api.yaml, web.yaml (Deployment + Service; NodePort 30088 for web), README.md
+- .github/workflows/ci-k8s.yml
+
+ci-k8s.yml: on push to main (paths: infra/kubernetes/**, infra/docker/**, .github/workflows/ci-k8s.yml) and workflow_dispatch;
+ubuntu-latest; build the 4 images locally (docker build, tag `aether/<name>:ci`), create a kind cluster (helm/kind-action or
+`kind create cluster`), `kind load docker-image` the 4 images, `kubectl apply -k infra/kubernetes` with an overlay or
+`kustomize edit set image` to use the :ci tags and imagePullPolicy IfNotPresent, wait for all pods Ready (timeout 10 min),
+`kubectl port-forward svc/control-api 18080:8080` and curl /api/ready == UP, then `kubectl delete pod worker-1` and check the
+coordinator state shows recovery (GET /coord/state via port-forward: generation increased within 60 s, after starting the
+demo pipeline through the API). Always dump `kubectl get pods -A` and logs of failing pods. Also run kubeconform on the
+manifests first. Use current action majors (actions/checkout@v7).
+
+Acceptance check: `ci-k8s` green on your branch (trigger it with workflow_dispatch or by the paths filter on your branch -
+add `task/**` to its push branches while you work, and leave it in).
+
+## Rules (apply to every task)
+- Read every file in docs/contracts/ first and follow them exactly. Do not edit docs/contracts/ or infra/db/schema.sql.
+- Do not change anything in swarm/ (except your own report file if the swarm asks you to write one).
+- Only create/edit the files listed under "Files". Do not commit real secrets.
+- In your result, list what you built, how the acceptance check proves it, and anything left undone.
