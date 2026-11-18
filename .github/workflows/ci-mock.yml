@@ -3,6 +3,7 @@ name: ci-mock
 on:
   push:
     branches: [main, "task/**"]
+    paths: ["web/mock/**", ".github/workflows/ci-mock.yml"]
   pull_request:
     branches: [main]
 

@@ -2,7 +2,7 @@ name: cd
 
 on:
   push:
-    branches: [main, "task/**"]
+    branches: [main]
     paths-ignore: ["swarm/**", "boss/**", "docs/**", "**/*.md"]
   workflow_dispatch:
     inputs:

@@ -3,7 +3,7 @@ name: ci-java
 on:
   push:
     branches: [main, "task/**"]
-    paths-ignore: ["swarm/**", "boss/**", "docs/**", "**/*.md"]
+    paths: ["common/**", "compiler/**", "reference/**", "engine/**", "control-api/**", "simulator/**", "tests/**", "infra/db/**", "gradle/**", "*.gradle.kts", ".github/workflows/ci-java.yml"]
   pull_request:
     branches: [main]
 
