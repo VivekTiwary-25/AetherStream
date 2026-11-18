@@ -7,6 +7,12 @@ It must survive a live demo where a presenter kills workers repeatedly, slows th
 rescales, and CD redeploys the whole stack (coordinator restart) while an execution is RUNNING.
 
 Do this:
+0. FIRST, a known live bug (ci-e2e step 9, run on branch task/t261119-0258-5f11 / its logic is now in
+   infra/scripts/demo-e2e.sh on main behind E2E_EXTENDED=1): after `POST /api/executions/{id}/savepoints` then
+   `POST /api/executions/{id}/restore {savepointId}`, the new execution becomes RUNNING and windows arrive, but it never
+   reaches 2 COMPLETED checkpoints within 60 s (lastCompletedCheckpoint stays < 2). Find the root cause in the coordinator
+   start-from-savepoint path / worker restore / checkpoint numbering, fix it, and add a unit test. Then set
+   `E2E_EXTENDED: "1"` in .github/workflows/ci-e2e.yml (you may edit that one line) and make sure ci-e2e passes steps 1-11.
 1. Read contract 03 and the code carefully. Look for real bugs: races between heartbeat handling, tick(), acks and HTTP
    threads; lost/duplicated commands; a recovery triggered twice; a checkpoint completing with acks from mixed generations;
    rebalance during a pending checkpoint; worker re-registering with the SAME workerId after a container restart (compose sets
@@ -21,10 +27,10 @@ Do this:
 4. Write docs/reviews/R07-engine-hardening.md: each bug found (file:line, scenario, fix, test name) and things you checked
    that were fine.
 
-Files (edit/create only these): engine/src/main/java/io/aetherstream/engine/**, engine/src/test/java/io/aetherstream/engine/**,
+Files (edit/create only these): .github/workflows/ci-e2e.yml (only the E2E_EXTENDED line), control-api/src/main/java/io/aetherstream/api/ops/** (only if the restore bug is there), engine/src/main/java/io/aetherstream/engine/**, engine/src/test/java/io/aetherstream/engine/**,
 docs/reviews/R07-engine-hardening.md.
 
-Acceptance check: `ci-java` and `ci-integration` green on your branch.
+Acceptance check: `ci-java`, `ci-integration` and `ci-e2e` (steps 1-11) green on your branch.
 
 ## Rules (apply to every task)
 - Read every file in docs/contracts/ first and follow them exactly. Do not edit docs/contracts/ or infra/db/schema.sql. If a contract looks wrong, say so in your result.
