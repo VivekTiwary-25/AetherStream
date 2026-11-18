@@ -15,3 +15,4 @@
 - 01:23 Queue-ahead policy (Vivek's request): every busy worker always has 1 task queued behind it; a pre-queued task must never depend on the task running before it (it branches from main when it starts). STATE.md rewritten every loop.
 - 01:30 Manual conflict merges: after pushing the merge, run 'swarm reject <id>' (no requeue) so the swarm drops the task instead of re-queuing it.
 - 01:34 Bumped all GitHub Actions to current majors (checkout v7, setup-java v6, setup-node v7, upload-artifact v7, setup-gradle v6, buildx v4, build-push v7) — node20 runtime is deprecated and failed the CD lint.
+- 01:48 Local docker builds on vivek-pc need --build-arg HTTP(S)_PROXY=http://http.docker.internal:3128 (Docker Desktop proxy; Java ignores env proxies) — added infra/docker/with-proxy.sh shim. CI unaffected. CD deploy pulls GHCR images, so not affected.
