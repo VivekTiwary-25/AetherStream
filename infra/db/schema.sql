@@ -1,4 +1,4 @@
--- AetherStream database schema (contract: owned by docs/contracts; do not change in tasks)
+-- AetherStream database schema (contract: owned by docs/contracts, do not change in tasks)
 -- Loaded by postgres docker-entrypoint-initdb.d and by integration tests.
 
 CREATE TABLE IF NOT EXISTS pipelines (
