@@ -74,3 +74,16 @@ C:/Users/Arena/bin/aether-tunnel.cmd; current URL is in C:/Users/Arena/aether-tu
 - Background wait loops can be killed by the memory reaper - re-check state with foreground commands after a kill.
 - Local docker builds need proxy build args (DECISIONS 01:48).
 - Manual conflict merges: run `swarm reject <id>` afterwards or the swarm re-queues the task.
+
+## HANDOVER (03:45) - boss Opus usage limit reached
+- Restart the boss on vachana-claude with: "You are the boss. Read boss/STATE.md and continue the loop from the original prompt in boss/PROMPT.md."
+- Just pushed: re-applied the CheckpointTimeline test fix (its old mock made vitest hang -> ci-web never finished) and the
+  ci-e2e E2E_EXTENDED=0 guard (steps 9-11 off until T86). Both were lost when `git pull --rebase` flattened manual merges.
+  RULE: after a manual merge, push with `git push` first; if rejected use `git pull --no-rebase`, never --rebase.
+- Waiting review: T61 editor examples, T72 ops panel, T80 presenter tour (web CI was hanging - rerun ci-web), T66 docs,
+  T78 soak (ci-soak + ci-integration FAILED on its branch - read logs before merging).
+- Running: T81 engine hardening then T86 restore bug (vachana), T84 org access (vivek-sol), T75 ITs (utkarsh-sol),
+  T89 coverage (utkarsh-luna), T91 screenshots (vimlesh claude). Idle: upendra-luna, upendra-sol, grok, vivek-luna.
+- Next: mount OpsPanel/TourOverlay/ScenarioPanel in shell, Claude polish pass from docs/ux/visual-qa.md, flip ci-ui-e2e to
+  blocking, after deploy re-start a fresh pipeline run if panels show only LATE events (T69 should fix this).
+- Memory: run ./gradlew --stop and drop Docker VM caches each loop (see DECISIONS 03:07).
