@@ -40,6 +40,12 @@ public final class Simulation {
     public Simulation(long seed) { this(seed, 8, 0.0025, true); }
 
     public Simulation(long seed, int initialTrucks, double malformedRate, boolean stuckTruckDemo) {
+        this(seed, initialTrucks, malformedRate, stuckTruckDemo, START_EPOCH_MS, "");
+    }
+
+    /** Runtime starts here directly, without replaying events from the pure simulation epoch. */
+    Simulation(long seed, int initialTrucks, double malformedRate, boolean stuckTruckDemo,
+               long initialEpochMs, String sequencePrefix) {
         if (initialTrucks < 0) throw new IllegalArgumentException("initialTrucks must be nonnegative");
         if (!Double.isFinite(malformedRate) || malformedRate < 0 || malformedRate > 1) {
             throw new IllegalArgumentException("malformedRate must be between 0 and 1");
@@ -48,8 +54,9 @@ public final class Simulation {
         this.malformedRate = malformedRate;
         this.stuckTruckDemo = stuckTruckDemo;
         this.initialTrucks = initialTrucks;
+        now = initialEpochMs;
         city = new City(seed);
-        events = new EventFactory(seed);
+        events = new EventFactory(seed, sequencePrefix);
         chaos = new SplittableRandom(seed ^ 0x5DEECE66DL);
         for (int i = 0; i < initialTrucks; i++) addTruck(null, null);
     }

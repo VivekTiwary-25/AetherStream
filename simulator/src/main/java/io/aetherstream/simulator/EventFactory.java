@@ -7,8 +7,12 @@ import java.util.Locale;
 
 final class EventFactory {
     private final long seed;
+    private final String sequencePrefix;
 
-    EventFactory(long seed) { this.seed = seed; }
+    EventFactory(long seed, String sequencePrefix) {
+        this.seed = seed;
+        this.sequencePrefix = sequencePrefix;
+    }
 
     ObjectNode position(Truck truck) {
         return Json.MAPPER.createObjectNode()
@@ -25,7 +29,7 @@ final class EventFactory {
 
     Simulation.Emission envelope(Truck truck, String type, long time, ObjectNode payload, String suffix) {
         String id = "s" + seed + "-" + truck.id + "-"
-                + String.format(Locale.ROOT, "%06d", ++truck.sequence) + suffix;
+                + sequencePrefix + String.format(Locale.ROOT, "%06d", ++truck.sequence) + suffix;
         ObjectNode envelope = Json.MAPPER.createObjectNode().put("eventId", id).put("schemaVersion", 1)
                 .put("type", type).put("eventTime", time).put("key", truck.id);
         envelope.set("payload", payload);
