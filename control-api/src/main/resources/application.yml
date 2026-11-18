@@ -1,0 +1,24 @@
+server:
+  port: 8080
+spring:
+  datasource:
+    url: ${PG_URL:jdbc:postgresql://postgres:5432/aether}
+    username: ${PG_USER:aether}
+    password: ${PG_PASSWORD:aether}
+  sql:
+    init:
+      mode: never
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+aetherstream:
+  kafka-bootstrap: ${KAFKA_BOOTSTRAP:kafka:9092}
+  coordinator-url: ${COORDINATOR_URL:http://coordinator:8081}
+  simulator-url: ${SIMULATOR_URL:http://simulator:8070}
+  git-sha: ${GIT_SHA:dev}
+  built-at: ${BUILT_AT:}
