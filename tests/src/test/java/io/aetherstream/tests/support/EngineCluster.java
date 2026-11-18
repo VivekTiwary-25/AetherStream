@@ -16,44 +16,47 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import org.postgresql.ds.PGSimpleDataSource;
 
 /** Real HTTP coordination, Kafka sources, fenced Postgres sinks and S3 checkpoints in one JVM. */
 public final class EngineCluster implements AutoCloseable {
-    private final List<Worker> workers = new ArrayList<>();
+    private final List<WorkerSlot> workers = new ArrayList<>();
     private final AtomicReference<Throwable> failure = new AtomicReference<>();
     private final ScheduledExecutorService loops;
     private final CoordinatorHttpServer http;
 
+    private final PGSimpleDataSource dataSource;
+    private final S3CheckpointStore store;
+    private boolean stopped;
+
+    private static final class WorkerSlot {
+        final Worker worker;
+        final Object heartbeatLock = new Object();
+        ScheduledFuture<?> heartbeat;
+        volatile boolean crashed;
+
+        WorkerSlot(Worker worker) { this.worker = worker; }
+    }
     public EngineCluster(int workerCount) throws Exception {
-        PGSimpleDataSource dataSource = new PGSimpleDataSource();
+        dataSource = new PGSimpleDataSource();
         dataSource.setURL(IntegrationInfrastructure.jdbcUrl());
         dataSource.setUser("aether");
         dataSource.setPassword("aether");
-        var store = new S3CheckpointStore(IntegrationInfrastructure.s3Endpoint(), "aether", "aether-secret",
+        store = new S3CheckpointStore(IntegrationInfrastructure.s3Endpoint(), "aether", "aether-secret",
                 IntegrationInfrastructure.BUCKET);
         var coordinator = new Coordinator(new PostgresExecutionRepository(dataSource), store,
                 new KafkaOffsetsLookup(IntegrationInfrastructure.bootstrap()), Clock.SYSTEM, 2000);
         coordinator.loadActiveExecutions();
         http = new CoordinatorHttpServer(coordinator, 0);
-        loops = Executors.newScheduledThreadPool(workerCount + 1);
+        loops = Executors.newScheduledThreadPool(Math.max(2, workerCount + 1));
         try {
             http.start();
             loops.scheduleWithFixedDelay(() -> guarded(coordinator::tick), 250, 250, TimeUnit.MILLISECONDS);
             for (int i = 0; i < workerCount; i++) {
-                var client = new HttpCoordinatorClient(coordinatorUrl());
-                var registration = client.register(new RegisterRequest(Protocol.VERSION, "e2e-worker-" + i, "localhost"));
-                String workerId = registration.workerId();
-                var worker = new Worker(workerId,
-                        topic -> new KafkaRecordSource(IntegrationInfrastructure.bootstrap(), topic, workerId),
-                        new PostgresResultSink(dataSource), store, client,
-                        () -> { throw new IllegalStateException("KILL requested for in-process worker " + workerId); });
-                workers.add(worker);
-                loops.scheduleWithFixedDelay(() -> guarded(() -> worker.handleAll(
-                        client.heartbeat(workerId, worker.status()).commands())),
-                        0, registration.heartbeatIntervalMs(), TimeUnit.MILLISECONDS);
+                addWorker();
             }
         } catch (Exception | Error e) {
             stop();
@@ -61,7 +64,40 @@ public final class EngineCluster implements AutoCloseable {
         }
     }
 
-    public Worker worker(int index) { return workers.get(index); }
+    public Worker worker(int index) { return workers.get(index).worker; }
+
+    /** Registers a fresh identity; it joins the next coordinator assignment. */
+    public synchronized Worker addWorker() throws Exception {
+        if (stopped) throw new IllegalStateException("Cluster is stopped");
+        int index = workers.size();
+        var client = new HttpCoordinatorClient(coordinatorUrl());
+        var registration = client.register(new RegisterRequest(Protocol.VERSION, "e2e-worker-" + index, "localhost"));
+        String workerId = registration.workerId();
+        var worker = new Worker(workerId,
+                topic -> new KafkaRecordSource(IntegrationInfrastructure.bootstrap(), topic, workerId),
+                new PostgresResultSink(dataSource), store, client, () -> crash(index));
+        var slot = new WorkerSlot(worker);
+        workers.add(slot);
+        slot.heartbeat = loops.scheduleWithFixedDelay(() -> {
+            synchronized (slot.heartbeatLock) {
+                if (!slot.crashed) {
+                    guarded(() -> worker.handleAll(client.heartbeat(workerId, worker.status()).commands()));
+                }
+            }
+        }, 0, registration.heartbeatIntervalMs(), TimeUnit.MILLISECONDS);
+        return worker;
+    }
+
+    /** Drops queued/pending output and barriers, without the graceful sink flush in Worker.shutdown(). */
+    public void crash(int index) {
+        WorkerSlot slot = workers.get(index);
+        slot.crashed = true;
+        slot.heartbeat.cancel(false);
+        synchronized (slot.heartbeatLock) {
+            var runtime = slot.worker.runtime();
+            if (runtime != null) runtime.stop();
+        }
+    }
 
     public String coordinatorUrl() { return "http://localhost:" + http.port(); }
 
@@ -78,7 +114,9 @@ public final class EngineCluster implements AutoCloseable {
         }
     }
 
-    public void stop() {
+    public synchronized void stop() {
+        if (stopped) return;
+        stopped = true;
         loops.shutdownNow();
         try {
             if (!loops.awaitTermination(10, TimeUnit.SECONDS)) {
@@ -89,7 +127,7 @@ public final class EngineCluster implements AutoCloseable {
             throw new IllegalStateException("Interrupted stopping engine cluster", e);
         } finally {
             try {
-                for (Worker worker : workers) worker.shutdown();
+                for (WorkerSlot slot : workers) slot.worker.shutdown();
             } finally {
                 http.stop();
             }
