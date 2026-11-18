@@ -74,9 +74,8 @@ class CoordinatorTest {
     }
 
     Coordinator newCoordinator() {
-        return new Coordinator(repo, store, (topic, partitions, startFrom) -> CP0, clock, 10_000);
+        return new Coordinator(repo, store, (topic, partitions, startFrom) -> CP0, clock, 10_000, true);
     }
-
     static ExecutionPlan plan() {
         return new ExecutionPlan("logistics-demo", 1, "truck-events", 6, "latest", List.of());
     }
@@ -238,6 +237,40 @@ class CoordinatorTest {
         assertThat(ack("w-a", 2, 1, EVEN, 200).accepted()).isFalse();
         assertThat(ack("w-a", 1, 7, EVEN, 200).accepted()).isFalse();
         assertThat(repo.findCheckpoint(EXEC, 1).orElseThrow().state()).isEqualTo(CheckpointRecord.PENDING);
+    }
+
+    @Test
+    void workerFailureRecoversAllPartitionsOntoTwoSurvivors() {
+        register("w-a");
+        register("w-b");
+        register("w-c");
+        coordinator.startExecution(new StartExecutionRequest(EXEC, plan()));
+        assertThat(ofType(idleHb("w-a"), Command.Assign.class).get(0).partitions()).containsExactly(0, 3);
+        assertThat(ofType(idleHb("w-b"), Command.Assign.class).get(0).partitions()).containsExactly(1, 4);
+        assertThat(ofType(idleHb("w-c"), Command.Assign.class).get(0).partitions()).containsExactly(2, 5);
+        hb("w-a", 1, "RUNNING", List.of(0, 3));
+        hb("w-b", 1, "RUNNING", List.of(1, 4));
+        hb("w-c", 1, "RUNNING", List.of(2, 5));
+        assertThat(coordinator.killWorker("w-c")).isEqualTo("w-c");
+        assertThat(idleHb("w-c")).containsExactly(new Command.Kill());
+
+        for (int i = 0; i < 4; i++) {
+            clock.advance(1000);
+            hb("w-a", 1, "RUNNING", List.of(0, 3));
+            hb("w-b", 1, "RUNNING", List.of(1, 4));
+            coordinator.tick();
+        }
+        assertThat(coordinator.executionInfo(EXEC).state()).isEqualTo("RECOVERING");
+        assertThat(coordinator.executionInfo(EXEC).generation()).isEqualTo(2);
+        Command.Assign a = ofType(hb("w-a", 1, "RUNNING", List.of(0, 3)), Command.Assign.class).get(0);
+        Command.Assign b = ofType(hb("w-b", 1, "RUNNING", List.of(1, 4)), Command.Assign.class).get(0);
+        assertThat(a.partitions()).containsExactly(0, 2, 4);
+        assertThat(b.partitions()).containsExactly(1, 3, 5);
+
+        hb("w-a", 2, "RUNNING", List.of(0, 2, 4));
+        hb("w-b", 2, "RUNNING", List.of(1, 3, 5));
+        assertThat(coordinator.executionInfo(EXEC).state()).isEqualTo("RUNNING");
+        assertThat(coordinator.executionInfo(EXEC).restoredFromCheckpoint()).isEqualTo(0L);
     }
 
     @Test
@@ -426,6 +459,66 @@ class CoordinatorTest {
         register("w-c");
         assertThat(idleHb("w-c")).containsExactly(new Command.SetSinkDelay(50));
         assertThat(coordinator.clusterState().sinkDelayMs()).isEqualTo(50);
+    }
+
+    @Test
+    void stableNewWorkerRebalancesAtCompletedCheckpointAndHonorsRecoveryAndRateLimit() {
+        startRunning();
+        register("w-c");
+        clock.advance(5000);
+        hb("w-a", 1, "RUNNING", EVEN);
+        hb("w-b", 1, "RUNNING", ODD);
+        idleHb("w-c");
+        assertThat(repo.findCheckpoint(EXEC, 1).orElseThrow().state()).isEqualTo(CheckpointRecord.PENDING);
+        assertThat(ack("w-a", 1, 1, EVEN, 200).accepted()).isTrue();
+        assertThat(ack("w-b", 1, 1, ODD, 200).accepted()).isTrue();
+
+        ExecutionInfo recovering = coordinator.executionInfo(EXEC);
+        assertThat(recovering.state()).isEqualTo("RECOVERING");
+        assertThat(recovering.generation()).isEqualTo(2);
+        assertThat(recovering.restoredFromCheckpoint()).isEqualTo(1L);
+        Command.Assign a = ofType(hb("w-a", 1, "RUNNING", EVEN), Command.Assign.class).get(0);
+        Command.Assign b = ofType(hb("w-b", 1, "RUNNING", ODD), Command.Assign.class).get(0);
+        Command.Assign c = ofType(idleHb("w-c"), Command.Assign.class).get(0);
+        assertThat(a.partitions()).containsExactly(0, 3);
+        assertThat(b.partitions()).containsExactly(1, 4);
+        assertThat(c.partitions()).containsExactly(2, 5);
+        assertThat(a.restoreCheckpointId()).isEqualTo(1);
+
+        register("w-d");
+        clock.advance(5000);
+        hb("w-a", 2, "RESTORING", List.of(0, 3));
+        hb("w-b", 2, "RESTORING", List.of(1, 4));
+        idleHb("w-c");
+        idleHb("w-d");
+        coordinator.tick();
+        assertThat(coordinator.executionInfo(EXEC).state()).isEqualTo("RECOVERING");
+        assertThat(coordinator.executionInfo(EXEC).generation()).isEqualTo(2);
+
+        hb("w-a", 2, "RUNNING", List.of(0, 3));
+        hb("w-b", 2, "RUNNING", List.of(1, 4));
+        hb("w-c", 2, "RUNNING", List.of(2, 5));
+        assertThat(coordinator.executionInfo(EXEC).state()).isEqualTo("RUNNING");
+        try {
+            coordinator.requestRebalance(EXEC);
+        } catch (IllegalStateException expected) {
+            assertThat(expected.getMessage()).contains("30 s");
+            return;
+        }
+        throw new AssertionError("rebalance rate limit was not enforced");
+    }
+
+    @Test
+    void metricsExposeEveryRequestedSeries() {
+        startRunning();
+        hb("w-a", 1, "RUNNING", EVEN);
+        String text = coordinator.metricsText();
+        assertThat(text).contains("aether_workers_alive", "aether_execution_generation",
+                "aether_checkpoints_completed_total", "aether_checkpoints_aborted_total",
+                "aether_last_checkpoint_duration_ms", "aether_recoveries_total",
+                "aether_last_recovery_duration_ms", "aether_worker_records_per_sec",
+                "aether_worker_queue_size", "aether_worker_backpressured",
+                "worker=\"w-a\"", "queue=\"source\"", "queue=\"sink\"");
     }
 
     @Test

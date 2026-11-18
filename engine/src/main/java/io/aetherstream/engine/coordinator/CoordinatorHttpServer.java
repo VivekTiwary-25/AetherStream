@@ -58,6 +58,10 @@ public class CoordinatorHttpServer {
             String[] seg = Arrays.stream(ex.getRequestURI().getPath().split("/"))
                     .filter(s -> !s.isEmpty())
                     .toArray(String[]::new);
+            if ("GET".equals(method) && Arrays.equals(seg, new String[] {"coord", "metrics"})) {
+                sendText(ex, coordinator.metricsText());
+                return;
+            }
             Object result = route(method, seg, ex);
             send(ex, 200, result);
         } catch (JsonProcessingException e) {
@@ -102,6 +106,9 @@ public class CoordinatorHttpServer {
             }
             if (get && s.length == 3 && s[1].equals("executions")) {
                 return coordinator.executionInfo(s[2]);
+            }
+            if (post && s.length == 4 && s[1].equals("executions") && s[3].equals("rebalance")) {
+                return Map.of("checkpointId", coordinator.requestRebalance(s[2]));
             }
             if (post && s.length == 4 && s[1].equals("executions") && s[3].equals("stop")) {
                 return coordinator.stopExecution(s[2]);
@@ -154,6 +161,14 @@ public class CoordinatorHttpServer {
         byte[] bytes = Json.MAPPER.writeValueAsBytes(body);
         ex.getResponseHeaders().set("Content-Type", "application/json");
         ex.sendResponseHeaders(status, bytes.length);
+        try (OutputStream out = ex.getResponseBody()) {
+            out.write(bytes);
+        }
+    }
+    private static void sendText(HttpExchange ex, String body) throws IOException {
+        byte[] bytes = body.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        ex.getResponseHeaders().set("Content-Type", "text/plain; version=0.0.4; charset=utf-8");
+        ex.sendResponseHeaders(200, bytes.length);
         try (OutputStream out = ex.getResponseBody()) {
             out.write(bytes);
         }

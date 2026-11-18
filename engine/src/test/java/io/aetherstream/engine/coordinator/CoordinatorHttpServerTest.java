@@ -103,4 +103,16 @@ class CoordinatorHttpServerTest {
         assertThat(post("/coord/executions/nope/stop", Map.of()).statusCode()).isEqualTo(404);
         assertThat(get("/no/such/path").statusCode()).isEqualTo(404);
     }
+    @Test
+    void metricsEndpointReturnsPrometheusText() throws Exception {
+        HttpResponse<String> response = get("/coord/metrics");
+        assertThat(response.statusCode()).isEqualTo(200);
+        assertThat(response.headers().firstValue("Content-Type").orElse(""))
+                .startsWith("text/plain; version=0.0.4");
+        assertThat(response.body()).contains("aether_workers_alive", "aether_execution_generation",
+                "aether_checkpoints_completed_total", "aether_checkpoints_aborted_total",
+                "aether_last_checkpoint_duration_ms", "aether_recoveries_total",
+                "aether_last_recovery_duration_ms", "aether_worker_records_per_sec",
+                "aether_worker_queue_size", "aether_worker_backpressured");
+    }
 }
