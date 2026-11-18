@@ -27,7 +27,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
       - name: Install ShellCheck
         run: sudo apt-get update && sudo apt-get install -y shellcheck
       - name: Lint demo script
@@ -37,9 +37,11 @@ jobs:
     needs: lint
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # TEMPORARY (boss, 01:40): non-blocking until the full backend is on main; remove once green.
+    continue-on-error: true
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
       - name: Install jq
         run: sudo apt-get update && sudo apt-get install -y jq
       - name: Build and start stack
@@ -58,7 +60,7 @@ jobs:
         run: docker compose logs --no-color > compose-logs.txt 2>&1
       - name: Upload Compose logs
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: compose-logs-${{ github.run_id }}-${{ github.run_attempt }}
           path: compose-logs.txt
