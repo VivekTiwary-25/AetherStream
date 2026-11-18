@@ -1,0 +1,45 @@
+[
+  {
+    "step": "01-deployed-page",
+    "status": "FAIL",
+    "errors": [
+      "Error: Footer must show the deployed EXPECT_SHA prefix\n\n\u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoContainText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator: locator('footer').filter({ hasText: 'Deployed version:' })\nExpected substring: \u001b[32m\"Deployed version: \u001b[7m194d5c7\u001b[27m\"\u001b[39m\nReceived string:    \u001b[31m\"Deployed version: \u001b[7m815c172\u001b[27m\"\u001b[39m\nTimeout: 10000ms\n\nCall log:\n\u001b[2m  - Footer must show the deployed EXPECT_SHA prefix locator('footer').filter({ hasText: 'Deployed version:' }) with timeout 10000ms\u001b[22m\n\u001b[2m  - waiting for locator('footer').filter({ hasText: 'Deployed version:' })\u001b[22m\n\u001b[2m    15 × locator resolved to <footer class=\"app-footer\">…</footer>\u001b[22m\n\u001b[2m       - unexpected value \"Deployed version: 815c172\"\u001b[22m\n"
+    ]
+  },
+  {
+    "step": "02-start-demo-and-workers",
+    "status": "FAIL",
+    "errors": [
+      "Error: A real engine speed window must reach at least one truck row\n\n\u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByRole('region', { name: 'Speed windows', exact: true }).getByText(/^\\d+(?:\\.\\d+)? km\\/h$/).first()\nExpected: visible\nTimeout: 60000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - A real engine speed window must reach at least one truck row getByRole('region', { name: 'Speed windows', exact: true }).getByText(/^\\d+(?:\\.\\d+)? km\\/h$/).first() with timeout 60000ms\u001b[22m\n\u001b[2m  - waiting for getByRole('region', { name: 'Speed windows', exact: true }).getByText(/^\\d+(?:\\.\\d+)? km\\/h$/).first()\u001b[22m\n",
+      "Error: Speed panel must identify the truck\n\n\u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByRole('region', { name: 'Speed windows', exact: true }).getByText(/^truck-\\d+$/).first()\nExpected: visible\nTimeout: 10000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Speed panel must identify the truck getByRole('region', { name: 'Speed windows', exact: true }).getByText(/^truck-\\d+$/).first() with timeout 10000ms\u001b[22m\n\u001b[2m  - waiting for getByRole('region', { name: 'Speed windows', exact: true }).getByText(/^truck-\\d+$/).first()\u001b[22m\n"
+    ]
+  },
+  {
+    "step": "03-cross-check-engine-speed",
+    "status": "FAIL",
+    "errors": [
+      "Error: 03-cross-check-engine-speed: locator.evaluate: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('region', { name: 'Speed windows', exact: true }).locator('.panel-row').first()\u001b[22m\n\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32mtrue\u001b[39m\nReceived: \u001b[31mfalse\u001b[39m"
+    ]
+  },
+  {
+    "step": "04-pipeline-editor-validation",
+    "status": "FAIL",
+    "errors": [
+      "Error: 04-pipeline-editor-validation: locator.click: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: /pipeline editor|edit pipeline|open editor/i })\u001b[22m\n\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32mtrue\u001b[39m\nReceived: \u001b[31mfalse\u001b[39m"
+    ]
+  },
+  {
+    "step": "05-kill-worker-and-recover",
+    "status": "FAIL",
+    "errors": [
+      "Error: 05-kill-worker-and-recover: locator.click: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Kill worker', exact: true })\u001b[22m\n\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32mtrue\u001b[39m\nReceived: \u001b[31mfalse\u001b[39m"
+    ]
+  },
+  {
+    "step": "06-compare-with-reference",
+    "status": "FAIL",
+    "errors": [
+      "Error: 06-compare-with-reference: locator.click: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Compare with reference', exact: true })\u001b[22m\n\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32mtrue\u001b[39m\nReceived: \u001b[31mfalse\u001b[39m"
+    ]
+  }
+]
