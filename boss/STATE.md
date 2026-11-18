@@ -1,8 +1,11 @@
 # Boss STATE (single source of truth)
 
-Updated: 19 Nov 02:09 IST. M1 DONE. Working on M2 (07:30: automated crash-recovery test in CI) and M3 UI integration.
+Updated: 19 Nov 02:18 IST. M1 DONE. M2 (07:30) mostly proven: compose demo in CI kills a worker and recovers; still need compare (T25) + crash ITs vs reference (T23).
 
 ## Plain-language update for Vivek (newest first)
+- 02:18 The full-system demo now runs automatically in GitHub Actions (ci-e2e): start the stack, run the pipeline, send late
+  events, kill worker-3 (recovered in 7 s from a checkpoint), slow the sink (backpressure, then drains), check the deployed
+  version. Savepoints merged. vivek-pc ran low on memory; freed build cache and capped JVM heaps in compose.
 - 02:04 M1 DONE. What works now (all run by the boss, not just claimed):
   * Push to main -> GitHub Actions builds + publishes 4 images to GHCR by commit SHA -> deploys on vivek-pc via the
     self-hosted runner -> smoke test PASS (deployed commit 6fb5171 = /api/version).
@@ -25,8 +28,8 @@ Updated: 19 Nov 02:09 IST. M1 DONE. Working on M2 (07:30: automated crash-recove
 done (merged): T01-T22, T24, T27, T29, T30, T31, T33, T35, T36, T39, T41, T43, T44 · reviews R01 R02 R03 R04
 running -> queued next on the same worker:
 - utkarsh-pc/codex-sol: T25 /api/compare -> T23 crash/fencing/incomplete-checkpoint ITs (M2 critical)
-- vivek-pc/codex-sol: T48 INTEGRATION ci-e2e green -> T54 Kubernetes + kind CI
-- upendra-pc/codex-sol: T45 savepoints -> T55 Terraform IaC
+- vivek-pc/codex-sol: T54 Kubernetes + kind CI  [T48 merged: ci-e2e green, now blocking]
+- upendra-pc/codex-sol: T55 Terraform IaC (in review, ci-terraform running)  [T45 savepoints merged]
 - vivek-pc/codex-luna: T42 checkpoint timeline panel -> T52 scenario panel
 - upendra-pc/codex-luna: T37 UI states + a11y -> T51 api scenario/metrics proxies
 - utkarsh-pc/codex-luna: T47 example pipelines
@@ -54,7 +57,7 @@ Public link: https://trance-cover-acrobat-submissions.trycloudflare.com (Schedul
 C:/Users/Arena/bin/aether-tunnel.cmd; current URL is in C:/Users/Arena/aether-tunnel.log - changes on every restart).
 
 ## Open problems
-- Local docker builds need proxy build args (see DECISIONS 01:48).
+- vivek-pc memory is tight (Docker VM ~8 GB). Do NOT build the full stack locally; CI builds, CD deploys. JVM heaps capped.
+- Background wait loops can be killed by the memory reaper - re-check state with foreground commands after a kill.
+- Local docker builds need proxy build args (DECISIONS 01:48).
 - Manual conflict merges: run `swarm reject <id>` afterwards or the swarm re-queues the task.
-- R03: TaskRuntime pendingBarriers unbounded (MINOR in practice) — fold into a later worker task.
-- Workers can't compile locally; boss patches tiny CI compile errors on the branch.

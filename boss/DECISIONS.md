@@ -17,3 +17,4 @@
 - 01:34 Bumped all GitHub Actions to current majors (checkout v7, setup-java v6, setup-node v7, upload-artifact v7, setup-gradle v6, buildx v4, build-push v7) — node20 runtime is deprecated and failed the CD lint.
 - 01:48 Local docker builds on vivek-pc need --build-arg HTTP(S)_PROXY=http://http.docker.internal:3128 (Docker Desktop proxy; Java ignores env proxies) — added infra/docker/with-proxy.sh shim. CI unaffected. CD deploy pulls GHCR images, so not affected.
 - 01:55 Runner was registered with --no-default-labels so it lacked 'self-hosted' and deploy jobs sat pending; added the label via API. First E2E check will run against the CD-deployed stack on vivek-pc (same host ports as a local build, so only one stack at a time).
+- 02:16 vivek-pc hit low memory (1.3 GB free; Docker VM 10.6 GB, mostly build cache). Pruned build cache, capped JVM heaps in compose. Rule: no more local full-stack image builds on vivek-pc; CI does builds, CD deploys.
