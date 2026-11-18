@@ -50,7 +50,7 @@ describe('live panels', () => {
     const value = { ...initialDashboardState, workers: [worker('w-hot', true, true), worker('w-dead', false, false)] }
     render(<DashboardContext.Provider value={value}><WorkersPanel /></DashboardContext.Provider>)
     expect(screen.getAllByText(/backpressured/i).length).toBeGreaterThan(0)
-    expect(screen.getByText('Dead')).toBeTruthy()
+    expect(screen.getByText(/Dead/)).toBeTruthy()
   })
 
   it('shows the checkpoint used for recovery', () => {

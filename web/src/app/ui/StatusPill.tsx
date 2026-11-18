@@ -21,7 +21,8 @@ export function StatusPill({ state }: { state: StatusState }) {
   return (
     <span className={`status-pill status-pill--${state}`}>
       <span className="status-pill__dot" aria-hidden="true" />
-      {labels[state]}
+      <span aria-hidden="true">{state === 'failed' || state === 'recovering' ? '!' : state === 'paused' ? 'Ⅱ' : '●'}</span>
+      <span>{labels[state]}</span>
     </span>
   )
 }
