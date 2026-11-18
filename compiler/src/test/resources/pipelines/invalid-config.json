@@ -1,0 +1,57 @@
+{
+  "id": "test",
+  "version": 1,
+  "name": "Test",
+  "nodes": [
+    {
+      "id": "src",
+      "type": "source",
+      "config": {
+        "topic": "truck-events"
+      }
+    },
+    {
+      "id": "kb",
+      "type": "keyBy",
+      "config": {
+        "field": "key"
+      }
+    },
+    {
+      "id": "win",
+      "type": "window",
+      "label": "One minute speed",
+      "config": {
+        "kind": "tumbling",
+        "sizeMs": 999,
+        "aggregations": [
+          {
+            "name": "count",
+            "fn": "count"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sink",
+      "type": "sink",
+      "config": {
+        "kind": "postgres.windows"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "from": "src",
+      "to": "kb"
+    },
+    {
+      "from": "kb",
+      "to": "win"
+    },
+    {
+      "from": "win",
+      "to": "sink"
+    }
+  ]
+}

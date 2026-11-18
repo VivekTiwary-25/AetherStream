@@ -1,0 +1,30 @@
+{
+  "id": "logistics-demo",
+  "version": 1,
+  "name": "Truck city: speed, deliveries, stuck trucks",
+  "nodes": [
+    { "id": "src",      "type": "source", "label": "Truck events", "position": {"x": 0, "y": 0},
+      "config": { "topic": "truck-events", "startFrom": "latest" } },
+    { "id": "pos",      "type": "filter", "config": { "conditions": [ {"field": "type", "op": "==", "value": "truck.position"} ] } },
+    { "id": "kb1",      "type": "keyBy",  "config": { "field": "key" } },
+    { "id": "speed1m",  "type": "window", "config": { "kind": "tumbling", "sizeMs": 60000, "outOfOrdernessMs": 5000,
+        "aggregations": [ {"name": "avgSpeedKmh", "fn": "avg", "field": "payload.speedKmh"},
+                          {"name": "maxSpeedKmh", "fn": "max", "field": "payload.speedKmh"},
+                          {"name": "count", "fn": "count"} ] } },
+    { "id": "speedSink","type": "sink",   "config": { "kind": "postgres.windows" } },
+    { "id": "stuck",    "type": "rule",   "config": { "ruleId": "stuck-truck",
+        "condition": {"field": "avgSpeedKmh", "op": "<", "value": 1.0}, "forWindows": 10,
+        "message": "{key} has not moved for {minutes} min" } },
+    { "id": "alertSink","type": "sink",   "config": { "kind": "postgres.alerts" } },
+    { "id": "del",      "type": "filter", "config": { "conditions": [ {"field": "type", "op": "==", "value": "truck.delivery"} ] } },
+    { "id": "kb2",      "type": "keyBy",  "config": { "field": "key" } },
+    { "id": "del1m",    "type": "window", "config": { "kind": "tumbling", "sizeMs": 60000, "outOfOrdernessMs": 5000,
+        "aggregations": [ {"name": "deliveries", "fn": "count"}, {"name": "parcels", "fn": "sum", "field": "payload.parcels"} ] } },
+    { "id": "delSink",  "type": "sink",   "config": { "kind": "postgres.windows" } }
+  ],
+  "edges": [
+    {"from": "src", "to": "pos"}, {"from": "pos", "to": "kb1"}, {"from": "kb1", "to": "speed1m"},
+    {"from": "speed1m", "to": "speedSink"}, {"from": "speed1m", "to": "stuck"}, {"from": "stuck", "to": "alertSink"},
+    {"from": "src", "to": "del"}, {"from": "del", "to": "kb2"}, {"from": "kb2", "to": "del1m"}, {"from": "del1m", "to": "delSink"}
+  ]
+}
