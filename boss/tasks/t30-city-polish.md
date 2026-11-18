@@ -1,0 +1,44 @@
+# T30: City polish pass: make the truck city look and feel premium (game quality)
+
+Lane 5 (web/city). A first version of the PixiJS city is on main in web/src/city/** (CityView, citySocket.ts, cityTypes.ts,
+geometry/interpolation/particle helpers + tests). It works but was never visually inspected. Your job: make it beautiful,
+smooth and readable, like a polished browser delivery game, while keeping the same data contract (contract 04 WebSocket
+messages `snapshot`, `trucks`, `flow`, `workers`, `execution`; `POST /api/simulator/trucks`).
+
+Run it against the dev mock server: `cd web/mock && npm install && node server.mjs` (port 18080; if web/mock is not on main
+yet, write a tiny local stub server in your scratch area - do not commit it) and `cd web && npm install && npm run dev`, with
+`VITE_USE_MOCK=1` so the MOCK DATA badge shows. If you can take screenshots, look at the result and iterate.
+
+Files (edit/create only these):
+- web/src/city/** (everything under it)
+- web/package.json + web/package-lock.json only to add a small, well-known dependency if it clearly helps (e.g. pixi-filters
+  for glow); prefer none
+
+Do NOT edit web/src/api/**, web/src/app/** (other tasks own them).
+
+Visual direction (dark navy/charcoal, restrained luminous accents, motion only for state changes and the data flow itself):
+- Ground and blocks: layered depth (2.5D): slightly raised blocks with soft top highlight and long soft shadow; streets as
+  darker channels with faint glowing lane markings; subtle vignette; a few parks/water tiles for variety; deterministic.
+- Trucks: crisp, readable at any zoom: cab + cargo box, rounded, soft shadow under, headlight cone, status colour as a small
+  roof light (cyan driving, amber unloading, red stopped with a slow pulse ring). Smooth turning at corners (no snapping),
+  easing on start/stop. Hover tooltip as a small glass card.
+- Depot and stops: depot as a landmark building with a soft pulsing beacon; stops as pads that bloom briefly on delivery.
+- Event stream: particles flow on smooth curves from trucks into the Engine core, with additive glow and short trails; the
+  engine core shows 6 partition lanes lighting up with throughput; worker health ring (green/amber/red) with labels.
+  Rejected = small red sparks, late = violet. Cap particle count; pooled; 60 fps on a laptop iGPU.
+- Recovery state: engine core dims with a scanning sweep and the label "Recovering from checkpoint #N"; trucks keep driving.
+- Drag-in truck chip: satisfying drop ripple + the new truck fades in at the drop point.
+- Camera: smooth wheel zoom towards the cursor, inertial pan, double-click reset; resize-aware; DPR capped at 2;
+  pause when tab hidden; prefers-reduced-motion = fewer particles, no pulses.
+Keep pure logic in plain TS modules with Vitest tests (add tests for any new math: easing, corner turning, trails).
+
+Acceptance check: `ci-web` green on your branch. In your result, describe what you changed visually and whether you saw it
+running (screenshots if you could).
+
+## Rules (apply to every task)
+- Read every file in docs/contracts/ first and follow them exactly. Do not edit docs/contracts/ or infra/db/schema.sql. If a contract looks wrong, follow it anyway and say so in your result.
+- Do not change anything in swarm/ (except your own report file if the swarm asks you to write one).
+- Only create/edit the files listed under "Files". If you truly need another file, say so in your result instead of editing it.
+- The acceptance check runs in GitHub Actions on your task branch (CI runs on push to task/**). Keep code simple and readable.
+- Do not commit secrets, build outputs, node_modules or .gradle/ folders.
+- In your result, list what you built, how the acceptance check proves it, and anything left undone.
