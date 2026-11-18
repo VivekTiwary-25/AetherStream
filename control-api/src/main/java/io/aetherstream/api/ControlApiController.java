@@ -128,7 +128,9 @@ class ControlApiController {
     private List<Map<String,Object>> forCurrent(java.util.function.Function<String,List<Map<String,Object>>> query) {
         String id = results.currentExecutionId(); return id == null ? List.of() : query.apply(id);
     }
-    private String check(Runnable check) {
+    @FunctionalInterface interface Check { void run() throws Exception; }
+
+    private String check(Check check) {
         try { check.run(); return "UP"; } catch (Exception e) { return "DOWN"; }
     }
     private static int bounded(int value, int fallback, int max) { return Math.max(1, Math.min(value, max)); }
