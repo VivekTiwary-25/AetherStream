@@ -1,0 +1,35 @@
+# T45: Savepoints: durable, user-triggered snapshots and restore with compatibility checks
+
+Lane 1 (engine). handoff.md section 7/8: "Savepoints for controlled restarts and compatible upgrades" and "Reject incompatible
+restore requests". Build it on the existing checkpoint machinery in engine/src/main/java/io/aetherstream/engine/coordinator/**
+(read it and contract 03 first). Checkpoint objects in S3 are already written per contract 03 section 4.
+
+Files (edit/create only these):
+- engine/src/main/java/io/aetherstream/engine/coordinator/**
+- engine/src/test/java/io/aetherstream/engine/coordinator/**
+Do NOT edit worker/**, storage/**, db/**, docs/contracts/, infra/db/schema.sql (store savepoint metadata in the existing
+`checkpoints` table: a savepoint is a COMPLETED checkpoint whose manifest is also copied to
+`savepoints/{savepointId}/manifest.json` in S3, with savepointId = `sp-<executionId>-<checkpointId>`; record an audit_log row
+`savepoint.created` with detail {savepointId, executionId, checkpointId, pipelineId, pipelineVersion, protocolVersion,
+operatorIds}).
+
+1. `POST /coord/executions/{id}/savepoint` -> triggers a checkpoint immediately, waits (max 20 s) for COMPLETED, copies the
+   manifest to the savepoint key, returns `{savepointId, checkpointId, createdAt}`; 409 if not RUNNING.
+2. `GET /coord/savepoints` -> list from audit_log rows (newest first).
+3. `POST /coord/executions` accepts an optional `fromSavepoint` field in the body (add it as a new record in the coordinator
+   package, e.g. StartFromSavepointRequest, do not change :common): compatibility check BEFORE starting - same pipelineId,
+   plan operator ids + types of stateful operators (window, rule) unchanged, same partitions count, same protocolVersion.
+   Incompatible -> 409 `{"error":"INCOMPATIBLE_SAVEPOINT","message":"<plain English: what differs>"}`. Compatible -> the new
+   execution starts at generation 1 with ASSIGN restoreCheckpointId/manifestKey pointing at the savepoint manifest and
+   startOffsets from it (workers already know how to restore from a manifest).
+4. Tests (fake clock, in-memory): savepoint created and listed; start from a compatible savepoint assigns its offsets/manifest;
+   incompatible (window size changed, operator removed, different pipelineId) rejected with a useful message.
+
+Acceptance check: `ci-java` green on your branch.
+
+## Rules (apply to every task)
+- Read every file in docs/contracts/ first and follow them exactly. Do not edit docs/contracts/ or infra/db/schema.sql. If a contract looks wrong, follow it anyway and say so in your result.
+- Do not change anything in swarm/ (except your own report file if the swarm asks you to write one).
+- Only create/edit the files listed under "Files". If you truly need another file, say so in your result instead of editing it.
+- The acceptance check runs in GitHub Actions on your task branch. Write code carefully so it compiles first time.
+- Do not commit secrets or build outputs. In your result, list what you built and anything left undone.
