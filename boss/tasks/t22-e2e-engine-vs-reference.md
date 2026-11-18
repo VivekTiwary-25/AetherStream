@@ -1,10 +1,13 @@
 # T22: End-to-end CI test: real Kafka/Postgres/MinIO + coordinator + 3 workers == reference executor (M1)
 
 Lane 8 (tests). Prove the whole engine computes exactly what the reference computes. Everything it needs is on main:
-- tests/src/test/java/io/aetherstream/tests/support/** (Testcontainers Kafka/Postgres/MinIO singletons, schema, topic, bucket)
+- tests/src/test/java/io/aetherstream/tests/support/IntegrationInfrastructure.java (Testcontainers Kafka/Postgres/MinIO singletons, schema, topic, bucket)
 - engine coordinator (`io.aetherstream.engine.coordinator.*`: Coordinator, CoordinatorHttpServer, PostgresExecutionRepository,
   KafkaOffsetsLookup), storage (`S3CheckpointStore`), worker (`io.aetherstream.engine.worker.*`)
-- `io.aetherstream.reference.*` (ReferenceExecutor, KafkaRangeReader, ResultComparator)
+- `io.aetherstream.reference.*` (ReferenceExecutor, KafkaRangeReader, ResultComparator) - this may NOT be on main yet when you start.
+  If it is missing, compute the expected result yourself in the test: read the Kafka range per partition with a plain
+  KafkaConsumer, run one `io.aetherstream.compiler.ops.PartitionPipeline` per partition with a `ListCollector`, and compare
+  window rows/alerts to Postgres (MISSING/DIFFERENT/EXTRA as contract 04 step 3). That IS the reference semantics.
 - `io.aetherstream.simulator.Simulation` (pure deterministic event generator)
 - `io.aetherstream.compiler.PipelineCompiler.demoPipeline()`
 Read their public APIs first. If something you need is missing (e.g. a way to start a worker in-process with explicit config),
