@@ -1,11 +1,13 @@
 import { useMemo, useState } from 'react'
 import './chaos.css'
+import { useDashboard } from '../state/store'
 import { ClayButton } from '../ui/ClayButton'
 import { GlassPanel } from '../ui/GlassPanel'
 import { StatusPill } from '../ui/StatusPill'
 import { getWorkers, killWorker, sendDuplicates, sendLateEvents, sendMalformed, setSlowSink, type Worker } from './chaosApi'
-
 export function ChaosPanel() {
+  const { workers } = useDashboard()
+  const backpressured = workers.some((worker) => worker?.alive && worker?.backpressured)
   const [pending, setPending] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
@@ -68,7 +70,7 @@ export function ChaosPanel() {
   }
 
   return (
-    <GlassPanel title="Chaos controls" status={<StatusPill state="healthy" />}>
+    <GlassPanel title="Chaos controls" status={<StatusPill state={backpressured ? 'backpressured' : 'healthy'} />}>
       <div className="chaos-panel__actions">
         <ClayButton disabled={pending} onClick={() => void perform(sendLateEvents, () => '20 late events sent')}>
           Send late events

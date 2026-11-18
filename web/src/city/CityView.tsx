@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import './city.css'
+import { useAetherSocket } from '../api/ws'
+import { toCityEnvelope } from './citySocket'
 import { CITY_SIZE } from './cityLayout'
 import { CityModel, type EngineStatus } from './cityModel'
-import { subscribeCity } from './citySocket'
 import type { CityTruck } from './cityTypes'
 import { partitionForTruck } from './cityLogic'
 import { clamp } from './motion'
@@ -37,7 +38,12 @@ export function CityView() {
   const [message, setMessage] = useState('')
   const [dragOver, setDragOver] = useState(false)
 
-  useEffect(() => subscribeCity((msg) => model.current.apply(msg, performance.now())), [])
+  const { lastMessage } = useAetherSocket()
+
+  useEffect(() => {
+    const message = toCityEnvelope(lastMessage)
+    if (message?.data != null) model.current.apply(message, performance.now())
+  }, [lastMessage])
 
   useEffect(() => {
     const timer = window.setInterval(() => setHud(readHud(model.current)), 400)

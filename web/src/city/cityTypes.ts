@@ -1,3 +1,5 @@
+import type { WebSocketMessage } from '../api/types'
+
 export type TruckStatus = 'DRIVING' | 'UNLOADING' | 'IDLE' | 'STOPPED'
 
 export interface CityPoint {
@@ -48,11 +50,7 @@ export interface CityExecution {
   createdAt: string
 }
 
-export interface CityEnvelope<T> {
-  type: string
-  ts: number
-  data: T
-}
+export type CityEnvelope<T = unknown> = WebSocketMessage<T>
 
 export interface CitySnapshot {
   execution: CityExecution | null

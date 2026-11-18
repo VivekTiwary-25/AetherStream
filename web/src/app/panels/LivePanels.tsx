@@ -4,7 +4,7 @@ import type { Alert, DeadLetter, WindowResult, WorkerInfo } from '../../api/type
 import { useDashboard } from '../state/store'
 import { ClayButton } from '../ui/ClayButton'
 import { GlassPanel } from '../ui/GlassPanel'
-import { StatusPill } from '../ui/StatusPill'
+import { StatusPill, type StatusState } from '../ui/StatusPill'
 
 const number = new Intl.NumberFormat('en-US')
 
@@ -15,25 +15,28 @@ function PanelState({ loading, disconnected, empty }: { loading: boolean; discon
 }
 
 function relativeAlertTime(eventTime: number, simTime: number | null) {
-  if (simTime === null) return simClock(eventTime)
+  if (!Number.isFinite(eventTime)) return '—'
+  if (simTime === null || !Number.isFinite(simTime)) return simClock(eventTime)
   const seconds = Math.max(0, Math.floor((simTime - eventTime) / 1000))
   return `${number.format(seconds)} s ago`
 }
 
 function simClock(timestamp: number) {
-  return new Date(timestamp).toISOString().slice(11, 16)
+  const date = new Date(timestamp)
+  return Number.isFinite(date.getTime()) ? date.toISOString().slice(11, 16) : '—'
 }
 
 function Sparkline({ values, bars = false }: { values: number[]; bars?: boolean }) {
-  if (!values.length) return <span aria-label="No history">—</span>
+  const finiteValues = values.filter(Number.isFinite)
+  if (!finiteValues.length) return <span aria-label="No history">—</span>
   const width = 120
   const height = 28
-  const max = Math.max(...values, 1)
-  if (bars) return <svg aria-label="Recent deliveries per minute" role="img" viewBox={`0 0 ${width} ${height}`} className="panel-sparkline">{values.map((value, index) => {
+  const max = Math.max(...finiteValues, 1)
+  if (bars) return <svg aria-label="Recent deliveries per minute" role="img" viewBox={`0 0 ${width} ${height}`} className="panel-sparkline">{finiteValues.map((value, index) => {
     const barHeight = (value / max) * height
-    return <rect key={index} x={index * (width / values.length) + 1} y={height - barHeight} width={Math.max(2, width / values.length - 2)} height={barHeight} rx="1" fill="currentColor" />
+    return <rect key={index} x={index * (width / finiteValues.length) + 1} y={height - barHeight} width={Math.max(2, width / finiteValues.length - 2)} height={barHeight} rx="1" fill="currentColor" />
   })}</svg>
-  const points = values.map((value, index) => `${values.length === 1 ? width / 2 : (index / (values.length - 1)) * width},${height - (value / max) * (height - 3)}`).join(' ')
+  const points = finiteValues.map((value, index) => `${finiteValues.length === 1 ? width / 2 : (index / (finiteValues.length - 1)) * width},${height - (value / max) * (height - 3)}`).join(' ')
   return <svg aria-label="Last 10 speed windows" role="img" viewBox={`0 0 ${width} ${height}`} className="panel-sparkline"><polyline points={points} fill="none" stroke="currentColor" strokeWidth="2" /></svg>
 }
 
@@ -41,7 +44,7 @@ export function SpeedWindowsPanel() {
   const { windows, socketStatus } = useDashboard()
   const trucks = useMemo(() => {
     const byTruck = new Map<string, WindowResult[]>()
-    windows.filter((window) => window.sinkId === 'speedSink').forEach((window) => {
+    windows.filter((window) => window && window.sinkId === 'speedSink' && window.values != null && Number.isFinite(window.windowEnd)).forEach((window) => {
       const list = byTruck.get(window.key) ?? []
       list.push(window)
       byTruck.set(window.key, list)
@@ -51,19 +54,22 @@ export function SpeedWindowsPanel() {
   return <GlassPanel title="Speed windows"><div className="panel-list">{trucks.length ? trucks.map(([truck, rows]) => {
     const ordered = [...rows].sort((a, b) => a.windowEnd - b.windowEnd)
     const latest = ordered.at(-1)!
-    const average = latest.values.avgSpeedKmh
-    return <div className="panel-row" key={truck}><strong>{truck}</strong><span>{average === undefined ? '—' : `${average.toFixed(1)} km/h`}</span><Sparkline values={ordered.slice(-10).map((row) => row.values.avgSpeedKmh ?? 0)} /><time>{simClock(latest.windowEnd)}</time></div>
+    const average = latest.values?.avgSpeedKmh
+    return <div className="panel-row" key={truck}><strong>{truck}</strong><span>{typeof average === 'number' && Number.isFinite(average) ? `${average.toFixed(1)} km/h` : '—'}</span><Sparkline values={ordered.slice(-10).map((row) => row.values?.avgSpeedKmh).filter((value): value is number => typeof value === 'number' && Number.isFinite(value))} /><time>{simClock(latest.windowEnd)}</time></div>
   }) : <PanelState loading={socketStatus === 'connecting'} disconnected={socketStatus === 'disconnected'} empty="No speed windows yet — start the demo pipeline." />}</div></GlassPanel>
 }
 
 export function DeliveriesPanel() {
   const { windows, summary, socketStatus } = useDashboard()
-  const rows = windows.filter((window) => window.sinkId === 'delSink').sort((a, b) => a.windowEnd - b.windowEnd)
+  const rows = windows.filter((window) => window && window.sinkId === 'delSink' && Number.isFinite(window.windowEnd)).sort((a, b) => a.windowEnd - b.windowEnd)
   const minuteTotals = new Map<number, number>()
-  rows.forEach((window) => minuteTotals.set(window.windowEnd, (minuteTotals.get(window.windowEnd) ?? 0) + (window.values.deliveries ?? 0)))
+  rows.forEach((window) => {
+    const deliveries = window.values?.deliveries
+    if (typeof deliveries === 'number' && Number.isFinite(deliveries)) minuteTotals.set(window.windowEnd, (minuteTotals.get(window.windowEnd) ?? 0) + deliveries)
+  })
   const values = [...minuteTotals.values()].slice(-15)
-  const latest = values.at(-1) ?? summary?.deliveriesLastMinute
-  return <GlassPanel title="Deliveries / min">{rows.length ? <><div className="panel-metric"><strong>{number.format(latest ?? 0)}</strong><Sparkline values={values} bars /></div><p className="panel-caption">Latest completed simulation minute</p></> : <PanelState loading={socketStatus === 'connecting'} disconnected={socketStatus === 'disconnected'} empty="No deliveries yet — start the demo pipeline." />}</GlassPanel>
+  const latest = values.at(-1) ?? (typeof summary?.deliveriesLastMinute === 'number' && Number.isFinite(summary.deliveriesLastMinute) ? summary.deliveriesLastMinute : undefined)
+  return <GlassPanel title="Deliveries / min">{latest !== undefined ? <><div className="panel-metric"><strong>{number.format(latest)}</strong><Sparkline values={values} bars /></div><p className="panel-caption">Latest completed simulation minute</p></> : <PanelState loading={socketStatus === 'connecting'} disconnected={socketStatus === 'disconnected'} empty="No delivery totals computed yet." />}</GlassPanel>
 }
 
 function AlertRow({ alert, simTime }: { alert: Alert; simTime: number | null }) {
@@ -79,14 +85,17 @@ function AlertRow({ alert, simTime }: { alert: Alert; simTime: number | null }) 
 
 export function AlertsPanel() {
   const { alerts, simTime, socketStatus } = useDashboard()
-  return <GlassPanel title="Alerts" status={<span>{number.format(alerts.length)}</span>}><div className="panel-list" aria-live="polite">{alerts.length ? [...alerts].sort((a, b) => b.eventTime - a.eventTime).slice(0, 8).map((alert) => <AlertRow key={alert.alertId} alert={alert} simTime={simTime} />) : <PanelState loading={socketStatus === 'connecting'} disconnected={socketStatus === 'disconnected'} empty="No alerts yet — start the demo pipeline." />}</div></GlassPanel>
+  const visible = alerts.filter((alert) => alert && Number.isFinite(alert.eventTime))
+  return <GlassPanel title="Alerts" status={<span>{number.format(visible.length)}</span>}><div className="panel-list" aria-live="polite">{visible.length ? [...visible].sort((a, b) => b.eventTime - a.eventTime).slice(0, 8).map((alert) => <AlertRow key={alert.alertId} alert={alert} simTime={simTime} />) : <PanelState loading={socketStatus === 'connecting'} disconnected={socketStatus === 'disconnected'} empty="No alerts yet — start the demo pipeline." />}</div></GlassPanel>
 }
 
 export function DeadLettersPanel() {
   const { deadLetters, socketStatus } = useDashboard()
   const [kind, setKind] = useState<DeadLetter['kind']>('REJECTED')
-  const shown = deadLetters.filter((item) => item.kind === kind).slice(0, 5)
-  return <GlassPanel title="Dead letters" status={<span>Rejected {number.format(deadLetters.filter((item) => item.kind === 'REJECTED').length)} · Late {number.format(deadLetters.filter((item) => item.kind === 'LATE').length)}</span>}><div className="panel-tabs" role="tablist" aria-label="Dead letter kind">{(['REJECTED', 'LATE'] as const).map((item) => <button key={item} type="button" role="tab" aria-selected={kind === item} aria-pressed={kind === item} onClick={() => setKind(item)}>{item}</button>)}</div><div className="panel-list">{shown.length ? shown.map((item) => <div className="panel-row" key={`${item.eventId}-${item.kind}`}><span>{item.reason}</span><time>{simClock(item.eventTime)}</time></div>) : <PanelState loading={socketStatus === 'connecting'} disconnected={socketStatus === 'disconnected'} empty={`No ${kind.toLowerCase()} records yet.`} />}</div></GlassPanel>
+  const shown = deadLetters.filter((item) => item && item.kind === kind).slice(0, 5)
+  const rejectedCount = deadLetters.filter((item) => item?.kind === 'REJECTED').length
+  const lateCount = deadLetters.filter((item) => item?.kind === 'LATE').length
+  return <GlassPanel title="Dead letters" status={<span>Rejected {number.format(rejectedCount)} · Late {number.format(lateCount)}</span>}><div className="panel-tabs" role="tablist" aria-label="Dead letter kind">{(['REJECTED', 'LATE'] as const).map((item) => <button key={item} type="button" role="tab" aria-selected={kind === item} aria-pressed={kind === item} onClick={() => setKind(item)}>{item}</button>)}</div><div className="panel-list">{shown.length ? shown.map((item) => <div className="panel-row" key={`${item.eventId}-${item.kind}`}><span>{item.reason}</span><time>{simClock(item.eventTime)}</time></div>) : <PanelState loading={socketStatus === 'connecting'} disconnected={socketStatus === 'disconnected'} empty="No dead letters." />}</div></GlassPanel>
 }
 
 
@@ -96,10 +105,13 @@ function queuePercent(size: number, capacity: number) {
 
 export function WorkersPanel() {
   const { workers, socketStatus } = useDashboard()
-  const alive = workers.filter((worker) => worker.alive).length
-  return <GlassPanel title="Workers" status={<span>{number.format(alive)} alive</span>}><div className="panel-list">{workers.length ? workers.map((worker: WorkerInfo) => {
-    const state = !worker.alive ? 'failed' : worker.backpressured ? 'backpressured' : 'healthy'
-    return <div className="worker-row" key={worker.workerId}><div className="worker-row__heading"><strong>{worker.workerId}</strong>{!worker.alive ? <span className="status-pill status-pill--failed">! Dead</span> : <StatusPill state={state} />}</div><span>Partitions {worker.partitions.map((partition) => number.format(partition)).join(', ') || '—'} · {worker.recordsPerSec.toFixed(1)} records/s</span><QueueBar label="Source queue" size={worker.sourceQueue.size} capacity={worker.sourceQueue.capacity} /><QueueBar label="Sink queue" size={worker.sinkQueue.size} capacity={worker.sinkQueue.capacity} /></div>
+  const displayable = workers.filter((worker) => worker && Number.isFinite(worker.sourceQueue?.size) && Number.isFinite(worker.sourceQueue?.capacity) && Number.isFinite(worker.sinkQueue?.size) && Number.isFinite(worker.sinkQueue?.capacity))
+  const alive = displayable.filter((worker) => worker.alive).length
+  return <GlassPanel title="Workers" status={<span>{number.format(alive)} alive</span>}><div className="panel-list">{displayable.length ? displayable.map((worker: WorkerInfo) => {
+    const state = !worker.alive ? 'failed' : worker.state === 'RESTORING' ? 'recovering' : worker.backpressured ? 'backpressured' : worker.state === 'RUNNING' ? 'running' : 'stopped'
+    const label = !worker.alive ? 'Dead' : worker.state === 'RESTORING' ? 'Recovering' : worker.state === 'RUNNING' ? 'Running' : 'Idle'
+    const recordsPerSec = Number.isFinite(worker.recordsPerSec) ? worker.recordsPerSec.toFixed(1) : '—'
+    return <div className="worker-row" key={worker.workerId}><div className="worker-row__heading"><strong>{worker.workerId}</strong><span className={`status-pill status-pill--${state}`}>{label}</span>{worker.alive && worker.backpressured && <span className="status-pill status-pill--backpressured">Backpressured</span>}</div><span>Partitions {worker.partitions?.map((partition) => number.format(partition)).join(', ') || '—'} · {recordsPerSec} records/s</span><QueueBar label="Source queue" size={worker.sourceQueue.size} capacity={worker.sourceQueue.capacity} /><QueueBar label="Sink queue" size={worker.sinkQueue.size} capacity={worker.sinkQueue.capacity} /></div>
   }) : <PanelState loading={socketStatus === 'connecting'} disconnected={socketStatus === 'disconnected'} empty="No workers connected yet." />}</div></GlassPanel>
 }
 
@@ -108,19 +120,28 @@ function QueueBar({ label, size, capacity }: { label: string; size: number; capa
 }
 
 export function ExecutionBanner() {
-  const { execution, lastExecutionEvent, socketStatus } = useDashboard()
+  const { execution, lastExecutionEvent, socketStatus, workers } = useDashboard()
   const [starting, setStarting] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [recoveredIn, setRecoveredIn] = useState<number | null>(null)
-  const recoveryStarted = useRef<number | null>(null)
   const checkpointRef = useRef<HTMLElement>(null)
   const checkpoint = lastExecutionEvent?.checkpointId ?? execution?.lastCompletedCheckpoint ?? 0
-  const isRecovering = execution?.state === 'RECOVERING' || lastExecutionEvent?.event === 'RECOVERING'
-  const status = !execution ? 'paused' : execution.state === 'FAILED' ? 'failed' : isRecovering ? 'recovering' : lastExecutionEvent?.event === 'CHECKPOINT_COMPLETED' ? 'checkpointing' : execution.state === 'RUNNING' ? 'running' : 'paused'
+  const isRecovering = execution?.state === 'RECOVERING' || lastExecutionEvent?.event === 'RECOVERING' || workers.some((worker) => worker?.alive && worker?.state === 'RESTORING')
+  const backpressured = workers.some((worker) => worker?.alive && worker?.backpressured)
+  const status: StatusState | 'stopped' = execution?.state === 'FAILED'
+    ? 'failed'
+    : isRecovering
+      ? 'recovering'
+      : execution?.state === 'RUNNING' && backpressured
+        ? 'backpressured'
+        : lastExecutionEvent?.event === 'CHECKPOINT_COMPLETED'
+          ? 'checkpointing'
+          : execution?.state === 'RUNNING'
+            ? 'running'
+            : 'stopped'
   let label = !execution ? 'No execution' : execution.state
   if (lastExecutionEvent?.event === 'WORKER_DEAD') label = `Worker ${lastExecutionEvent.workerId ?? 'unknown'} lost`
   else if (isRecovering) label = `Recovering from checkpoint #${number.format(checkpoint)}`
-  else if (lastExecutionEvent?.event === 'RECOVERED') label = `Recovered in ${((recoveredIn ?? 0) / 1000).toFixed(1)} s`
+  else if (lastExecutionEvent?.event === 'RECOVERED') label = 'Recovered'
   else if (lastExecutionEvent?.event === 'CHECKPOINT_COMPLETED') label = `Checkpoint #${number.format(checkpoint)}`
   const startDemo = async () => {
     setStarting(true)
@@ -137,15 +158,9 @@ export function ExecutionBanner() {
   }
   const eventName = lastExecutionEvent?.event
   useEffect(() => {
-    if (eventName === 'RECOVERING') {
-      recoveryStarted.current = Date.now()
-      setRecoveredIn(null)
-    } else if (eventName === 'RECOVERED') {
-      setRecoveredIn(recoveryStarted.current === null ? 0 : Date.now() - recoveryStarted.current)
-    }
     if (eventName === 'CHECKPOINT_COMPLETED' && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       checkpointRef.current?.animate([{ opacity: 0.35 }, { opacity: 1 }], { duration: 220, easing: 'ease-out' })
     }
   }, [eventName])
-  return <section className="execution-banner" aria-label="Execution status" aria-live="polite"><StatusPill state={status} /><strong ref={checkpointRef}>{label}</strong><span className="execution-banner__connection">{socketStatus === 'connected' ? 'Live' : 'Live connection lost — reconnecting…'}</span>{!execution && socketStatus !== 'disconnected' && <ClayButton onClick={startDemo} disabled={starting}>{starting ? 'Starting…' : 'Start demo pipeline'}</ClayButton>}{error && <span role="alert">{error}</span>}</section>
+  return <section className="execution-banner" aria-label="Execution status" aria-live="polite">{status === 'stopped' ? <span className="status-pill status-pill--stopped"><span className="status-pill__dot" aria-hidden="true" />Stopped</span> : <StatusPill state={status} />}<strong ref={checkpointRef}>{label}</strong><span className="execution-banner__connection">{socketStatus === 'connected' ? 'Live' : 'Live connection lost — reconnecting…'}</span>{!execution && socketStatus !== 'disconnected' && <ClayButton onClick={startDemo} disabled={starting}>{starting ? 'Starting…' : 'Start demo pipeline'}</ClayButton>}{error && <span role="alert">{error}</span>}</section>
 }

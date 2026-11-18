@@ -40,36 +40,55 @@ export function dashboardReducer(state: DashboardState, action: Action): Dashboa
   if (action.type === 'socket') return { ...state, socketStatus: action.status }
   if (action.type === 'hydrate') {
     const data = action.data
+    const windows = Array.isArray(data.windows) ? data.windows.filter((item) => item != null) : null
+    const alerts = Array.isArray(data.alerts) ? data.alerts.filter((item) => item != null) : null
+    const deadLetters = Array.isArray(data.deadLetters) ? data.deadLetters.filter((item) => item != null) : null
     return {
       ...state,
-      ...data,
-      windows: data.windows ? [...state.windows, ...data.windows].slice(0, 200) : state.windows,
-      alerts: data.alerts ? [...state.alerts, ...data.alerts].slice(0, 200) : state.alerts,
-      deadLetters: data.deadLetters ? [...state.deadLetters, ...data.deadLetters].slice(0, 200) : state.deadLetters,
+      workers: Array.isArray(data.workers) ? data.workers : state.workers,
+      summary: data.summary ?? state.summary,
+      windows: windows ? [...state.windows, ...windows].slice(0, 200) : state.windows,
+      alerts: alerts ? [...state.alerts, ...alerts].slice(0, 200) : state.alerts,
+      deadLetters: deadLetters ? [...state.deadLetters, ...deadLetters].slice(0, 200) : state.deadLetters,
     }
   }
-  const { type, data } = action.message
+  const message = action.message
+  if (!message || message.data == null) return state
+  const { type, data } = message
   switch (type) {
     case 'snapshot': {
-      const snapshot = data as SnapshotMessage
-      return { ...state, execution: snapshot.execution, workers: snapshot.workers, summary: snapshot.summary, simTime: snapshot.simulator?.simTime ?? state.simTime }
+      if (typeof data !== 'object') return state
+      const snapshot = data as Partial<SnapshotMessage>
+      return {
+        ...state,
+        execution: snapshot.execution ?? null,
+        workers: Array.isArray(snapshot.workers) ? snapshot.workers.filter((worker) => worker != null) : [],
+        summary: snapshot.summary ?? null,
+        simTime: typeof snapshot.simulator?.simTime === 'number' && Number.isFinite(snapshot.simulator.simTime) ? snapshot.simulator.simTime : state.simTime,
+      }
     }
-    case 'trucks':
-      return { ...state, simTime: (data as { simTime: number }).simTime }
+    case 'trucks': {
+      if (typeof data !== 'object' || !('simTime' in data)) return state
+      const simTime = data.simTime
+      return { ...state, simTime: typeof simTime === 'number' && Number.isFinite(simTime) ? simTime : state.simTime }
+    }
     case 'flow':
-      return { ...state, flow: data as Flow }
+      return typeof data === 'object' ? { ...state, flow: data as Flow } : state
     case 'windows':
-      return { ...state, windows: [...(data as WindowResult[]), ...state.windows].slice(0, 200) }
+      return Array.isArray(data) ? { ...state, windows: [...data.filter((item) => item != null), ...state.windows].slice(0, 200) } : state
     case 'alerts':
-      return { ...state, alerts: [...(data as Alert[]), ...state.alerts].slice(0, 200) }
+      return Array.isArray(data) ? { ...state, alerts: [...data.filter((item) => item != null), ...state.alerts].slice(0, 200) } : state
     case 'deadLetters':
-      return { ...state, deadLetters: [...(data as DeadLetter[]), ...state.deadLetters].slice(0, 200) }
+      return Array.isArray(data) ? { ...state, deadLetters: [...data.filter((item) => item != null), ...state.deadLetters].slice(0, 200) } : state
     case 'workers':
-      return { ...state, workers: data as WorkerInfo[] }
+      return Array.isArray(data) ? { ...state, workers: data.filter((worker) => worker != null) as WorkerInfo[] } : state
     case 'execution': {
+      if (typeof data !== 'object') return state
       const event = data as ExecutionEvent
       return { ...state, execution: event, lastExecutionEvent: event }
     }
+    default:
+      return state
   }
 }
 
