@@ -1,0 +1,151 @@
+name: ci-terraform
+
+on:
+  push:
+    branches: [main, "task/**"]
+    paths:
+      - "infra/terraform/**"
+      - ".github/workflows/ci-terraform.yml"
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  ci-terraform:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      TF_IN_AUTOMATION: "true"
+      TF_INPUT: "false"
+      TF_VAR_image_tag: ci
+      TF_VAR_registry_prefix: ghcr.io/vivektiwary-25/aetherstream-
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: 1.14.0
+          terraform_wrapper: false
+
+      - name: Check Terraform formatting
+        run: terraform -chdir=infra/terraform fmt -check -recursive
+
+      - name: Initialize Terraform
+        id: init
+        run: terraform -chdir=infra/terraform init -no-color
+
+      - name: Validate Terraform
+        run: terraform -chdir=infra/terraform validate -no-color
+
+      - uses: docker/setup-buildx-action@v4
+
+      - name: Build engine image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: infra/docker/engine.Dockerfile
+          push: false
+          load: true
+          tags: ghcr.io/vivektiwary-25/aetherstream-engine:ci
+          build-args: GIT_SHA=${{ github.sha }}
+          cache-from: type=gha,scope=terraform-engine
+          cache-to: type=gha,mode=max,scope=terraform-engine
+
+      - name: Build simulator image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: infra/docker/simulator.Dockerfile
+          push: false
+          load: true
+          tags: ghcr.io/vivektiwary-25/aetherstream-simulator:ci
+          build-args: GIT_SHA=${{ github.sha }}
+          cache-from: type=gha,scope=terraform-simulator
+          cache-to: type=gha,mode=max,scope=terraform-simulator
+
+      - name: Build control-api image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: infra/docker/control-api.Dockerfile
+          push: false
+          load: true
+          tags: ghcr.io/vivektiwary-25/aetherstream-control-api:ci
+          build-args: GIT_SHA=${{ github.sha }}
+          cache-from: type=gha,scope=terraform-control-api
+          cache-to: type=gha,mode=max,scope=terraform-control-api
+
+      - name: Build web image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: infra/docker/web.Dockerfile
+          push: false
+          load: true
+          tags: ghcr.io/vivektiwary-25/aetherstream-web:ci
+          build-args: VITE_GIT_SHA=${{ github.sha }}
+          cache-from: type=gha,scope=terraform-web
+          cache-to: type=gha,mode=max,scope=terraform-web
+
+      - name: Confirm all app images are local
+        run: |
+          set -euo pipefail
+          for service in engine simulator control-api web; do
+            docker image inspect "${TF_VAR_registry_prefix}${service}:ci" --format '{{.Id}}'
+          done
+
+      - name: Apply real Docker infrastructure
+        run: terraform -chdir=infra/terraform apply -auto-approve -no-color -var=image_tag=ci
+
+      - name: Wait for readiness and verify demo surface
+        run: |
+          set -euo pipefail
+          ready=false
+          for attempt in $(seq 1 36); do
+            if curl --fail --silent --show-error --max-time 5 \
+              http://localhost:18080/api/ready -o /tmp/aether-terraform-ready.json && \
+              jq -e '.status == "UP"' /tmp/aether-terraform-ready.json; then
+              ready=true
+              break
+            fi
+            sleep 5
+          done
+          cat /tmp/aether-terraform-ready.json || true
+          test "$ready" = true
+          curl --fail --silent --show-error --max-time 10 http://localhost:8088/ -o /tmp/aether-terraform-web.html
+          test -s /tmp/aether-terraform-web.html
+          curl --fail --silent --show-error --max-time 10 http://localhost:8088/api/ready | jq -e '.status == "UP"'
+          curl --fail --silent --show-error --max-time 10 http://localhost:18080/api/workers | \
+            jq -e 'length == 3 and all(.[]; .alive == true)'
+          docker exec aether-terraform-postgres psql -U aether -d aether -v ON_ERROR_STOP=1 \
+            -c 'SELECT count(*) FROM pipelines; SELECT count(*) FROM checkpoints;'
+          docker exec -e MC_HOST_local=http://aether:aether-secret@minio:9000 \
+            aether-terraform-minio /usr/bin/mc stat local/aether-checkpoints
+          docker exec aether-terraform-kafka /opt/kafka/bin/kafka-topics.sh \
+            --bootstrap-server kafka:9092 --describe --topic truck-events
+
+      - name: Dump diagnostics on failure
+        if: failure()
+        run: |
+          docker ps -a --filter name=aether-terraform-
+          for container in $(docker ps -aq --filter name=aether-terraform-); do
+            docker inspect --format '{{.Name}} {{json .State}}' "$container"
+            docker logs --tail 150 "$container" 2>&1 || true
+          done
+
+      - name: Destroy infrastructure even after failure
+        if: always() && steps.init.outcome == 'success'
+        run: terraform -chdir=infra/terraform destroy -auto-approve -no-color -var=image_tag=ci
+
+      - name: Verify teardown removed demo resources
+        if: always() && steps.init.outcome == 'success'
+        run: |
+          set -euo pipefail
+          test -z "$(docker ps -aq --filter name=aether-terraform-)"
+          test -z "$(docker network ls -q --filter name=aether-terraform)"
+          test -z "$(docker volume ls -q --filter name=aether-terraform-)"
