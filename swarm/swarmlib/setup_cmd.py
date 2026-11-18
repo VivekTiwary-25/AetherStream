@@ -33,11 +33,22 @@ def _repo_url():
     return res.out.strip() if res.ok and res.out.strip() else FALLBACK_URL
 
 
+def _norm_url(u):
+    u = (u or "").strip().lower().rstrip("/")
+    return u[:-4] if u.endswith(".git") else u
+
+
 def _clone(url):
     target = util.home() / "repo"
     if (target / ".git").exists():
-        print("Using existing clone %s" % target)
-        return True
+        res = util.run(["git", "remote", "get-url", "origin"], cwd=str(target))
+        old_url = res.out.strip() if res.ok else ""
+        if _norm_url(old_url) == _norm_url(url):
+            print("Using existing clone %s" % target)
+            return True
+        aside = target.with_name("repo-old-%d" % int(util.now()))
+        print("Existing clone %s is for another repo (%s); moving it to %s" % (target, old_url or "unknown", aside))
+        target.rename(aside)
     target.parent.mkdir(parents=True, exist_ok=True)
     print("Cloning %s into %s ..." % (url, target))
     res = util.run(["git", "clone", url, str(target)])
