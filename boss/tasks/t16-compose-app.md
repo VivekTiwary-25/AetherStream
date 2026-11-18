@@ -1,0 +1,47 @@
+# T16: docker compose: add the application services + extend the smoke test
+
+Lane 7 (infra). docker-compose.yml (root) already runs kafka, kafka-init, postgres, minio, minio-init, with commented
+placeholders for the app services. Dockerfiles exist in infra/docker/ (engine = coordinator + worker, simulator,
+control-api, web with nginx). Now add the app services so `docker compose up -d --build` runs the WHOLE system.
+
+Files (edit/create only these):
+- docker-compose.yml
+- infra/scripts/smoke.sh (append app checks as new functions; keep the existing infra checks)
+- .github/workflows/ci-compose.yml
+
+Services (ports and env exactly as contract 00):
+- `coordinator`: build infra/docker/engine.Dockerfile (context `.`), default entrypoint, env CHECKPOINT_INTERVAL_MS=10000,
+  depends_on kafka-init/minio-init completed_successfully and postgres healthy; healthcheck curl :8081/coord/health;
+  host port 18081; `restart: unless-stopped`.
+- `worker-1`, `worker-2`, `worker-3`: same image (use a YAML anchor `x-worker` to avoid repetition, and `image:` name
+  `aether/engine:local` shared with coordinator so it builds once), `entrypoint: ["/app/bin/worker"]`, env WORKER_ID=worker-1..3,
+  healthcheck curl :8090/health, depends_on coordinator healthy, `restart: unless-stopped` (a killed worker comes back as a new
+  member), `stop_grace_period: 5s`.
+- `simulator`: build infra/docker/simulator.Dockerfile, env SIM_SEED=42 SIM_TIME_SCALE=10, port 18070, healthcheck :8070/health,
+  depends_on kafka-init completed_successfully.
+- `control-api`: build infra/docker/control-api.Dockerfile, port 18080, healthcheck :8080/api/health, depends_on postgres healthy
+  and coordinator healthy.
+- `web`: build infra/docker/web.Dockerfile, port 8088:80, depends_on control-api healthy, healthcheck wget/curl on / .
+- All app services get `GIT_SHA: ${GIT_SHA:-dev}` and the shared env from contract 00; build args GIT_SHA (web: VITE_GIT_SHA).
+- Logging: `json-file` with max-size 10m, max-file 3 on every service.
+
+smoke.sh additions (functions, clear PASS/FAIL lines, overall exit code): wait up to 180 s for coordinator, simulator,
+control-api (/api/health) and web (http://localhost:8088/ and http://localhost:8088/api/health through nginx) to be UP;
+check `GET http://localhost:18081/coord/state` lists 3 alive workers within 60 s (warn instead of fail if the worker main class
+is not implemented yet - detect via `docker compose logs worker-1` containing "ClassNotFoundException" or "Could not find
+or load main class"); check `GET http://localhost:18070/state` returns trucks; check Kafka topic `truck-events` receives
+records (kafka-get-offsets / GetOffsetShell sum > 0 after 10 s).
+
+ci-compose.yml: build + start the whole stack (`docker compose up -d --build --wait --wait-timeout 300` or up -d + smoke
+waits), run smoke.sh, always dump `docker compose ps` and logs, always `down -v`. Add paths-ignore swarm/**, boss/**,
+docs/**, **/*.md on push and a per-ref concurrency group with cancel-in-progress. Timeout 30 min.
+
+Acceptance check: `ci-compose` green on your branch; its log shows PASS for every app service health check.
+
+## Rules (apply to every task)
+- Read every file in docs/contracts/ first and follow them exactly. Do not edit docs/contracts/ or infra/db/schema.sql. If a contract looks wrong, follow it anyway and say so in your result.
+- Do not change anything in swarm/ (except your own report file if the swarm asks you to write one).
+- Only create/edit the files listed under "Files". If you truly need another file, say so in your result instead of editing it.
+- Your PC may not have Java, Node or Docker. The acceptance check runs in GitHub Actions on your task branch (CI runs on push to task/**). Write code carefully so it compiles first time; keep it simple and readable.
+- Do not commit secrets, build outputs, node_modules or .gradle/ folders.
+- In your result, list what you built, how the acceptance check proves it, and anything left undone.

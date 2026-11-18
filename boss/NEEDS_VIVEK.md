@@ -1,3 +1,3 @@
 # Things only Vivek (a human) can do
 
-1. [00:45] vimlesh-pc: the swarm cannot find the `claude` program. On vimlesh-pc, open a terminal, type `claude` and check it starts (log in if asked), then run `swarm fix`. Until then its tasks go to other workers automatically.
+1. [01:12] vimlesh-pc: Vimlesh's Claude Code is logged out. On vimlesh-pc run `claude auth login` (or open `claude` and log in), then `swarm fix`. Until then its UI tasks go to the Codex workers automatically.
