@@ -1,0 +1,32 @@
+# T39: Worker hardening: bounded control queue, accurate lag, Prometheus metrics, graceful shutdown
+
+Lane 1 (engine). The worker runtime is on main (engine/src/main/java/io/aetherstream/engine/worker/**). A review
+(docs/reviews/R03-worker.md) found `pendingBarriers` in TaskRuntime is an unbounded queue. Read contract 03 and the worker code.
+
+Files (edit/create only these):
+- engine/src/main/java/io/aetherstream/engine/worker/**
+- engine/src/test/java/io/aetherstream/engine/worker/**
+Do NOT edit coordinator/**, storage/**, db/** (another task is changing the coordinator).
+
+1. Bound pending checkpoint requests: keep at most 2 pending; a newer request for a higher checkpoint id replaces an older
+   one that has not yet entered the queue (the coordinator aborts the skipped one after 30 s anyway). Unit test it.
+2. Lag per partition: endOffsets - next offset to read, refreshed at most every 2 s on the source thread (never block the
+   heartbeat thread on Kafka). Unit test with the fake source.
+3. `GET /metrics` on the worker health server (port 8090), Prometheus text format, hand-written (no new dependency):
+   aether_worker_processed_records_total, aether_worker_records_per_sec, aether_worker_queue_size{queue="source|sink"},
+   aether_worker_queue_capacity, aether_worker_backpressured, aether_worker_lag{partition}, aether_worker_generation,
+   aether_worker_last_checkpoint_id, aether_worker_sink_batches_total, aether_worker_fenced_total. Labels include
+   worker="<workerId>".
+4. Graceful shutdown (SIGTERM via a JVM shutdown hook, NOT KILL): stop accepting records, finish the current sink batch,
+   close consumer and DB pool, report state IDLE once; complete within 4 s.
+5. Keep all existing tests green; add tests for 1, 2 and the metrics text.
+
+Acceptance check: `ci-java` green on your branch.
+
+## Rules (apply to every task)
+- Read every file in docs/contracts/ first and follow them exactly. Do not edit docs/contracts/ or infra/db/schema.sql. If a contract looks wrong, follow it anyway and say so in your result.
+- Do not change anything in swarm/ (except your own report file if the swarm asks you to write one).
+- Only create/edit the files listed under "Files". If you truly need another file, say so in your result instead of editing it.
+- The acceptance check runs in GitHub Actions on your task branch. Write code carefully so it compiles first time.
+- Do not commit secrets, build outputs, node_modules or .gradle/ folders.
+- In your result, list what you built, how the acceptance check proves it, and anything left undone.
