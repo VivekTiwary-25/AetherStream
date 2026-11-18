@@ -11,11 +11,11 @@ COPY simulator/build.gradle.kts simulator/build.gradle.kts
 COPY tests/build.gradle.kts tests/build.gradle.kts
 RUN chmod +x gradlew
 COPY . .
-RUN ./gradlew --no-daemon :engine:installDist
+RUN sh infra/docker/with-proxy.sh ./gradlew --no-daemon :engine:installDist
 
 FROM eclipse-temurin:21-jre
 ARG GIT_SHA=dev
-LABEL org.opencontainers.image.source="https://github.com/${GITHUB_REPOSITORY}" \
+LABEL org.opencontainers.image.source="https://github.com/VivekTiwary-25/AetherStream" \
       org.opencontainers.image.revision="${GIT_SHA}"
 ENV GIT_SHA=${GIT_SHA}
 WORKDIR /app
