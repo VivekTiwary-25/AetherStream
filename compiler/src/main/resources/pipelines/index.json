@@ -1,0 +1,6 @@
+[
+  {"id": "logistics-demo", "name": "Truck city: speed, deliveries, stuck trucks", "description": "A complete truck pipeline with speed, delivery, and stuck-truck branches.", "file": "logistics-demo.json"},
+  {"id": "speeding-alerts", "name": "Speeding alerts", "description": "Detects sustained speeding and stores both window results and alerts.", "file": "speeding-alerts.json"},
+  {"id": "fleet-activity", "name": "Fleet activity", "description": "Converts truck speeds to metres per second and summarizes five-minute fleet activity.", "file": "fleet-activity.json"},
+  {"id": "broken-for-demo", "name": "Broken logistics demo", "description": "A teaching example with three validation mistakes to fix live.", "file": "broken-for-demo.json"}
+]

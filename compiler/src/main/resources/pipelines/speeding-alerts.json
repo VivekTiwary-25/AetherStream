@@ -1,0 +1,18 @@
+{
+  "id": "speeding-alerts",
+  "version": 1,
+  "name": "Speeding alerts",
+  "nodes": [
+    { "id": "src", "type": "source", "label": "Truck events", "position": {"x": 0, "y": 0}, "config": { "topic": "truck-events", "startFrom": "latest" } },
+    { "id": "pos", "type": "filter", "label": "Position events", "position": {"x": 220, "y": 0}, "config": { "conditions": [{"field": "type", "op": "==", "value": "truck.position"}] } },
+    { "id": "kb", "type": "keyBy", "label": "Key by truck", "position": {"x": 440, "y": 0}, "config": { "field": "key" } },
+    { "id": "speed1m", "type": "window", "label": "1-minute speed window", "position": {"x": 660, "y": 0}, "config": { "kind": "tumbling", "sizeMs": 60000, "outOfOrdernessMs": 5000, "aggregations": [{"name": "maxSpeedKmh", "fn": "max", "field": "payload.speedKmh"}] } },
+    { "id": "windowsSink", "type": "sink", "label": "Window results", "position": {"x": 880, "y": 100}, "config": { "kind": "postgres.windows" } },
+    { "id": "speeding", "type": "rule", "label": "Speeding rule", "position": {"x": 880, "y": -100}, "config": { "ruleId": "speeding", "condition": {"field": "maxSpeedKmh", "op": ">", "value": 45}, "forWindows": 2, "message": "{key} was speeding for {minutes} min" } },
+    { "id": "alertsSink", "type": "sink", "label": "Alerts", "position": {"x": 1100, "y": -100}, "config": { "kind": "postgres.alerts" } }
+  ],
+  "edges": [
+    {"from": "src", "to": "pos"}, {"from": "pos", "to": "kb"}, {"from": "kb", "to": "speed1m"},
+    {"from": "speed1m", "to": "windowsSink"}, {"from": "speed1m", "to": "speeding"}, {"from": "speeding", "to": "alertsSink"}
+  ]
+}
