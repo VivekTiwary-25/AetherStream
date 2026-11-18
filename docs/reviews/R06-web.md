@@ -1,0 +1,15 @@
+VERDICT: FAIL
+
+1. **BLOCKER** — `web/src/App.tsx:4`, `web/src/app/shell/AppShell.tsx:1-29`. Demo rules require a pipeline editor (Validate + Run), a chaos panel (late events, slow output, kill worker), and Compare with reference. The running app mounts only `CityView`, live panels, and `Footer`. `PipelineEditor`, `ChaosPanel`, and `ComparePanel` are imported only by tests. Fix: mount all three from the shell.
+
+2. **MAJOR** — `web/src/app/shell/AppShell.tsx:17`. Contract 04 requires running, backpressured, checkpointing, recovering, paused/stopped, and failed, each with text and colour. The header pill is hardcoded `state="healthy"` (green "Healthy") while the execution is failed or recovering. Fix: drive that pill from execution and worker state.
+
+3. **MAJOR** — `web/src/app/panels/LivePanels.tsx:84`. An alive worker that is not backpressured is always `healthy`, including contract 03 `state: "RESTORING"` and `IDLE`. Recovery then shows a green Healthy pill instead of recovering. Fix: map `RESTORING` to recovering and `RUNNING` to running.
+
+4. **MAJOR** — `web/src/app/panels/LivePanels.tsx:40,48,110`. Contract 02 §4 omits an aggregation when no record had the field; `?? 0` prints `0.0 km/h` and `0` deliveries the engine did not compute. `Recovered in … s` is a client clock, and `recoveredIn ?? 0` shows `0.0 s` if the `RECOVERING` frame was missed. Fix: show an em dash for an omitted value and do not invent a recovery duration.
+
+5. **MAJOR** — `web/src/app/state/store.tsx:54-62`, `web/src/app/panels/LivePanels.tsx:9-11,85`. A snapshot, trucks, or windows frame with null `data` throws in the reducer (`data.execution`, `data.simTime`, or spreading null) and unmounts the dashboard. `simClock` calls `toISOString` on a missing `windowEnd` or `eventTime` (`CityView.tsx:28` already guards this). `WorkersPanel` calls `partitions.join`, `recordsPerSec.toFixed`, and `sourceQueue.size` with no guard. Fix: ignore null data, coerce missing arrays to `[]`, format only finite timestamps, and skip a worker that lacks queue fields.
+
+6. **MINOR** — `web/src/app/chaos/ChaosPanel.tsx:71`. Its pill is hardcoded `healthy`, so slow-sink backpressure never changes it. Fix: bind it to worker `backpressured` when the panel is mounted.
+
+Checks: REST paths, methods, and JSON field names used by `api/client.ts`, `editorApi.ts`, `chaosApi.ts`, Footer, and CityView match contract 04 (no field-name mismatch). Handled WebSocket types are `snapshot`, `trucks`, `flow`, `windows`, `alerts`, `deadLetters`, `workers`, and `execution` (with `event`). Browser URLs are relative `/api` and `/ws`; ws/wss follows the page protocol (`api/ws.ts:14-15`, `citySocket.ts:11-12`). The running app opens two sockets: city `subscribeCity` and dashboard `useAetherSocket`. `web/src` does not import `web/mock`. MOCK DATA renders only when `VITE_USE_MOCK === '1'`. Vite's dev proxy to `localhost:18080` is contract 00's control-api host port, not a browser URL. City `engineStatus` shows each contract state with text and colour. Web tree matches `origin/main` (no `web/` diff).
