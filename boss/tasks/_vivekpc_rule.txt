@@ -1,0 +1,1 @@
+- If you are running on vivek-pc: do NOT start Docker containers, docker compose stacks or kind clusters there (the live demo runs on that PC and memory is tight). Rely on GitHub Actions for anything that needs Docker.
