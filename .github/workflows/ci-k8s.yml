@@ -1,0 +1,194 @@
+name: ci-k8s
+
+on:
+  push:
+    branches: [main, "task/**"]
+    paths:
+      - "infra/kubernetes/**"
+      - "infra/docker/**"
+      - ".github/workflows/ci-k8s.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "infra/kubernetes/**"
+      - "infra/docker/**"
+      - ".github/workflows/ci-k8s.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci-k8s:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install pinned Kubernetes tools
+        run: |
+          set -euo pipefail
+          tools="$RUNNER_TEMP/k8s-tools"
+          mkdir -p "$tools"
+          curl -fsSL https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv5.8.1/kustomize_v5.8.1_linux_amd64.tar.gz | tar -xz -C "$tools" kustomize
+          curl -fsSL https://github.com/yannh/kubeconform/releases/download/v0.7.0/kubeconform-linux-amd64.tar.gz | tar -xz -C "$tools" kubeconform
+          curl -fsSL https://kind.sigs.k8s.io/dl/v0.30.0/kind-linux-amd64 -o "$tools/kind"
+          chmod +x "$tools"/*
+          echo "$tools" >> "$GITHUB_PATH"
+
+      - name: Render CI images and validate manifests first
+        run: |
+          set -euo pipefail
+          (
+            cd infra/kubernetes
+            for image in engine simulator control-api web; do
+              kustomize edit set image "ghcr.io/vivektiwary-25/aetherstream-$image=aether/$image:ci"
+            done
+            kustomize edit add configmap aether-config --behavior merge --from-literal="GIT_SHA=$GITHUB_SHA"
+          )
+          rendered="$RUNNER_TEMP/k8s-rendered"
+          mkdir -p "$rendered"
+          # The generator reads the canonical schema outside this kustomization's root.
+          kustomize build --load-restrictor LoadRestrictionsNone infra/kubernetes > "$rendered/resources.yaml"
+          kubeconform -strict -summary -kubernetes-version 1.34.0 "$rendered/resources.yaml"
+          # kubectl's built-in Kustomize cannot disable the root-only loader.
+          printf 'apiVersion: kustomize.config.k8s.io/v1beta1\nkind: Kustomization\nresources: [resources.yaml]\n' > "$rendered/kustomization.yaml"
+          echo "K8S_RENDER_DIR=$rendered" >> "$GITHUB_ENV"
+
+      - name: Build four local images
+        run: |
+          set -euo pipefail
+          for image in engine simulator control-api web; do
+            docker build --file "infra/docker/$image.Dockerfile" \
+              --build-arg "GIT_SHA=$GITHUB_SHA" --build-arg "VITE_GIT_SHA=$GITHUB_SHA" \
+              --tag "aether/$image:ci" .
+          done
+
+      - name: Create kind cluster and load images
+        run: |
+          set -euo pipefail
+          cat > "$RUNNER_TEMP/kind.yaml" <<'YAML'
+          kind: Cluster
+          apiVersion: kind.x-k8s.io/v1alpha4
+          nodes:
+            - role: control-plane
+              extraPortMappings:
+                - containerPort: 30088
+                  hostPort: 18088
+                  listenAddress: "127.0.0.1"
+          YAML
+          kind create cluster --name aether-ci --image kindest/node:v1.34.0 \
+            --config "$RUNNER_TEMP/kind.yaml" --wait 120s
+          kind load docker-image --name aether-ci \
+            aether/engine:ci aether/simulator:ci aether/control-api:ci aether/web:ci
+
+      - name: Deploy and wait up to ten minutes
+        run: |
+          set -euo pipefail
+          kubectl apply -k "$K8S_RENDER_DIR"
+          deadline=$((SECONDS + 600))
+          kubectl -n aether wait --for=condition=complete jobs --all --timeout=600s
+          for workload in $(kubectl -n aether get deployments,statefulsets -o name); do
+            remaining=$((deadline - SECONDS))
+            (( remaining > 0 ))
+            kubectl -n aether rollout status "$workload" --timeout="${remaining}s"
+          done
+          remaining=$((deadline - SECONDS))
+          (( remaining > 0 ))
+          # Completed init Jobs are successful, not Ready long-running pods.
+          kubectl -n aether wait pods --all --field-selector=status.phase!=Succeeded \
+            --for=condition=Ready --timeout="${remaining}s"
+
+      - name: Smoke readiness, demo processing and worker recovery
+        run: |
+          set -euo pipefail
+          kubectl -n aether port-forward svc/control-api 18080:8080 > "$RUNNER_TEMP/control-api-forward.log" 2>&1 &
+          api_pf=$!
+          kubectl -n aether port-forward svc/coordinator 18081:8081 > "$RUNNER_TEMP/coordinator-forward.log" 2>&1 &
+          coord_pf=$!
+          trap 'kill "$api_pf" "$coord_pf" 2>/dev/null || true' EXIT
+          api=http://127.0.0.1:18080
+          coord=http://127.0.0.1:18081
+          deadline=$((SECONDS + 30))
+          until curl -fsS --max-time 5 "$api/api/ready" > "$RUNNER_TEMP/ready.json" &&
+            jq -e '.status == "UP" and (.checks | [.[] == "UP"] | all)' "$RUNNER_TEMP/ready.json"; do
+            (( SECONDS < deadline )) || exit 1
+            sleep 1
+          done
+          # Exercise the actual web NodePort and nginx-to-control-api route too.
+          curl -fsS --max-time 5 http://127.0.0.1:18088/ > /dev/null
+          curl -fsS --max-time 5 http://127.0.0.1:18088/api/ready | jq -e '.status == "UP"'
+          curl -fsS --max-time 5 "$api/api/pipelines/demo" > "$RUNNER_TEMP/demo.json"
+          pipeline=$(curl -fsS --max-time 5 -H 'Content-Type: application/json' \
+            --data-binary "@$RUNNER_TEMP/demo.json" "$api/api/pipelines" | jq -er '.id | @uri')
+          execution=$(curl -fsS --max-time 10 -H 'Content-Type: application/json' \
+            -d "{\"idempotencyKey\":\"kind-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT\"}" \
+            "$api/api/pipelines/$pipeline/executions" | jq -er '.id')
+          deadline=$((SECONDS + 120))
+          until curl -fsS --max-time 5 "$coord/coord/state" > "$RUNNER_TEMP/before.json" &&
+            jq -e --arg id "$execution" '
+              .execution.id == $id and .execution.state == "RUNNING" and
+              .execution.lastCompletedCheckpoint >= 1 and
+              ([.workers[] | select(.alive and .state == "RUNNING" and (.partitions | length) > 0)] | length) == 3 and
+              any(.workers[]; .workerId == "worker-1" and .alive and (.partitions | length) > 0)
+            ' "$RUNNER_TEMP/before.json" &&
+            curl -fsS --max-time 5 "$api/api/results/summary" | jq -e '.windowsWritten > 0'; do
+            (( SECONDS < deadline )) || exit 1
+            sleep 2
+          done
+          generation=$(jq -er '.execution.generation' "$RUNNER_TEMP/before.json")
+          checkpoint=$(jq -er '.execution.lastCompletedCheckpoint' "$RUNNER_TEMP/before.json")
+          old_uid=$(kubectl -n aether get pod worker-1 -o jsonpath='{.metadata.uid}')
+          deadline=$((SECONDS + 60))
+          kubectl -n aether delete pod worker-1 --wait=false
+          until curl -fsS --max-time 3 "$coord/coord/state" > "$RUNNER_TEMP/after.json" &&
+            jq -e --arg id "$execution" --argjson generation "$generation" --argjson checkpoint "$checkpoint" '
+              .execution.id == $id and .execution.generation > $generation and
+              .execution.state == "RUNNING" and .execution.restoredFromCheckpoint >= $checkpoint and
+              ([.workers[] | select(.alive and .state == "RUNNING") | .partitions[]] | sort) == [0,1,2,3,4,5]
+            ' "$RUNNER_TEMP/after.json"; do
+            (( SECONDS < deadline )) || exit 1
+            sleep 1
+          done
+          (( SECONDS <= deadline ))
+          echo "Recovered from checkpoint >= $checkpoint with generation > $generation within 60s"
+          kubectl -n aether rollout status statefulset/worker --timeout=60s
+          new_uid=$(kubectl -n aether get pod worker-1 -o jsonpath='{.metadata.uid}')
+          test "$old_uid" != "$new_uid"
+          # A newer checkpoint and new results prove progress after restoration, not just a state transition.
+          windows=$(curl -fsS --max-time 5 "$api/api/results/summary" | jq -er '.windowsWritten')
+          checkpoint=$(jq -er '.execution.lastCompletedCheckpoint' "$RUNNER_TEMP/after.json")
+          deadline=$((SECONDS + 60))
+          until curl -fsS --max-time 5 "$coord/coord/state" | \
+              jq -e --argjson cp "$checkpoint" '.execution.state == "RUNNING" and .execution.lastCompletedCheckpoint > $cp' &&
+            curl -fsS --max-time 5 "$api/api/results/summary" | jq -e --argjson n "$windows" '.windowsWritten > $n'; do
+            (( SECONDS < deadline )) || exit 1
+            sleep 2
+          done
+
+      - name: Always dump pods and diagnostic logs
+        if: always()
+        run: |
+          kubectl get pods -A -o wide || true
+          kubectl -n aether get jobs,pvc || true
+          kubectl -n aether get events --sort-by=.lastTimestamp || true
+          kubectl -n aether describe pods || true
+          for pod in $(kubectl -n aether get pods -o name 2>/dev/null); do
+            echo "=== $pod ==="
+            kubectl -n aether logs "$pod" --all-containers=true --prefix --tail=200 || true
+            kubectl -n aether logs "$pod" --all-containers=true --prefix --previous --tail=200 2>/dev/null || true
+          done
+          for file in "$RUNNER_TEMP"/*-forward.log "$RUNNER_TEMP"/ready.json "$RUNNER_TEMP"/before.json "$RUNNER_TEMP"/after.json; do
+            if [[ -f "$file" ]]; then echo "=== $file ==="; cat "$file"; fi
+          done
+
+      - name: Delete kind cluster
+        if: always()
+        run: kind delete cluster --name aether-ci
