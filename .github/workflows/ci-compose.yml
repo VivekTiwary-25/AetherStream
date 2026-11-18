@@ -1,0 +1,32 @@
+name: ci-compose
+
+on:
+  push:
+    branches:
+      - main
+      - "task/**"
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  compose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Start infrastructure
+        run: docker compose up -d kafka kafka-init postgres minio minio-init
+
+      - name: Smoke
+        run: bash infra/scripts/smoke.sh
+
+      - name: Logs
+        if: always()
+        run: docker compose logs
+
+      - name: Tear down
+        if: always()
+        run: docker compose down -v

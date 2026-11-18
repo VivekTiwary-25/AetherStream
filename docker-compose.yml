@@ -1,0 +1,138 @@
+# Local infra for contract 00. Network name is `aether`.
+# App services are commented placeholders; later tasks fill them in.
+
+services:
+  kafka:
+    image: apache/kafka:4.3.2
+    hostname: kafka
+    ports:
+      - "19092:19092"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      # INTERNAL is for containers (kafka:9092). EXTERNAL is for the host (localhost:19092).
+      KAFKA_LISTENERS: CONTROLLER://:9093,INTERNAL://:9092,EXTERNAL://:19092
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:9092,EXTERNAL://localhost:19092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      CLUSTER_ID: 4L6g3nShT-eMCtK--X86sw
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_SHARE_COORDINATOR_STATE_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_SHARE_COORDINATOR_STATE_TOPIC_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_NUM_PARTITIONS: 6
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+      # Image VOLUME path, owned by appuser, so the named volume stays writable.
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD", "/opt/kafka/bin/kafka-broker-api-versions.sh", "--bootstrap-server", "localhost:9092"]
+      interval: 10s
+      timeout: 20s
+      retries: 12
+      start_period: 20s
+    networks:
+      - aether
+
+  kafka-init:
+    image: apache/kafka:4.3.2
+    depends_on:
+      kafka:
+        condition: service_healthy
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        /opt/kafka/bin/kafka-topics.sh \
+          --bootstrap-server kafka:9092 \
+          --create \
+          --if-not-exists \
+          --topic truck-events \
+          --partitions 6 \
+          --replication-factor 1
+    restart: "no"
+    networks:
+      - aether
+
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: aether
+      POSTGRES_USER: aether
+      POSTGRES_PASSWORD: ${PG_PASSWORD:-aether}
+    ports:
+      - "15432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./infra/db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "aether", "-d", "aether"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 5s
+    networks:
+      - aether
+
+  minio:
+    image: pgsty/minio:RELEASE.2026-08-04T00-00-00Z
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY:-aether}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-aether-secret}
+    ports:
+      - "19000:9000"
+      - "19001:9001"
+    volumes:
+      - minio-data:/data
+    # This image ships curl and mc. curl does not need an alias.
+    healthcheck:
+      test: ["CMD", "/usr/bin/curl", "-f", "http://127.0.0.1:9000/minio/health/ready"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 5s
+    networks:
+      - aether
+
+  minio-init:
+    # pgsty/mc entrypoint is /usr/bin/mc (no shell). MC_HOST_* skips `mc alias set`.
+    # Pin matches a published tag; do not float to latest.
+    image: pgsty/mc:RELEASE.2026-11-12T00-00-00Z
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MC_HOST_local: http://${S3_ACCESS_KEY:-aether}:${S3_SECRET_KEY:-aether-secret}@minio:9000
+    command: ["mb", "--ignore-existing", "local/aether-checkpoints"]
+    restart: "no"
+    networks:
+      - aether
+
+  # ---------------------------------------------------------------------
+  # Placeholders — later tasks fill these in. Do not uncomment here.
+  # coordinator: container 8081, host 18081
+  # worker-1, worker-2, worker-3: container 8090 (health only), no host port
+  # simulator: container 8070, host 18070
+  # control-api: container 8080, host 18080
+  # web: container 80, host 8088 (nginx; proxies /api and /ws to control-api)
+  # Shared env defaults (contract 00): KAFKA_BOOTSTRAP=kafka:9092,
+  # KAFKA_TOPIC=truck-events, PG_URL=jdbc:postgresql://postgres:5432/aether,
+  # PG_USER=aether, PG_PASSWORD=aether, S3_ENDPOINT=http://minio:9000,
+  # S3_ACCESS_KEY=aether, S3_SECRET_KEY=aether-secret,
+  # S3_BUCKET=aether-checkpoints, COORDINATOR_URL=http://coordinator:8081,
+  # SIMULATOR_URL=http://simulator:8070, GIT_SHA=dev, WORKER_ID optional.
+  # ---------------------------------------------------------------------
+
+networks:
+  aether:
+    name: aether
+
+volumes:
+  kafka-data:
+  postgres-data:
+  minio-data:
