@@ -5,27 +5,42 @@ on:
     branches:
       - main
       - "task/**"
+    paths-ignore:
+      - "swarm/**"
+      - "boss/**"
+      - "docs/**"
+      - "**/*.md"
   pull_request:
     branches:
       - main
 
+concurrency:
+  group: ci-compose-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   compose:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
+    env:
+      GIT_SHA: ${{ github.sha }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Start infrastructure
-        run: docker compose up -d kafka kafka-init postgres minio minio-init
+      - name: Build and start whole stack
+        run: docker compose up -d --build
 
       - name: Smoke
         run: bash infra/scripts/smoke.sh
 
+      - name: Status
+        if: always()
+        run: docker compose ps -a
+
       - name: Logs
         if: always()
-        run: docker compose logs
+        run: docker compose logs --no-color
 
       - name: Tear down
         if: always()
