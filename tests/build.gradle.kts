@@ -3,6 +3,7 @@ plugins { java }
 dependencies {
     testImplementation(project(":reference"))
     testImplementation(project(":engine"))
+    testImplementation(project(":simulator"))
     testImplementation(libs.kafka.clients)
     testImplementation(libs.postgres)
     testImplementation(libs.minio)
@@ -23,6 +24,8 @@ val integrationTest by tasks.registering(Test::class) {
     testClassesDirs = sourceSets["test"].output.classesDirs
     classpath = sourceSets["test"].runtimeClasspath
     useJUnitPlatform { includeTags("integration") }
+    // Classes share fixed topic/table names; each gets a fresh infrastructure singleton.
+    forkEvery = 1
     systemProperty("aether.schema", rootProject.file("infra/db/schema.sql").absolutePath)
     shouldRunAfter(tasks.named("test"))
     testLogging { events("passed", "failed"); showStandardStreams = true }
