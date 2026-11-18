@@ -1,0 +1,400 @@
+{
+  "config": {
+    "argv": [
+      "C:\\Program Files\\nodejs\\node.exe",
+      "C:\\Users\\Arena\\.swarm\\work\\t261119-0232-55bf\\tests\\ui\\node_modules\\@playwright\\test\\cli.js",
+      "test"
+    ],
+    "configFile": "C:\\Users\\Arena\\.swarm\\work\\t261119-0232-55bf\\tests\\ui\\playwright.config.ts",
+    "rootDir": "C:/Users/Arena/.swarm/work/t261119-0232-55bf/tests/ui",
+    "failOnFlakyTests": false,
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "C:/Users/Arena/.swarm/work/t261119-0232-55bf/tests/ui/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "chromium",
+        "name": "chromium",
+        "testDir": "C:/Users/Arena/.swarm/work/t261119-0232-55bf/tests/ui",
+        "testIgnore": [],
+        "testMatch": [
+          "demo.spec.ts"
+        ],
+        "timeout": 480000
+      }
+    ],
+    "filteredProjects": [
+      {
+        "grep": {},
+        "grepInvert": null,
+        "outputDir": "C:\\Users\\Arena\\.swarm\\work\\t261119-0232-55bf\\tests\\ui\\test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "name": "chromium",
+        "testDir": "C:\\Users\\Arena\\.swarm\\work\\t261119-0232-55bf\\tests\\ui",
+        "snapshotDir": "C:\\Users\\Arena\\.swarm\\work\\t261119-0232-55bf\\tests\\ui",
+        "testIgnore": [],
+        "testMatch": "demo.spec.ts",
+        "timeout": 480000,
+        "use": {
+          "baseURL": "http://localhost:8088",
+          "actionTimeout": 10000,
+          "navigationTimeout": 30000,
+          "screenshot": "on",
+          "video": "retain-on-failure",
+          "trace": "retain-on-failure",
+          "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/159.0.8154.6 Safari/537.36",
+          "viewport": {
+            "width": 1440,
+            "height": 1000
+          },
+          "screen": {
+            "width": 1920,
+            "height": 1080
+          },
+          "deviceScaleFactor": 1,
+          "isMobile": false,
+          "hasTouch": false,
+          "defaultBrowserType": "chromium"
+        },
+        "dependencies": [],
+        "ignoreSnapshots": false,
+        "__projectId": "chromium"
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "list",
+        null
+      ],
+      [
+        "html",
+        {
+          "open": "never"
+        }
+      ],
+      [
+        "json",
+        {
+          "outputFile": "results.json"
+        }
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "default",
+    "updateSourceMethod": "patch",
+    "version": "1.65.1",
+    "workers": 1,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "demo.spec.ts",
+      "file": "demo.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "real-stack demo: deployed UI, engine values, editor, recovery, reference",
+          "ok": false,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 480000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 177343,
+                  "error": {
+                    "message": "Error: Footer must show the deployed EXPECT_SHA prefix\n\n\u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoContainText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator: locator('footer').filter({ hasText: 'Deployed version:' })\nExpected substring: \u001b[32m\"Deployed version: \u001b[7m194d5c7\u001b[27m\"\u001b[39m\nReceived string:    \u001b[31m\"Deployed version: \u001b[7m815c172\u001b[27m\"\u001b[39m\nTimeout: 10000ms\n\nCall log:\n\u001b[2m  - Footer must show the deployed EXPECT_SHA prefix locator('footer').filter({ hasText: 'Deployed version:' }) with timeout 10000ms\u001b[22m\n\u001b[2m  - waiting for locator('footer').filter({ hasText: 'Deployed version:' })\u001b[22m\n\u001b[2m    15 × locator resolved to <footer class=\"app-footer\">…</footer>\u001b[22m\n\u001b[2m       - unexpected value \"Deployed version: 815c172\"\u001b[22m\n",
+                    "stack": "Error: Footer must show the deployed EXPECT_SHA prefix\n\n\u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoContainText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator: locator('footer').filter({ hasText: 'Deployed version:' })\nExpected substring: \u001b[32m\"Deployed version: \u001b[7m194d5c7\u001b[27m\"\u001b[39m\nReceived string:    \u001b[31m\"Deployed version: \u001b[7m815c172\u001b[27m\"\u001b[39m\nTimeout: 10000ms\n\nCall log:\n\u001b[2m  - Footer must show the deployed EXPECT_SHA prefix locator('footer').filter({ hasText: 'Deployed version:' }) with timeout 10000ms\u001b[22m\n\u001b[2m  - waiting for locator('footer').filter({ hasText: 'Deployed version:' })\u001b[22m\n\u001b[2m    15 × locator resolved to <footer class=\"app-footer\">…</footer>\u001b[22m\n\u001b[2m       - unexpected value \"Deployed version: 815c172\"\u001b[22m\n\n    at C:\\Users\\Arena\\.swarm\\work\\t261119-0232-55bf\\tests\\ui\\demo.spec.ts:68:10\n    at C:\\Users\\Arena\\.swarm\\work\\t261119-0232-55bf\\tests\\ui\\demo.spec.ts:43:9\n    at step (C:\\Users\\Arena\\.swarm\\work\\t261119-0232-55bf\\tests\\ui\\demo.spec.ts:40:5)\n    at C:\\Users\\Arena\\.swarm\\work\\t261119-0232-55bf\\tests\\ui\\demo.spec.ts:60:3",
+                    "location": {
+                      "file": "C:\\Users\\Arena\\.swarm\\work\\t261119-0232-55bf\\tests\\ui\\demo.spec.ts",
+                      "column": 10,
+                      "line": 68
+                    },
+                    "snippet": " \u001b[90m 66 |\u001b[39m     \u001b[36mif\u001b[39m (sha) {\n \u001b[90m 67 |\u001b[39m       \u001b[36mawait\u001b[39m expect\u001b[33m.\u001b[39msoft(page\u001b[33m.\u001b[39mlocator(\u001b[32m'footer'\u001b[39m)\u001b[33m.\u001b[39mfilter({ hasText\u001b[33m:\u001b[39m \u001b[32m'Deployed version:'\u001b[39m })\u001b[33m,\u001b[39m \u001b[32m'Footer must show the deployed EXPECT_SHA prefix'\u001b[39m)\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 68 |\u001b[39m         \u001b[33m.\u001b[39mtoContainText(\u001b[32m`Deployed version: ${sha.slice(0, 7)}`\u001b[39m)\n \u001b[90m    |\u001b[39m          \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 69 |\u001b[39m     }\n \u001b[90m 70 |\u001b[39m     \u001b[36mawait\u001b[39m expect\u001b[33m.\u001b[39msoft(page\u001b[33m.\u001b[39mgetByText(\u001b[32m'MOCK DATA'\u001b[39m\u001b[33m,\u001b[39m { exact\u001b[33m:\u001b[39m \u001b[36mtrue\u001b[39m })\u001b[33m,\u001b[39m \u001b[32m'Production must not display the MOCK DATA badge'\u001b[39m)\u001b[33m.\u001b[39mtoHaveCount(\u001b[35m0\u001b[39m)\n \u001b[90m 71 |\u001b[39m   })"
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "C:\\Users\\Arena\\.swarm\\work\\t261119-0232-55bf\\tests\\ui\\demo.spec.ts",
+                        "column": 10,
+                        "line": 68
+                      },
+                      "message": "Error: Footer must show the deployed EXPECT_SHA prefix\n\n\u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoContainText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator: locator('footer').filter({ hasText: 'Deployed version:' })\nExpected substring: \u001b[32m\"Deployed version: \u001b[7m194d5c7\u001b[27m\"\u001b[39m\nReceived string:    \u001b[31m\"Deployed version: \u001b[7m815c172\u001b[27m\"\u001b[39m\nTimeout: 10000ms\n\nCall log:\n\u001b[2m  - Footer must show the deployed EXPECT_SHA prefix locator('footer').filter({ hasText: 'Deployed version:' }) with timeout 10000ms\u001b[22m\n\u001b[2m  - waiting for locator('footer').filter({ hasText: 'Deployed version:' })\u001b[22m\n\u001b[2m    15 × locator resolved to <footer class=\"app-footer\">…</footer>\u001b[22m\n\u001b[2m       - unexpected value \"Deployed version: 815c172\"\u001b[22m\n\n\n  66 |     if (sha) {\n  67 |       await expect.soft(page.locator('footer').filter({ hasText: 'Deployed version:' }), 'Footer must show the deployed EXPECT_SHA prefix')\n> 68 |         .toContainText(`Deployed version: ${sha.slice(0, 7)}`)\n     |          ^\n  69 |     }\n  70 |     await expect.soft(page.getByText('MOCK DATA', { exact: true }), 'Production must not display the MOCK DATA badge').toHaveCount(0)\n  71 |   })\n    at C:\\Users\\Arena\\.swarm\\work\\t261119-0232-55bf\\tests\\ui\\demo.spec.ts:68:10\n    at C:\\Users\\Arena\\.swarm\\work\\t261119-0232-55bf\\tests\\ui\\demo.spec.ts:43:9\n    at step (C:\\Users\\Arena\\.swarm\\work\\t261119-0232-55bf\\tests\\ui\\demo.spec.ts:40:5)\n    at C:\\Users\\Arena\\.swarm\\work\\t261119-0232-55bf\\tests\\ui\\demo.spec.ts:60:3"
+                    },
+                    {
+                      "location": {
+                        "file": "C:\\Users\\Arena\\.swarm\\work\\t261119-0232-55bf\\tests\\ui\\demo.spec.ts",
+                        "column": 8,
+                        "line": 84
+                      },
+                      "message": "Error: A real engine speed window must reach at least one truck row\n\n\u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByRole('region', { name: 'Speed windows', exact: true }).getByText(/^\\d+(?:\\.\\d+)? km\\/h$/).first()\nExpected: visible\nTimeout: 60000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - A real engine speed window must reach at least one truck row getByRole('region', { name: 'Speed windows', exact: true }).getByText(/^\\d+(?:\\.\\d+)? km\\/h$/).first() with timeout 60000ms\u001b[22m\n\u001b[2m  - waiting for getByRole('region', { name: 'Speed windows', exact: true }).getByText(/^\\d+(?:\\.\\d+)? km\\/h$/).first()\u001b[22m\n\n\n  82 |     }\n  83 |     await expect.soft(speed.getByText(/^\\d+(?:\\.\\d+)? km\\/h$/).first(), 'A real engine speed window must reach at least one truck row')\n> 84 |       .toBeVisible({ timeout: 60_000 })\n     |        ^\n  85 |     await expect.soft(speed.getByText(/^truck-\\d+$/).first(), 'Speed panel must identify the truck').toBeVisible()\n  86 |     await expect.soft(workers.getByText('3 alive', { exact: true }), 'All three Compose workers must be alive').toBeVisible({ timeout: 30_000 })\n  87 |     await expect.soft(workers.getByRole('progressbar', { name: /^Source queue / }), 'Workers panel must render exactly three worker rows').toHaveCount(3)\n    at C:\\Users\\Arena\\.swarm\\work\\t261119-0232-55bf\\tests\\ui\\demo.spec.ts:84:8\n    at C:\\Users\\Arena\\.swarm\\work\\t261119-0232-55bf\\tests\\ui\\demo.spec.ts:43:9\n    at step (C:\\Users\\Arena\\.swarm\\work\\t261119-0232-55bf\\tests\\ui\\demo.spec.ts:40:5)\n    at C:\\Users\\Arena\\.swarm\\work\\t261119-0232-55bf\\tests\\ui\\demo.spec.ts:73:3"
+                    },
+                    {
+                      "location": {
+                        "file": "C:\\Users\\Arena\\.swarm\\work\\t261119-0232-55bf\\tests\\ui\\demo.spec.ts",
+                        "column": 102,
+                        "line": 85
+                      },
+                      "message": "Error: Speed panel must identify the truck\n\n\u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByRole('region', { name: 'Speed windows', exact: true }).getByText(/^truck-\\d+$/).first()\nExpected: visible\nTimeout: 10000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Speed panel must identify the truck getByRole('region', { name: 'Speed windows', exact: true }).getByText(/^truck-\\d+$/).first() with timeout 10000ms\u001b[22m\n\u001b[2m  - waiting for getByRole('region', { name: 'Speed windows', exact: true }).getByText(/^truck-\\d+$/).first()\u001b[22m\n\n\n  83 |     await expect.soft(speed.getByText(/^\\d+(?:\\.\\d+)? km\\/h$/).first(), 'A real engine speed window must reach at least one truck row')\n  84 |       .toBeVisible({ timeout: 60_000 })\n> 85 |     await expect.soft(speed.getByText(/^truck-\\d+$/).first(), 'Speed panel must identify the truck').toBeVisible()\n     |                                                                                                      ^\n  86 |     await expect.soft(workers.getByText('3 alive', { exact: true }), 'All three Compose workers must be alive').toBeVisible({ timeout: 30_000 })\n  87 |     await expect.soft(workers.getByRole('progressbar', { name: /^Source queue / }), 'Workers panel must render exactly three worker rows').toHaveCount(3)\n  88 |   })\n    at C:\\Users\\Arena\\.swarm\\work\\t261119-0232-55bf\\tests\\ui\\demo.spec.ts:85:102\n    at C:\\Users\\Arena\\.swarm\\work\\t261119-0232-55bf\\tests\\ui\\demo.spec.ts:43:9\n    at step (C:\\Users\\Arena\\.swarm\\work\\t261119-0232-55bf\\tests\\ui\\demo.spec.ts:40:5)\n    at C:\\Users\\Arena\\.swarm\\work\\t261119-0232-55bf\\tests\\ui\\demo.spec.ts:73:3"
+                    },
+                    {
+                      "location": {
+                        "file": "C:\\Users\\Arena\\.swarm\\work\\t261119-0232-55bf\\tests\\ui\\demo.spec.ts",
+                        "column": 98,
+                        "line": 45
+                      },
+                      "message": "Error: 03-cross-check-engine-speed: locator.evaluate: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('region', { name: 'Speed windows', exact: true }).locator('.panel-row').first()\u001b[22m\n\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32mtrue\u001b[39m\nReceived: \u001b[31mfalse\u001b[39m\n\n  43 |         await action()\n  44 |       } catch (error) {\n> 45 |         expect.soft(false, `${name}: ${error instanceof Error ? error.message : String(error)}`).toBe(true)\n     |                                                                                                  ^\n  46 |       } finally {\n  47 |         try {\n  48 |           await screenshot(name)\n    at C:\\Users\\Arena\\.swarm\\work\\t261119-0232-55bf\\tests\\ui\\demo.spec.ts:45:98\n    at step (C:\\Users\\Arena\\.swarm\\work\\t261119-0232-55bf\\tests\\ui\\demo.spec.ts:40:5)\n    at C:\\Users\\Arena\\.swarm\\work\\t261119-0232-55bf\\tests\\ui\\demo.spec.ts:90:3"
+                    },
+                    {
+                      "location": {
+                        "file": "C:\\Users\\Arena\\.swarm\\work\\t261119-0232-55bf\\tests\\ui\\demo.spec.ts",
+                        "column": 98,
+                        "line": 45
+                      },
+                      "message": "Error: 04-pipeline-editor-validation: locator.click: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: /pipeline editor|edit pipeline|open editor/i })\u001b[22m\n\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32mtrue\u001b[39m\nReceived: \u001b[31mfalse\u001b[39m\n\n  43 |         await action()\n  44 |       } catch (error) {\n> 45 |         expect.soft(false, `${name}: ${error instanceof Error ? error.message : String(error)}`).toBe(true)\n     |                                                                                                  ^\n  46 |       } finally {\n  47 |         try {\n  48 |           await screenshot(name)\n    at C:\\Users\\Arena\\.swarm\\work\\t261119-0232-55bf\\tests\\ui\\demo.spec.ts:45:98\n    at step (C:\\Users\\Arena\\.swarm\\work\\t261119-0232-55bf\\tests\\ui\\demo.spec.ts:40:5)\n    at C:\\Users\\Arena\\.swarm\\work\\t261119-0232-55bf\\tests\\ui\\demo.spec.ts:115:3"
+                    },
+                    {
+                      "location": {
+                        "file": "C:\\Users\\Arena\\.swarm\\work\\t261119-0232-55bf\\tests\\ui\\demo.spec.ts",
+                        "column": 98,
+                        "line": 45
+                      },
+                      "message": "Error: 05-kill-worker-and-recover: locator.click: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Kill worker', exact: true })\u001b[22m\n\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32mtrue\u001b[39m\nReceived: \u001b[31mfalse\u001b[39m\n\n  43 |         await action()\n  44 |       } catch (error) {\n> 45 |         expect.soft(false, `${name}: ${error instanceof Error ? error.message : String(error)}`).toBe(true)\n     |                                                                                                  ^\n  46 |       } finally {\n  47 |         try {\n  48 |           await screenshot(name)\n    at C:\\Users\\Arena\\.swarm\\work\\t261119-0232-55bf\\tests\\ui\\demo.spec.ts:45:98\n    at step (C:\\Users\\Arena\\.swarm\\work\\t261119-0232-55bf\\tests\\ui\\demo.spec.ts:40:5)\n    at C:\\Users\\Arena\\.swarm\\work\\t261119-0232-55bf\\tests\\ui\\demo.spec.ts:142:3"
+                    },
+                    {
+                      "location": {
+                        "file": "C:\\Users\\Arena\\.swarm\\work\\t261119-0232-55bf\\tests\\ui\\demo.spec.ts",
+                        "column": 98,
+                        "line": 45
+                      },
+                      "message": "Error: 06-compare-with-reference: locator.click: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Compare with reference', exact: true })\u001b[22m\n\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32mtrue\u001b[39m\nReceived: \u001b[31mfalse\u001b[39m\n\n  43 |         await action()\n  44 |       } catch (error) {\n> 45 |         expect.soft(false, `${name}: ${error instanceof Error ? error.message : String(error)}`).toBe(true)\n     |                                                                                                  ^\n  46 |       } finally {\n  47 |         try {\n  48 |           await screenshot(name)\n    at C:\\Users\\Arena\\.swarm\\work\\t261119-0232-55bf\\tests\\ui\\demo.spec.ts:45:98\n    at step (C:\\Users\\Arena\\.swarm\\work\\t261119-0232-55bf\\tests\\ui\\demo.spec.ts:40:5)\n    at C:\\Users\\Arena\\.swarm\\work\\t261119-0232-55bf\\tests\\ui\\demo.spec.ts:185:3"
+                    }
+                  ],
+                  "stdout": [
+                    {
+                      "text": "FAIL: 01-deployed-page\n"
+                    },
+                    {
+                      "text": "FAIL: 02-start-demo-and-workers\n"
+                    },
+                    {
+                      "text": "FAIL: 03-cross-check-engine-speed\n"
+                    },
+                    {
+                      "text": "FAIL: 04-pipeline-editor-validation\n"
+                    },
+                    {
+                      "text": "FAIL: 05-kill-worker-and-recover\n"
+                    },
+                    {
+                      "text": "FAIL: 06-compare-with-reference\n"
+                    }
+                  ],
+                  "stderr": [],
+                  "retry": 0,
+                  "steps": [
+                    {
+                      "title": "01-deployed-page",
+                      "duration": 15648,
+                      "error": {
+                        "message": "Error: Footer must show the deployed EXPECT_SHA prefix\n\n\u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoContainText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator: locator('footer').filter({ hasText: 'Deployed version:' })\nExpected substring: \u001b[32m\"Deployed version: \u001b[7m194d5c7\u001b[27m\"\u001b[39m\nReceived string:    \u001b[31m\"Deployed version: \u001b[7m815c172\u001b[27m\"\u001b[39m\nTimeout: 10000ms\n\nCall log:\n\u001b[2m  - Footer must show the deployed EXPECT_SHA prefix locator('footer').filter({ hasText: 'Deployed version:' }) with timeout 10000ms\u001b[22m\n\u001b[2m  - waiting for locator('footer').filter({ hasText: 'Deployed version:' })\u001b[22m\n\u001b[2m    15 × locator resolved to <footer class=\"app-footer\">…</footer>\u001b[22m\n\u001b[2m       - unexpected value \"Deployed version: 815c172\"\u001b[22m\n",
+                        "stack": "Error: Footer must show the deployed EXPECT_SHA prefix\n\n\u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoContainText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator: locator('footer').filter({ hasText: 'Deployed version:' })\nExpected substring: \u001b[32m\"Deployed version: \u001b[7m194d5c7\u001b[27m\"\u001b[39m\nReceived string:    \u001b[31m\"Deployed version: \u001b[7m815c172\u001b[27m\"\u001b[39m\nTimeout: 10000ms\n\nCall log:\n\u001b[2m  - Footer must show the deployed EXPECT_SHA prefix locator('footer').filter({ hasText: 'Deployed version:' }) with timeout 10000ms\u001b[22m\n\u001b[2m  - waiting for locator('footer').filter({ hasText: 'Deployed version:' })\u001b[22m\n\u001b[2m    15 × locator resolved to <footer class=\"app-footer\">…</footer>\u001b[22m\n\u001b[2m       - unexpected value \"Deployed version: 815c172\"\u001b[22m\n\n    at C:\\Users\\Arena\\.swarm\\work\\t261119-0232-55bf\\tests\\ui\\demo.spec.ts:68:10\n    at C:\\Users\\Arena\\.swarm\\work\\t261119-0232-55bf\\tests\\ui\\demo.spec.ts:43:9\n    at step (C:\\Users\\Arena\\.swarm\\work\\t261119-0232-55bf\\tests\\ui\\demo.spec.ts:40:5)\n    at C:\\Users\\Arena\\.swarm\\work\\t261119-0232-55bf\\tests\\ui\\demo.spec.ts:60:3",
+                        "location": {
+                          "file": "C:\\Users\\Arena\\.swarm\\work\\t261119-0232-55bf\\tests\\ui\\demo.spec.ts",
+                          "column": 10,
+                          "line": 68
+                        },
+                        "snippet": " \u001b[90m 66 |\u001b[39m     \u001b[36mif\u001b[39m (sha) {\n \u001b[90m 67 |\u001b[39m       \u001b[36mawait\u001b[39m expect\u001b[33m.\u001b[39msoft(page\u001b[33m.\u001b[39mlocator(\u001b[32m'footer'\u001b[39m)\u001b[33m.\u001b[39mfilter({ hasText\u001b[33m:\u001b[39m \u001b[32m'Deployed version:'\u001b[39m })\u001b[33m,\u001b[39m \u001b[32m'Footer must show the deployed EXPECT_SHA prefix'\u001b[39m)\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 68 |\u001b[39m         \u001b[33m.\u001b[39mtoContainText(\u001b[32m`Deployed version: ${sha.slice(0, 7)}`\u001b[39m)\n \u001b[90m    |\u001b[39m          \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 69 |\u001b[39m     }\n \u001b[90m 70 |\u001b[39m     \u001b[36mawait\u001b[39m expect\u001b[33m.\u001b[39msoft(page\u001b[33m.\u001b[39mgetByText(\u001b[32m'MOCK DATA'\u001b[39m\u001b[33m,\u001b[39m { exact\u001b[33m:\u001b[39m \u001b[36mtrue\u001b[39m })\u001b[33m,\u001b[39m \u001b[32m'Production must not display the MOCK DATA badge'\u001b[39m)\u001b[33m.\u001b[39mtoHaveCount(\u001b[35m0\u001b[39m)\n \u001b[90m 71 |\u001b[39m   })"
+                      }
+                    },
+                    {
+                      "title": "02-start-demo-and-workers",
+                      "duration": 86241,
+                      "error": {
+                        "message": "Error: A real engine speed window must reach at least one truck row\n\n\u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByRole('region', { name: 'Speed windows', exact: true }).getByText(/^\\d+(?:\\.\\d+)? km\\/h$/).first()\nExpected: visible\nTimeout: 60000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - A real engine speed window must reach at least one truck row getByRole('region', { name: 'Speed windows', exact: true }).getByText(/^\\d+(?:\\.\\d+)? km\\/h$/).first() with timeout 60000ms\u001b[22m\n\u001b[2m  - waiting for getByRole('region', { name: 'Speed windows', exact: true }).getByText(/^\\d+(?:\\.\\d+)? km\\/h$/).first()\u001b[22m\n",
+                        "stack": "Error: A real engine speed window must reach at least one truck row\n\n\u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByRole('region', { name: 'Speed windows', exact: true }).getByText(/^\\d+(?:\\.\\d+)? km\\/h$/).first()\nExpected: visible\nTimeout: 60000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - A real engine speed window must reach at least one truck row getByRole('region', { name: 'Speed windows', exact: true }).getByText(/^\\d+(?:\\.\\d+)? km\\/h$/).first() with timeout 60000ms\u001b[22m\n\u001b[2m  - waiting for getByRole('region', { name: 'Speed windows', exact: true }).getByText(/^\\d+(?:\\.\\d+)? km\\/h$/).first()\u001b[22m\n\n    at C:\\Users\\Arena\\.swarm\\work\\t261119-0232-55bf\\tests\\ui\\demo.spec.ts:84:8\n    at C:\\Users\\Arena\\.swarm\\work\\t261119-0232-55bf\\tests\\ui\\demo.spec.ts:43:9\n    at step (C:\\Users\\Arena\\.swarm\\work\\t261119-0232-55bf\\tests\\ui\\demo.spec.ts:40:5)\n    at C:\\Users\\Arena\\.swarm\\work\\t261119-0232-55bf\\tests\\ui\\demo.spec.ts:73:3",
+                        "location": {
+                          "file": "C:\\Users\\Arena\\.swarm\\work\\t261119-0232-55bf\\tests\\ui\\demo.spec.ts",
+                          "column": 8,
+                          "line": 84
+                        },
+                        "snippet": " \u001b[90m 82 |\u001b[39m     }\n \u001b[90m 83 |\u001b[39m     \u001b[36mawait\u001b[39m expect\u001b[33m.\u001b[39msoft(speed\u001b[33m.\u001b[39mgetByText(\u001b[35m/^\\d+(?:\\.\\d+)? km\\/h$/\u001b[39m)\u001b[33m.\u001b[39mfirst()\u001b[33m,\u001b[39m \u001b[32m'A real engine speed window must reach at least one truck row'\u001b[39m)\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 84 |\u001b[39m       \u001b[33m.\u001b[39mtoBeVisible({ timeout\u001b[33m:\u001b[39m \u001b[35m60_000\u001b[39m })\n \u001b[90m    |\u001b[39m        \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 85 |\u001b[39m     \u001b[36mawait\u001b[39m expect\u001b[33m.\u001b[39msoft(speed\u001b[33m.\u001b[39mgetByText(\u001b[35m/^truck-\\d+$/\u001b[39m)\u001b[33m.\u001b[39mfirst()\u001b[33m,\u001b[39m \u001b[32m'Speed panel must identify the truck'\u001b[39m)\u001b[33m.\u001b[39mtoBeVisible()\n \u001b[90m 86 |\u001b[39m     \u001b[36mawait\u001b[39m expect\u001b[33m.\u001b[39msoft(workers\u001b[33m.\u001b[39mgetByText(\u001b[32m'3 alive'\u001b[39m\u001b[33m,\u001b[39m { exact\u001b[33m:\u001b[39m \u001b[36mtrue\u001b[39m })\u001b[33m,\u001b[39m \u001b[32m'All three Compose workers must be alive'\u001b[39m)\u001b[33m.\u001b[39mtoBeVisible({ timeout\u001b[33m:\u001b[39m \u001b[35m30_000\u001b[39m })\n \u001b[90m 87 |\u001b[39m     \u001b[36mawait\u001b[39m expect\u001b[33m.\u001b[39msoft(workers\u001b[33m.\u001b[39mgetByRole(\u001b[32m'progressbar'\u001b[39m\u001b[33m,\u001b[39m { name\u001b[33m:\u001b[39m \u001b[35m/^Source queue /\u001b[39m })\u001b[33m,\u001b[39m \u001b[32m'Workers panel must render exactly three worker rows'\u001b[39m)\u001b[33m.\u001b[39mtoHaveCount(\u001b[35m3\u001b[39m)"
+                      }
+                    },
+                    {
+                      "title": "03-cross-check-engine-speed",
+                      "duration": 13352,
+                      "error": {
+                        "message": "Error: 03-cross-check-engine-speed: locator.evaluate: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('region', { name: 'Speed windows', exact: true }).locator('.panel-row').first()\u001b[22m\n\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32mtrue\u001b[39m\nReceived: \u001b[31mfalse\u001b[39m",
+                        "stack": "Error: 03-cross-check-engine-speed: locator.evaluate: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('region', { name: 'Speed windows', exact: true }).locator('.panel-row').first()\u001b[22m\n\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32mtrue\u001b[39m\nReceived: \u001b[31mfalse\u001b[39m\n    at C:\\Users\\Arena\\.swarm\\work\\t261119-0232-55bf\\tests\\ui\\demo.spec.ts:45:98\n    at step (C:\\Users\\Arena\\.swarm\\work\\t261119-0232-55bf\\tests\\ui\\demo.spec.ts:40:5)\n    at C:\\Users\\Arena\\.swarm\\work\\t261119-0232-55bf\\tests\\ui\\demo.spec.ts:90:3",
+                        "location": {
+                          "file": "C:\\Users\\Arena\\.swarm\\work\\t261119-0232-55bf\\tests\\ui\\demo.spec.ts",
+                          "column": 98,
+                          "line": 45
+                        },
+                        "snippet": " \u001b[90m 43 |\u001b[39m         \u001b[36mawait\u001b[39m action()\n \u001b[90m 44 |\u001b[39m       } \u001b[36mcatch\u001b[39m (error) {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 45 |\u001b[39m         expect\u001b[33m.\u001b[39msoft(\u001b[36mfalse\u001b[39m\u001b[33m,\u001b[39m \u001b[32m`${name}: ${error instanceof Error ? error.message : String(error)}`\u001b[39m)\u001b[33m.\u001b[39mtoBe(\u001b[36mtrue\u001b[39m)\n \u001b[90m    |\u001b[39m                                                                                                  \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 46 |\u001b[39m       } \u001b[36mfinally\u001b[39m {\n \u001b[90m 47 |\u001b[39m         \u001b[36mtry\u001b[39m {\n \u001b[90m 48 |\u001b[39m           \u001b[36mawait\u001b[39m screenshot(name)"
+                      }
+                    },
+                    {
+                      "title": "04-pipeline-editor-validation",
+                      "duration": 13582,
+                      "error": {
+                        "message": "Error: 04-pipeline-editor-validation: locator.click: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: /pipeline editor|edit pipeline|open editor/i })\u001b[22m\n\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32mtrue\u001b[39m\nReceived: \u001b[31mfalse\u001b[39m",
+                        "stack": "Error: 04-pipeline-editor-validation: locator.click: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: /pipeline editor|edit pipeline|open editor/i })\u001b[22m\n\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32mtrue\u001b[39m\nReceived: \u001b[31mfalse\u001b[39m\n    at C:\\Users\\Arena\\.swarm\\work\\t261119-0232-55bf\\tests\\ui\\demo.spec.ts:45:98\n    at step (C:\\Users\\Arena\\.swarm\\work\\t261119-0232-55bf\\tests\\ui\\demo.spec.ts:40:5)\n    at C:\\Users\\Arena\\.swarm\\work\\t261119-0232-55bf\\tests\\ui\\demo.spec.ts:115:3",
+                        "location": {
+                          "file": "C:\\Users\\Arena\\.swarm\\work\\t261119-0232-55bf\\tests\\ui\\demo.spec.ts",
+                          "column": 98,
+                          "line": 45
+                        },
+                        "snippet": " \u001b[90m 43 |\u001b[39m         \u001b[36mawait\u001b[39m action()\n \u001b[90m 44 |\u001b[39m       } \u001b[36mcatch\u001b[39m (error) {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 45 |\u001b[39m         expect\u001b[33m.\u001b[39msoft(\u001b[36mfalse\u001b[39m\u001b[33m,\u001b[39m \u001b[32m`${name}: ${error instanceof Error ? error.message : String(error)}`\u001b[39m)\u001b[33m.\u001b[39mtoBe(\u001b[36mtrue\u001b[39m)\n \u001b[90m    |\u001b[39m                                                                                                  \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 46 |\u001b[39m       } \u001b[36mfinally\u001b[39m {\n \u001b[90m 47 |\u001b[39m         \u001b[36mtry\u001b[39m {\n \u001b[90m 48 |\u001b[39m           \u001b[36mawait\u001b[39m screenshot(name)"
+                      }
+                    },
+                    {
+                      "title": "05-kill-worker-and-recover",
+                      "duration": 14170,
+                      "error": {
+                        "message": "Error: 05-kill-worker-and-recover: locator.click: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Kill worker', exact: true })\u001b[22m\n\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32mtrue\u001b[39m\nReceived: \u001b[31mfalse\u001b[39m",
+                        "stack": "Error: 05-kill-worker-and-recover: locator.click: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Kill worker', exact: true })\u001b[22m\n\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32mtrue\u001b[39m\nReceived: \u001b[31mfalse\u001b[39m\n    at C:\\Users\\Arena\\.swarm\\work\\t261119-0232-55bf\\tests\\ui\\demo.spec.ts:45:98\n    at step (C:\\Users\\Arena\\.swarm\\work\\t261119-0232-55bf\\tests\\ui\\demo.spec.ts:40:5)\n    at C:\\Users\\Arena\\.swarm\\work\\t261119-0232-55bf\\tests\\ui\\demo.spec.ts:142:3",
+                        "location": {
+                          "file": "C:\\Users\\Arena\\.swarm\\work\\t261119-0232-55bf\\tests\\ui\\demo.spec.ts",
+                          "column": 98,
+                          "line": 45
+                        },
+                        "snippet": " \u001b[90m 43 |\u001b[39m         \u001b[36mawait\u001b[39m action()\n \u001b[90m 44 |\u001b[39m       } \u001b[36mcatch\u001b[39m (error) {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 45 |\u001b[39m         expect\u001b[33m.\u001b[39msoft(\u001b[36mfalse\u001b[39m\u001b[33m,\u001b[39m \u001b[32m`${name}: ${error instanceof Error ? error.message : String(error)}`\u001b[39m)\u001b[33m.\u001b[39mtoBe(\u001b[36mtrue\u001b[39m)\n \u001b[90m    |\u001b[39m                                                                                                  \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 46 |\u001b[39m       } \u001b[36mfinally\u001b[39m {\n \u001b[90m 47 |\u001b[39m         \u001b[36mtry\u001b[39m {\n \u001b[90m 48 |\u001b[39m           \u001b[36mawait\u001b[39m screenshot(name)"
+                      }
+                    },
+                    {
+                      "title": "06-compare-with-reference",
+                      "duration": 13916,
+                      "error": {
+                        "message": "Error: 06-compare-with-reference: locator.click: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Compare with reference', exact: true })\u001b[22m\n\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32mtrue\u001b[39m\nReceived: \u001b[31mfalse\u001b[39m",
+                        "stack": "Error: 06-compare-with-reference: locator.click: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Compare with reference', exact: true })\u001b[22m\n\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32mtrue\u001b[39m\nReceived: \u001b[31mfalse\u001b[39m\n    at C:\\Users\\Arena\\.swarm\\work\\t261119-0232-55bf\\tests\\ui\\demo.spec.ts:45:98\n    at step (C:\\Users\\Arena\\.swarm\\work\\t261119-0232-55bf\\tests\\ui\\demo.spec.ts:40:5)\n    at C:\\Users\\Arena\\.swarm\\work\\t261119-0232-55bf\\tests\\ui\\demo.spec.ts:185:3",
+                        "location": {
+                          "file": "C:\\Users\\Arena\\.swarm\\work\\t261119-0232-55bf\\tests\\ui\\demo.spec.ts",
+                          "column": 98,
+                          "line": 45
+                        },
+                        "snippet": " \u001b[90m 43 |\u001b[39m         \u001b[36mawait\u001b[39m action()\n \u001b[90m 44 |\u001b[39m       } \u001b[36mcatch\u001b[39m (error) {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 45 |\u001b[39m         expect\u001b[33m.\u001b[39msoft(\u001b[36mfalse\u001b[39m\u001b[33m,\u001b[39m \u001b[32m`${name}: ${error instanceof Error ? error.message : String(error)}`\u001b[39m)\u001b[33m.\u001b[39mtoBe(\u001b[36mtrue\u001b[39m)\n \u001b[90m    |\u001b[39m                                                                                                  \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 46 |\u001b[39m       } \u001b[36mfinally\u001b[39m {\n \u001b[90m 47 |\u001b[39m         \u001b[36mtry\u001b[39m {\n \u001b[90m 48 |\u001b[39m           \u001b[36mawait\u001b[39m screenshot(name)"
+                      }
+                    }
+                  ],
+                  "startTime": "2026-11-18T21:10:37.400Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "01-deployed-page",
+                      "contentType": "image/png",
+                      "path": "C:\\Users\\Arena\\.swarm\\work\\t261119-0232-55bf\\tests\\ui\\test-results\\demo-real-stack-demo-deplo-c724a-s-editor-recovery-reference-chromium\\attachments\\01-deployed-page-cd202776b3eb1f8b8c38b4306fdc7b77206b900b.png"
+                    },
+                    {
+                      "name": "02-start-demo-and-workers",
+                      "contentType": "image/png",
+                      "path": "C:\\Users\\Arena\\.swarm\\work\\t261119-0232-55bf\\tests\\ui\\test-results\\demo-real-stack-demo-deplo-c724a-s-editor-recovery-reference-chromium\\attachments\\02-start-demo-and-workers-bfc00aa25345fa34ba2a77b0ec521ec309018a79.png"
+                    },
+                    {
+                      "name": "03-cross-check-engine-speed",
+                      "contentType": "image/png",
+                      "path": "C:\\Users\\Arena\\.swarm\\work\\t261119-0232-55bf\\tests\\ui\\test-results\\demo-real-stack-demo-deplo-c724a-s-editor-recovery-reference-chromium\\attachments\\03-cross-check-engine-speed-7865373cf95ca5bbb42617e7cb4cb385ddb07934.png"
+                    },
+                    {
+                      "name": "04-pipeline-editor-validation",
+                      "contentType": "image/png",
+                      "path": "C:\\Users\\Arena\\.swarm\\work\\t261119-0232-55bf\\tests\\ui\\test-results\\demo-real-stack-demo-deplo-c724a-s-editor-recovery-reference-chromium\\attachments\\04-pipeline-editor-validation-51224f44af9e8182391f2e2289e10d3011a87db1.png"
+                    },
+                    {
+                      "name": "05-kill-worker-and-recover",
+                      "contentType": "image/png",
+                      "path": "C:\\Users\\Arena\\.swarm\\work\\t261119-0232-55bf\\tests\\ui\\test-results\\demo-real-stack-demo-deplo-c724a-s-editor-recovery-reference-chromium\\attachments\\05-kill-worker-and-recover-7e6aafd627f4292316814147eef44aaebfb20c89.png"
+                    },
+                    {
+                      "name": "06-compare-with-reference",
+                      "contentType": "image/png",
+                      "path": "C:\\Users\\Arena\\.swarm\\work\\t261119-0232-55bf\\tests\\ui\\test-results\\demo-real-stack-demo-deplo-c724a-s-editor-recovery-reference-chromium\\attachments\\06-compare-with-reference-86ca8edad0bfacf1088416df5a9b9130c664d809.png"
+                    },
+                    {
+                      "name": "per-step-results",
+                      "contentType": "application/json",
+                      "path": "C:\\Users\\Arena\\.swarm\\work\\t261119-0232-55bf\\tests\\ui\\test-results\\demo-real-stack-demo-deplo-c724a-s-editor-recovery-reference-chromium\\attachments\\per-step-results-8660cf875586f2f6d2365a4b8d224c45cc6d099a.json"
+                    },
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "C:\\Users\\Arena\\.swarm\\work\\t261119-0232-55bf\\tests\\ui\\test-results\\demo-real-stack-demo-deplo-c724a-s-editor-recovery-reference-chromium\\test-failed-1.png"
+                    },
+                    {
+                      "name": "video",
+                      "contentType": "video/webm",
+                      "path": "C:\\Users\\Arena\\.swarm\\work\\t261119-0232-55bf\\tests\\ui\\test-results\\demo-real-stack-demo-deplo-c724a-s-editor-recovery-reference-chromium\\video.webm"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "C:\\Users\\Arena\\.swarm\\work\\t261119-0232-55bf\\tests\\ui\\test-results\\demo-real-stack-demo-deplo-c724a-s-editor-recovery-reference-chromium\\error-context.md"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "C:\\Users\\Arena\\.swarm\\work\\t261119-0232-55bf\\tests\\ui\\test-results\\demo-real-stack-demo-deplo-c724a-s-editor-recovery-reference-chromium\\trace.zip"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "C:\\Users\\Arena\\.swarm\\work\\t261119-0232-55bf\\tests\\ui\\demo.spec.ts",
+                    "column": 10,
+                    "line": 68
+                  }
+                }
+              ],
+              "status": "unexpected"
+            }
+          ],
+          "id": "05384557491ebd602dd7-3c4f695d71fb507f2eac",
+          "file": "demo.spec.ts",
+          "line": 13,
+          "column": 1
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-11-18T21:10:36.449Z",
+    "duration": 196761.047,
+    "expected": 0,
+    "skipped": 0,
+    "unexpected": 1,
+    "flaky": 0
+  }
+}
