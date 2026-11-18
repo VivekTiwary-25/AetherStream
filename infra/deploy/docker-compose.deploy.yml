@@ -1,0 +1,42 @@
+services:
+  coordinator:
+    image: ghcr.io/vivektiwary-25/aetherstream-engine:${AETHER_TAG}
+    pull_policy: always
+    environment:
+      GIT_SHA: ${AETHER_TAG}
+
+  worker-1:
+    image: ghcr.io/vivektiwary-25/aetherstream-engine:${AETHER_TAG}
+    pull_policy: always
+    environment:
+      GIT_SHA: ${AETHER_TAG}
+
+  worker-2:
+    image: ghcr.io/vivektiwary-25/aetherstream-engine:${AETHER_TAG}
+    pull_policy: always
+    environment:
+      GIT_SHA: ${AETHER_TAG}
+
+  worker-3:
+    image: ghcr.io/vivektiwary-25/aetherstream-engine:${AETHER_TAG}
+    pull_policy: always
+    environment:
+      GIT_SHA: ${AETHER_TAG}
+
+  simulator:
+    image: ghcr.io/vivektiwary-25/aetherstream-simulator:${AETHER_TAG}
+    pull_policy: always
+    environment:
+      GIT_SHA: ${AETHER_TAG}
+
+  control-api:
+    image: ghcr.io/vivektiwary-25/aetherstream-control-api:${AETHER_TAG}
+    pull_policy: always
+    environment:
+      GIT_SHA: ${AETHER_TAG}
+
+  web:
+    image: ghcr.io/vivektiwary-25/aetherstream-web:${AETHER_TAG}
+    pull_policy: always
+    environment:
+      GIT_SHA: ${AETHER_TAG}
