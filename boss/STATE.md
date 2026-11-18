@@ -1,8 +1,17 @@
 # Boss STATE (single source of truth)
 
-Updated: 19 Nov 01:56 IST (real clock; some earlier entries were stamped ~10 min ahead). M1 engine proof DONE in CI; first deploy in progress; M2 next.
+Updated: 19 Nov 02:04 IST. M1 DONE (engine proof in CI + live deploy). Next: M2 (07:30) automated crash-recovery test in CI.
 
 ## Plain-language update for Vivek (newest first)
+- 02:04 M1 DONE. What works now (all run by the boss, not just claimed):
+  * Push to main -> GitHub Actions builds + publishes 4 images to GHCR by commit SHA -> deploys on vivek-pc via the
+    self-hosted runner -> smoke test PASS (deployed commit 6fb5171 = /api/version).
+  * Live deployed stack: 10 containers healthy; demo pipeline started via the API; 3 workers processing ~40 events/s;
+    215+ one-minute windows written; checkpoints every 10 s.
+  * Kill-worker live: worker-1 crashed -> ~5 s later generation 1->2, restored from checkpoint #18, partitions moved to
+    worker-2/3, checkpoints continued (#20).
+  * Public link: https://trance-cover-acrobat-submissions.trycloudflare.com (quick tunnel; changes if PC restarts).
+  * Bug found live and fixed: /api/results/windows without sinkId crashed (typed NULL) - redeploying.
 - 02:00 M1 engine proof: GitHub Actions ran the real engine (coordinator + 3 workers, Kafka, Postgres, MinIO) on a fixed
   truck workload and compared with the single-process reference: 407 / 407 results match (EngineMatchesReferenceIT,
   ci-integration on task branch t261119-0132-e746). Images are published to GHCR by commit SHA. First automatic deploy to
@@ -38,7 +47,10 @@ ready: T26 UI integration (needs T30) · after T23: savepoints, rescale button U
 ci-e2e (compose demo script) still continue-on-error; last known failure: control-api not ready.
 
 ## Deploy
-Runner: vivek-pc-deploy (label aether-deploy), Scheduled Task "AetherStream-Deploy-Runner" at logon. Public link: none yet.
+Runner: vivek-pc-deploy (labels self-hosted, aether-deploy), Scheduled Task "AetherStream-Deploy-Runner" at logon.
+Deployed: compose project `aether` on vivek-pc, web http://localhost:8088, API :18080. Last good deploy 6fb5171 (02:04).
+Public link: https://trance-cover-acrobat-submissions.trycloudflare.com (Scheduled Task "AetherStream-Tunnel" runs
+C:/Users/Arena/bin/aether-tunnel.cmd; current URL is in C:/Users/Arena/aether-tunnel.log - changes on every restart).
 
 ## Open problems
 - Local docker builds need proxy build args (see DECISIONS 01:48).
