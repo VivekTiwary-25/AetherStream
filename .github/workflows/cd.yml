@@ -3,6 +3,7 @@ name: cd
 on:
   push:
     branches: [main, "task/**"]
+    paths-ignore: ["swarm/**", "boss/**", "docs/**", "**/*.md"]
   workflow_dispatch:
     inputs:
       sha:
@@ -14,8 +15,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: deploy
-  cancel-in-progress: false
+  group: cd-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   lint-cd:
@@ -107,6 +108,9 @@ jobs:
       github.ref == 'refs/heads/main' &&
       (needs.publish.result == 'success' || (github.event_name == 'workflow_dispatch' && needs.publish.result == 'skipped'))
     runs-on: [self-hosted, aether-deploy]
+    concurrency:
+      group: deploy
+      cancel-in-progress: false
     permissions:
       contents: read
     steps:
