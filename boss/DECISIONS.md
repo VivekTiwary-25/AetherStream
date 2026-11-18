@@ -11,3 +11,4 @@
 - 00:55 Runner: self-hosted "vivek-pc-deploy", label aether-deploy only (no default labels), started by a logon Scheduled Task as Arena; repo set to require approval for ALL external contributors' workflows.
 - 00:56 ci-java ignores pushes that only touch swarm/boss/docs, and cancels superseded runs — swarm queue commits were triggering a full build each.
 - 00:57 vimlesh-pc/claude is down (no agent): its UI share goes to vachana-claude (city) and codex-luna (panels) until fixed.
+- 01:10 Spring Boot 4.1.2 -> 3.5.16 — Boot 4 auto-configures Jackson 3; our :common records/JsonNode are Jackson 2, mixing breaks controller JSON. Fixed T07 compile errors on its branch myself (rejecting would delete the work).

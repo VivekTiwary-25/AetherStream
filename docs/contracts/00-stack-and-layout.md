@@ -8,7 +8,7 @@ If a contract looks wrong, implement it as written and say so in your result.
 |---|---|
 | Java | 21 (Temurin) — `java { toolchain { languageVersion = JavaLanguageVersion.of(21) } }` |
 | Gradle | 9.6.0 via the committed wrapper (`./gradlew`), Kotlin DSL (`*.gradle.kts`) |
-| Spring Boot | 4.1.2 (only in `control-api`) |
+| Spring Boot | 3.5.16 (only in `control-api`; 3.5 uses Jackson 2 like :common — Boot 4 would bring Jackson 3) |
 | kafka-clients | 4.3.2 |
 | Jackson (non-Spring modules) | com.fasterxml.jackson.core:jackson-databind 2.22.4 (+ jackson-datatype-jdk8) |
 | PostgreSQL JDBC | 42.7.14 |
