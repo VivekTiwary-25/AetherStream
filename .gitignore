@@ -32,3 +32,4 @@ build/
 *.class
 .idea/
 out/
+!.env.example
