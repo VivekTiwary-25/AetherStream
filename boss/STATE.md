@@ -1,8 +1,13 @@
 # Boss STATE (single source of truth)
 
-Updated: 19 Nov 02:52 IST. M1 DONE. M2 (07:30): waiting only on T23 crash ITs vs reference. M3 (12:30): UI integration T26 running.
+Updated: 19 Nov 02:57 IST. M1 DONE. M2 DONE (crash recovery matches reference in CI). Now M3 (12:30): UI integration + live panels bug (T69).
 
 ## Plain-language update for Vivek (newest first)
+- 02:57 M2 DONE (4.5 h early). In GitHub Actions: a worker is crashed mid-stream; the coordinator recovers in 6.0 s from
+  the last completed checkpoint; afterwards 1,646 / 1,646 results match the single-process reference (WorkerCrashRecoveryIT).
+  Also passing: stale-worker fencing (old generation cannot write), interrupted checkpoint is never used for recovery.
+  Found a live bug: after each deploy the simulator clock restarts so new events count as "late" and the panels go empty;
+  urgent fix T69 running. Benchmark harness + Playwright browser test merged.
 - 02:52 On the live deployed system (auto-deployed by CD, commit 8c17b21): "Compare with reference" says 159 / 159 results
   match (checkpoint #63, 26,959 events replayed). Kubernetes (kind) CI is green: deploys all services, kills a worker pod,
   recovers. Merged: checkpoint timeline panel, scenario/metrics API, example pipelines API, UI states + accessibility pass.
