@@ -57,6 +57,16 @@ The web container (nginx) proxies `/api/*` and `/ws` to control-api, so the brow
 ## WebSocket `/ws`
 Plain WebSocket (no STOMP). Server -> client messages only, each `{"type": "...", "ts": epochMs, "data": ...}`.
 The client reconnects with backoff 1 s -> 10 s. On connect the server sends one `snapshot`.
+Every message also has `seq`: a monotonically increasing integer starting at 1 for this server process,
+shared across connections (gaps on an individual connection are valid). The server retains the last 500
+original messages, including connection snapshots, and keeps polling after browsers disconnect.
+Reconnect with `/ws?since=<seq>` (non-negative integer) to replay retained messages with `seq > since`
+in order, then receive a fresh `snapshot` and live messages in increasing `seq` order. Replayed messages
+keep their original `seq` and `ts`. With no `since`, the first message remains a fresh `snapshot`.
+If messages after `since` have expired, or `since` exceeds the current sequence after a server restart,
+the server sends `{"type":"resync","ts":epochMs,"data":null,"seq":N}` first, then a fresh `snapshot`
+instead of partial replay; discard stale local state and rebuild from that snapshot. Invalid `since`
+closes the connection with code 1007. Snapshot/resync creation and live publication share the same sequence.
 | type | when | data |
 |---|---|---|
 | `snapshot` | on connect | `{"execution":ExecutionInfo|null,"workers":[...],"summary":{...},"simulator":{simulator /state}}` |
@@ -67,6 +77,7 @@ The client reconnects with backoff 1 s -> 10 s. On connect the server sends one 
 | `deadLetters` | new rows | `[{"eventId","kind","reason","partition","offset","eventTime"}]` |
 | `workers` | every 1 s | ClusterState.workers |
 | `execution` | on any change | ExecutionInfo plus `"event": "STARTED|CHECKPOINT_COMPLETED|WORKER_DEAD|RECOVERING|RECOVERED|STOPPED"`, `"checkpointId"`, `"workerId"` when relevant; on `RECOVERED` also `"durationMs"` (ms from the WORKER_DEAD detection to RECOVERED, measured by the server) |
+| `resync` | reconnect cursor cannot be replayed completely | `null`; followed by a fresh snapshot |
 
 UI states (must be shown with text + colour): running, backpressured (any worker `backpressured`), checkpointing,
 recovering (execution RECOVERING: "Recovering from checkpoint #N"), paused/stopped, failed.

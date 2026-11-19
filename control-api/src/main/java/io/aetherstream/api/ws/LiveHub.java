@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.aetherstream.api.LiveSources;
 import jakarta.annotation.PreDestroy;
 import java.io.IOException;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -14,6 +15,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
@@ -29,11 +31,12 @@ import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.ConcurrentWebSocketSessionDecorator;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
+import org.springframework.web.util.UriComponentsBuilder;
 
 /**
  * One idle-until-connected timer dispatches single-flight polls to virtual threads.
  * Socket writes are isolated from both polling and other sessions, with a 2 s / 512 KiB limit.
- * A reconnect gets a fresh snapshot; incremental cursors belong to the live feed, not a browser.
+ * Reconnects replay the retained feed before a fresh snapshot; polling survives browser disconnects.
  */
 @Component
 public class LiveHub extends TextWebSocketHandler {
@@ -43,6 +46,11 @@ public class LiveHub extends TextWebSocketHandler {
     private final ExecutionEvents executionEvents;
     private final FailureLog failures = new FailureLog();
     private final Set<Peer> sessions = ConcurrentHashMap.newKeySet();
+    private static final int HISTORY_LIMIT = 500;
+    private static final int SEND_BUFFER_LIMIT = 512 * 1024;
+    private final Object publication = new Object();
+    private final ArrayDeque<Retained> history = new ArrayDeque<>(HISTORY_LIMIT);
+    private long sequence;
     private final ScheduledThreadPoolExecutor scheduler = new ScheduledThreadPoolExecutor(1, runnable -> {
         Thread thread = new Thread(runnable, "live-poll-timer");
         thread.setDaemon(true);
@@ -73,11 +81,21 @@ public class LiveHub extends TextWebSocketHandler {
     public void afterConnectionEstablished(WebSocketSession session) {
         Peer peer = new Peer(session);
         sessions.add(peer);
+        Long since;
+        try {
+            String value = session.getUri() == null ? null : UriComponentsBuilder.fromUri(session.getUri())
+                    .build().getQueryParams().getFirst("since");
+            since = value == null ? null : Long.parseLong(value);
+            if (since != null && since < 0) throw new IllegalArgumentException("negative since");
+        } catch (IllegalArgumentException error) {
+            remove(peer, CloseStatus.BAD_DATA);
+            return;
+        }
         startPolling();
-        dispatch(() -> initialize(peer));
+        dispatch(() -> initialize(peer, since));
     }
 
-    private void initialize(Peer peer) {
+    private void initialize(Peer peer, Long since) {
         CompletableFuture<JsonNode> cluster = async("coordinator", sources::cluster);
         CompletableFuture<JsonNode> execution = async("postgres", sources::execution);
         CompletableFuture<JsonNode> simulator = async("simulator", sources::simulator);
@@ -89,8 +107,24 @@ public class LiveHub extends TextWebSocketHandler {
         snapshot.put("workers", state == null ? null : state.get("workers"));
         snapshot.put("summary", safe("postgres", () -> sources.summary(id, rate(state))));
         snapshot.put("simulator", simulator.join());
-        TextMessage message = encode("snapshot", snapshot);
-        if (message != null && send(peer, message)) peer.ready = true;
+        synchronized (publication) {
+            if (!sessions.contains(peer)) return;
+            if (since != null) {
+                if (since > sequence || (!history.isEmpty() && since < history.getFirst().seq() - 1)) {
+                    Retained resync = encode("resync", null);
+                    if (resync != null) enqueue(peer, resync.message());
+                } else {
+                    for (Retained retained : history) {
+                        if (retained.seq() > since) enqueue(peer, retained.message());
+                    }
+                }
+            }
+            Retained message = encode("snapshot", snapshot);
+            if (message != null) {
+                enqueue(peer, message.message());
+                peer.ready = true;
+            }
+        }
     }
 
     private <T> CompletableFuture<T> async(String upstream, Supplier<T> action) {
@@ -106,7 +140,7 @@ public class LiveHub extends TextWebSocketHandler {
     }
 
     private void poll(AtomicBoolean running, Runnable action) {
-        if (sessions.stream().noneMatch(peer -> peer.ready) || !running.compareAndSet(false, true)) return;
+        if (!running.compareAndSet(false, true)) return;
         dispatch(() -> {
             try { action.run(); }
             catch (RuntimeException error) { failures.failed("poller", error); }
@@ -205,17 +239,57 @@ public class LiveHub extends TextWebSocketHandler {
         catch (RuntimeException error) { failures.failed(upstream, error); return null; }
     }
 
-    private TextMessage encode(String type, Object data) {
-        try { return new TextMessage(mapper.writeValueAsString(new LiveMessage(type, System.currentTimeMillis(), data))); }
-        catch (IOException error) { failures.failed("serialization", error); return null; }
+    // Called only under publication: assigning seq, retaining and queuing share one order.
+    private Retained encode(String type, Object data) {
+        try {
+            long next = sequence + 1;
+            TextMessage message = new TextMessage(mapper.writeValueAsString(
+                    new LiveMessage(type, System.currentTimeMillis(), data, next)));
+            sequence = next;
+            Retained retained = new Retained(next, message);
+            if (history.size() == HISTORY_LIMIT) history.removeFirst();
+            history.addLast(retained);
+            return retained;
+        } catch (IOException error) {
+            failures.failed("serialization", error);
+            return null;
+        }
     }
 
     private void broadcast(String type, Object data) {
-        TextMessage message = encode(type, data);
-        if (message == null) return;
-        for (Peer peer : sessions) {
-            if (peer.ready) dispatch(() -> send(peer, message));
+        synchronized (publication) {
+            Retained retained = encode(type, data);
+            if (retained == null) return;
+            for (Peer peer : sessions) {
+                if (peer.ready) enqueue(peer, retained.message());
+            }
         }
+    }
+
+    private void enqueue(Peer peer, TextMessage message) {
+        if (!sessions.contains(peer)) return;
+        if (peer.pendingBytes.addAndGet(message.getPayloadLength()) > SEND_BUFFER_LIMIT) {
+            remove(peer, CloseStatus.SESSION_NOT_RELIABLE);
+            return;
+        }
+        peer.pending.add(message);
+        if (peer.draining.compareAndSet(false, true)) dispatch(() -> drain(peer));
+    }
+
+    private void drain(Peer peer) {
+        do {
+            try {
+                TextMessage message;
+                while (sessions.contains(peer) && (message = peer.pending.poll()) != null) {
+                    boolean sent = send(peer, message);
+                    peer.pendingBytes.addAndGet(-message.getPayloadLength());
+                    if (!sent) return;
+                }
+            } finally {
+                peer.draining.set(false);
+            }
+        } while (sessions.contains(peer) && !peer.pending.isEmpty()
+                && peer.draining.compareAndSet(false, true));
     }
 
     private boolean send(Peer peer, TextMessage message) {
@@ -258,12 +332,7 @@ public class LiveHub extends TextWebSocketHandler {
 
     private void remove(Peer peer, CloseStatus status) {
         if (!sessions.remove(peer)) return;
-        synchronized (this) {
-            if (sessions.isEmpty()) {
-                for (ScheduledFuture<?> schedule : schedules) schedule.cancel(false);
-                schedules.clear();
-            }
-        }
+        peer.pending.clear();
         dispatch(() -> {
             try { peer.session.close(status); }
             catch (IOException | RuntimeException error) { failures.failed("session", error); }
@@ -284,13 +353,18 @@ public class LiveHub extends TextWebSocketHandler {
         io.shutdown();
     }
 
+    private record Retained(long seq, TextMessage message) {}
+
     private static final class Peer {
         final ConcurrentWebSocketSessionDecorator session;
         final AtomicLong sendingSince = new AtomicLong();
+        final ConcurrentLinkedQueue<TextMessage> pending = new ConcurrentLinkedQueue<>();
+        final AtomicLong pendingBytes = new AtomicLong();
+        final AtomicBoolean draining = new AtomicBoolean();
         volatile boolean ready;
 
         Peer(WebSocketSession session) {
-            this.session = new ConcurrentWebSocketSessionDecorator(session, 2000, 512 * 1024);
+            this.session = new ConcurrentWebSocketSessionDecorator(session, 2000, SEND_BUFFER_LIMIT);
         }
     }
 }
