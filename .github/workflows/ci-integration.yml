@@ -37,6 +37,7 @@ jobs:
               --tests io.aetherstream.tests.CoordinatorRestartIT
               --tests io.aetherstream.tests.SavepointIT
               --tests io.aetherstream.tests.EngineMatchesReferenceIT
+              --tests io.aetherstream.tests.ExactlyOnceSinkIT
               --tests io.aetherstream.tests.PostgresExecutionRepositoryIT
               --tests io.aetherstream.tests.WorkerAdaptersIT
               --tests io.aetherstream.tests.OrgAccessIT
