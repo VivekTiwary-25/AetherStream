@@ -85,6 +85,15 @@ export class EngineCore {
     }
     this.root.addChild(body, this.glow, this.coreGlow, this.dynamic, this.title, this.rate, this.state, ...this.laneLabels, ...this.laneRates, ...this.workerLabels, this.dim, this.sweep)
   }
+  /** Keep engine labels legible while the world is zoomed out. */
+  setLabelScale(scale: number): void {
+    this.title.scale.set(scale)
+    this.rate.scale.set(scale)
+    this.state.scale.set(scale)
+    for (const label of this.laneLabels) label.scale.set(scale)
+    for (const rate of this.laneRates) rate.scale.set(scale)
+    for (const label of this.workerLabels) label.scale.set(scale)
+  }
 
   /** A particle reached lane `lane`: light it up briefly. */
   hit(lane: number, strength = 1): void {

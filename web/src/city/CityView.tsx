@@ -153,6 +153,9 @@ export function CityView() {
     <div className={`city__glass city__status city__status--${status.mode}`} role="status" title={status.label} style={{ color: status.color }}>
       <i className="city__dot" style={{ background: status.color, boxShadow: `0 0 10px ${status.color}` }} />{status.label}
     </div>
+    <div className="city__glass city__view-controls">
+      <button type="button" className="city__reset" onClick={() => scene.current?.resetView()} title="Reset city view (0)">Reset view <kbd>0</kbd></button>
+    </div>
 
     {hover && <div className="city__glass city__tooltip" style={{ left: hover.x, top: hover.y }}>
       <strong>{hover.truck.truckId}</strong>
