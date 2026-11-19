@@ -35,7 +35,7 @@ export function Sidebar({ screen, navigate }: { screen: Screen; navigate: (scree
           <button type="button" className="gl-nav-item gl-nav-back" onClick={() => changeSection(null)} aria-label="Back to main navigation"><Icon name="back" /><span>{section === 'analytics' ? 'Analytics' : 'Settings'}</span></button>
           {(section === 'analytics' ? analyticsMenu : settingsMenu).map((item) => <button key={item.id} type="button" className={`gl-nav-item${windows.isOpen(`${section}.${item.id}`) ? ' gl-nav-item--active' : ''}`} onClick={() => item.onSelect(windows)}>{item.icon}<span>{item.label}</span></button>)}
         </> : destinations.map(({ id, label, icon }) => <button key={id} type="button" className={`gl-nav-item${screen === id ? ' gl-nav-item--active' : ''}`} aria-label={label} aria-current={screen === id ? 'page' : undefined} title={rail ? label : undefined}
-          onClick={() => { if (id === 'analytics' || id === 'settings') { if (screen === 'home') navigate('live'); changeSection(id) } else navigate(id) }}><Icon name={icon} /><span>{label}</span></button>)}
+          onClick={() => { if (id === 'analytics' || id === 'settings') { navigate('live'); changeSection(id) } else navigate(id) }}><Icon name={icon} /><span>{label}</span></button>)}
       </nav>
     </GlassSurface>
   </aside>

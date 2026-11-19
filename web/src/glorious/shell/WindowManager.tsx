@@ -4,7 +4,7 @@ import { WindowsContext, type WindowOptions, type WindowsApi } from './windows'
 
 interface Entry { id: string; options: WindowOptions; closing: boolean; opener: HTMLElement | null }
 
-export function WindowManager({ children }: { children: ReactNode }) {
+export function WindowManager({ children, onOpen }: { children: ReactNode; onOpen?: (id: string) => void }) {
   const [entries, setEntries] = useState<Entry[]>([])
   const timers = useRef(new Map<string, ReturnType<typeof setTimeout>>())
   useEffect(() => {
@@ -24,6 +24,7 @@ export function WindowManager({ children }: { children: ReactNode }) {
     }, 150))
   }, [])
   const open = useCallback<WindowsApi['open']>((id, options) => {
+    onOpen?.(id)
     const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null
     const pending = timers.current.get(id)
     if (pending) { clearTimeout(pending); timers.current.delete(id) }
@@ -41,7 +42,7 @@ export function WindowManager({ children }: { children: ReactNode }) {
       fitted.y = Math.max(0, Math.min(initial.y, window.innerHeight - fitted.h))
       return [...previous, { id, options: { ...options, initial: fitted }, closing: false, opener }]
     })
-  }, [])
+  }, [onOpen])
   const update = useCallback<WindowsApi['update']>((id, options) => setEntries((previous) => previous.map((entry) => entry.id === id ? { ...entry, options: { ...entry.options, ...options } } : entry)), [])
   const active = entries.filter((entry) => !entry.closing).at(-1)
   useEffect(() => {
