@@ -26,8 +26,20 @@ jobs:
           cache-dependency-path: web/package-lock.json
       - run: npm ci
       - run: npm run lint
-      - run: npm run test
+      - run: npm run test -- --coverage | tee "$RUNNER_TEMP/web-coverage-output.txt"
       - run: npm run build
+      - name: Publish web coverage
+        if: always()
+        run: |
+          if [ -f "$RUNNER_TEMP/web-coverage-output.txt" ]; then
+            awk '/Coverage summary/ { show = 1 } show' "$RUNNER_TEMP/web-coverage-output.txt" >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: web-coverage
+          path: web/coverage
+          if-no-files-found: ignore
       - uses: actions/upload-artifact@v7
         with:
           name: web-dist
