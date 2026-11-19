@@ -177,6 +177,9 @@ class TaskRuntimeTest {
         assertThat(runtime.isFenced()).isTrue();
         assertThat(stopReason.get()).contains("fenced");
         assertThat(sink.rejectedWrites.get()).isEqualTo(1);
+        // STOPPED is published before the operator/source threads finish their in-flight work.
+        // Join them before snapshotting counters; processedRecords counts batches already forwarded to the sink queue.
+        runtime.stop();
         long emittedAtStop = source.emitted.get();
         long processedAtStop = runtime.processedRecords();
         Thread.sleep(500);

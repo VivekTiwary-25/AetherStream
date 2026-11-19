@@ -1,0 +1,63 @@
+name: ci-soak
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "23 2 * * *"
+  push:
+    branches:
+      - "task/**"
+    paths:
+      - ".github/workflows/ci-soak.yml"
+      - "infra/scripts/soak.sh"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  ci-soak:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      GIT_SHA: ${{ github.sha }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: ShellCheck soak script (before starting containers)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shellcheck jq
+          shellcheck infra/scripts/soak.sh
+      - name: Build and start healthy stack
+        run: docker compose up -d --build --wait --wait-timeout 300
+      - name: Run fifteen-minute chaos soak
+        env:
+          API: http://localhost:18080
+          DURATION_S: "900"
+        run: bash infra/scripts/soak.sh
+      - name: Collect Compose logs
+        if: always()
+        run: docker compose logs --no-color --timestamps > compose-logs.txt 2>&1
+      - name: Publish soak step summary
+        if: always()
+        run: |
+          if [[ ! -f soak-summary.md ]]; then
+            printf '# Chaos soak summary\n\n**FAIL**: soak did not produce a summary; inspect the build/startup logs.\n' > soak-summary.md
+          fi
+          cat soak-summary.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload soak evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: soak-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            soak-summary.md
+            compose-logs.txt
+          if-no-files-found: error
+      - name: Tear down stack and volumes
+        if: always()
+        run: docker compose down -v
