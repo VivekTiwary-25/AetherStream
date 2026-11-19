@@ -53,6 +53,30 @@ jobs:
           EXPECT_SHA: ${{ github.sha }}
           E2E_EXTENDED: "1"
         run: bash infra/scripts/demo-e2e.sh
+      # Keep the demo's worker-recovery evidence until all read-only proofs finish.
+      - name: Show live expo proofs after worker recovery
+        run: |
+          set -o pipefail
+          bash infra/scripts/expo-proofs.sh all | tee expo-proofs.txt
+          for block in checkpoints manifest offsets fencing recovery; do
+            grep -Fx "PROOF $block OK" expo-proofs.txt
+          done
+      - name: Run presenter pre-demo checklist
+        env:
+          EXPECT_SHA: ${{ github.sha }}
+        run: bash infra/scripts/expo-check.sh --ci http://localhost:18080
+      - name: Check documented safe commands
+        env:
+          EXPECT_SHA: ${{ github.sha }}
+        run: bash infra/scripts/doc-commands-check.sh
+      - name: Reset expo and verify demo readiness again
+        env:
+          EXPECT_SHA: ${{ github.sha }}
+        run: bash infra/scripts/expo-reset.sh --api http://localhost:18080
+      - name: Verify demo readiness
+        env:
+          EXPECT_SHA: ${{ github.sha }}
+        run: bash infra/scripts/demo-ready.sh http://localhost:18080
       - name: Compose status
         if: always()
         run: docker compose ps
@@ -64,56 +88,11 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: compose-logs-${{ github.run_id }}-${{ github.run_attempt }}
-          path: compose-logs.txt
+          path: |
+            compose-logs.txt
+            expo-proofs.txt
           if-no-files-found: warn
+      # This job owns the stack lifetime, including cleanup after any failed check.
       - name: Tear down stack
         if: always()
         run: docker compose down -v
-      - name: Verify demo readiness
-        env:
-          GIT_SHA: ${{ github.sha }}
-          EXPECT_SHA: ${{ github.sha }}
-        run: |
-          # The existing final step removed the stack; redeploy the built images.
-          trap 'docker compose down -v' EXIT
-          docker compose up -d
-          bash infra/scripts/demo-ready.sh http://localhost:18080
-      - name: Reset expo and verify demo readiness again
-        env:
-          GIT_SHA: ${{ github.sha }}
-          EXPECT_SHA: ${{ github.sha }}
-        run: |
-          trap 'docker compose down -v' EXIT
-          docker compose up -d --wait
-          bash infra/scripts/expo-reset.sh --api http://localhost:18080
-          bash infra/scripts/demo-ready.sh http://localhost:18080
-      - name: Check documented safe commands
-        env:
-          GIT_SHA: ${{ github.sha }}
-          EXPECT_SHA: ${{ github.sha }}
-        run: |
-          trap 'docker compose down -v' EXIT
-          docker compose up -d --wait
-          bash infra/scripts/doc-commands-check.sh
-      - name: Show live expo proofs after worker recovery
-        env:
-          GIT_SHA: ${{ github.sha }}
-          EXPECT_SHA: ${{ github.sha }}
-          E2E_EXTENDED: "0"
-        run: |
-          # Earlier readiness steps remove their volumes; create fresh kill/recovery evidence.
-          trap 'docker compose down -v' EXIT
-          docker compose up -d --wait
-          bash infra/scripts/demo-e2e.sh
-          set -o pipefail
-          bash infra/scripts/expo-proofs.sh all | tee expo-proofs.txt
-          for block in checkpoints manifest offsets fencing recovery; do
-            grep -Fx "PROOF $block OK" expo-proofs.txt
-          done
-      - name: Run presenter pre-demo checklist
-        env:
-          GIT_SHA: ${{ github.sha }}
-        run: |
-          trap 'docker compose down -v' EXIT
-          docker compose up -d
-          bash infra/scripts/expo-check.sh --ci http://localhost:18080
