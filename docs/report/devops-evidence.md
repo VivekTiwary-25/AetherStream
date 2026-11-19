@@ -47,7 +47,7 @@ docker inspect --format '{{.Config.Image}}' "$(docker compose ps -q control-api)
 docker inspect --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}' "$(docker compose ps -q control-api)"
 ```
 
-The CI workflow builds tags `aether/engine:ci`, `aether/simulator:ci`, `aether/control-api:ci`, and optionally `aether/web:ci`, then checks Java entrypoints and revision labels. Use those tags only in the CI runner where they exist. Record the observed SHA; do not assume `:local` identifies a released version.
+The CI workflow builds tags `aether/engine:ci`, `aether/simulator:ci`, `aether/control-api:ci`, and optionally `aether/web:ci`, then checks Java entry points and revision labels. Use those tags only in the CI runner where they exist. Record the observed SHA; do not assume `:local` identifies a released version.
 
 ## 4. Show running Compose services and logs
 
@@ -66,7 +66,7 @@ docker compose exec -T control-api curl -fsS http://localhost:8080/api/ready
 bash infra/scripts/smoke.sh
 ```
 
-The compose workflow runs the smoke script and prints service status/logs before teardown. Local service ports are listed in `docs/contracts/00-stack-and-layout.md`; the web UI is normally at `http://localhost:8088`, control API at `http://localhost:18080`, coordinator at `http://localhost:18081`, and simulator at `http://localhost:18070`. Show actual command output. Clean up after the demo with `docker compose down` (use `-v` only when intentionally deleting local data).
+The Compose workflow runs the smoke script and prints service status/logs before teardown. Local service ports are listed in `docs/contracts/00-stack-and-layout.md`; the web UI is normally at `http://localhost:8088`, control API at `http://localhost:18080`, coordinator at `http://localhost:18081`, and simulator at `http://localhost:18070`. Show actual command output. Clean up after the demo with `docker compose down` (use `-v` only when intentionally deleting local data).
 
 ## 5. Show deployed version endpoint
 

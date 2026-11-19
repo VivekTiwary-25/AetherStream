@@ -17,7 +17,7 @@
 - Events arrive late or repeated. A closed window becomes a `LATE` dead letter.
 - A slow sink fills a queue of 1000 and the upstream stage blocks.
 - A worker can halt. Recovery uses the latest completed checkpoint and a new generation.
-- Postgres upserts are the only effectively exactly-once sink. Input replay is at-least-once.
+- PostgreSQL upserts are the only effectively exactly-once sink. Input replay is at-least-once.
 
 **Show live:** Contract 02 section 4 and contract 03 sections 5-6, one sentence each. Do not read them aloud.
 **Speaker notes:** Name the four failures. Do not claim Flink parity.
@@ -26,7 +26,7 @@
 
 - Simulator emits `truck.position` and `truck.delivery` to Kafka topic `truck-events`, 6 partitions, key = truck id.
 - Compiler plans the graph. Engine and reference share `io.aetherstream.compiler.ops`.
-- Coordinator assigns partitions. Three workers. Checkpoints go to MinIO. Results go to Postgres.
+- Coordinator assigns partitions. Three workers. Checkpoints go to MinIO. Results go to PostgreSQL.
 - Control API on 18080. Web nginx on 8088 proxies `/api` and `/ws`.
 
 **Show live:** `docker compose ps`, then the module folders or `docs/contracts/README.md`.
@@ -59,7 +59,7 @@
 - **Kill worker**, **Confirm kill**. Banner **Recovering from checkpoint #N**, then **Recovered**. Worker row **Dead** is red.
 - Timeline: **Recovering from checkpoint #N (generation G → G+1)**.
 
-**Show live:** Those clicks. If amber is late, do not wait the minute.
+**Show live:** Those clicks. If amber is late, do not wait a minute.
 **Speaker notes:** Fallback log is ci-e2e run 44410772993: late events, backpressure, `worker-3 killed; recovered in 6s`. Screenshots: `desktop-04-recovering-viewport.png`, `desktop-recovered-banner.png`.
 
 ## 7. Compare with reference
@@ -108,8 +108,8 @@
 
 - One coordinator. No multi-active high availability.
 - Tumbling windows only. Key-by is `key` or `payload.truckId`.
-- Exactly-once claim stops at the Postgres upserts.
-- Savepoint restore and rescale are implemented and not in the current green e2e path.
+- Exactly-once claim stops at the PostgreSQL upserts.
+- Savepoint restore and rescale are implemented but are not in the current green e2e path.
 - Tour, ops, and scenario panels exist as components and are not in `AppShell`.
 
 **Show live:** This list, next to the page.

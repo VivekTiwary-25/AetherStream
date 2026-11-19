@@ -12,7 +12,7 @@ Increment the execution generation before each reassignment and include it in wo
 
 ## Consequences
 
-Old workers may continue running temporarily, but cannot commit sink output as current-generation work. Generation updates serialize against in-flight sink transactions. Every component handling execution commands and writes must preserve the generation value.
+Old workers may continue running temporarily, but cannot commit sink output as current-generation work. Generation updates serialise against in-flight sink transactions. Every component handling execution commands and writes must preserve the generation value.
 
 ## Alternatives considered
 

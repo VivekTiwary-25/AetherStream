@@ -4,7 +4,7 @@
 
 ## Context
 
-A distributed engine needs a way to compare checkpoint-visible results against an independent execution path without defining operator behavior twice. The engine and reference share `PartitionPipeline` semantics (`docs/contracts/02-pipeline-and-semantics.md`).
+A distributed engine needs a way to compare checkpoint-visible results against an independent execution path without defining operator behaviour twice. The engine and reference share `PartitionPipeline` semantics (`docs/contracts/02-pipeline-and-semantics.md`).
 
 ## Decision
 
