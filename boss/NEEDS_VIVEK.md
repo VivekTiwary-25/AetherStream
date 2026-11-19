@@ -13,3 +13,5 @@ Current public link (quick tunnel, changes if the PC restarts): https://trance-c
 5. [07:20] utkarsh-pc: a finished task could not be pushed (T89 web coverage). On utkarsh-pc open a terminal and run: `swarm fix`
 6. [07:20, resolved 07:29] vimlesh-pc is asleep or offline since ~06:59. Wake it / check power + internet, then run: `swarm up`
    Not blocking: the boss routes its work to other PCs.
+7. [08:20] upendra-pc is asleep or offline (no heartbeat 10 min). Wake it / check power + internet, then run: `swarm up`
+   Not blocking: its queued tasks move to other PCs automatically.
