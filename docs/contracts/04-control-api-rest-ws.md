@@ -60,7 +60,7 @@ The client reconnects with backoff 1 s -> 10 s. On connect the server sends one 
 | `alerts` | new rows | `[{"alertId","key","ruleId","message","eventTime"}]` |
 | `deadLetters` | new rows | `[{"eventId","kind","reason","partition","offset","eventTime"}]` |
 | `workers` | every 1 s | ClusterState.workers |
-| `execution` | on any change | ExecutionInfo plus `"event": "STARTED|CHECKPOINT_COMPLETED|WORKER_DEAD|RECOVERING|RECOVERED|STOPPED"`, `"checkpointId"`, `"workerId"` when relevant |
+| `execution` | on any change | ExecutionInfo plus `"event": "STARTED|CHECKPOINT_COMPLETED|WORKER_DEAD|RECOVERING|RECOVERED|STOPPED"`, `"checkpointId"`, `"workerId"` when relevant; on `RECOVERED` also `"durationMs"` (ms from the WORKER_DEAD detection to RECOVERED, measured by the server) |
 
 UI states (must be shown with text + colour): running, backpressured (any worker `backpressured`), checkpointing,
 recovering (execution RECOVERING: "Recovering from checkpoint #N"), paused/stopped, failed.
