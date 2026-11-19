@@ -2,8 +2,6 @@ import type { CheckpointInfo, ExecutionEvent } from '../../api/types'
 
 export interface TimedExecutionEvent extends ExecutionEvent {
   ts: number
-  /** Recovery duration as reported by the API, if it sends one. Contract 04 defines none today, so this is usually absent. */
-  durationMs?: number | null
 }
 
 /** Formats a duration the API returned; "-" when it returned none. Never derived from client clocks. */
@@ -85,10 +83,10 @@ export function buildTimelineModel(
         closed: false,
         durationMs: null,
       })
-    } else if (event.event === 'RECOVERED' && recoveryStart) {
+    } else if (event.event === 'RECOVERED') {
       const durationMs = apiDuration(event)
       const band = recoveries.at(-1)
-      if (band && band.start === recoveryStart.ts) {
+      if (band && band.start === recoveryStart?.ts) {
         band.end = event.ts
         band.closed = true
         band.durationMs = durationMs
