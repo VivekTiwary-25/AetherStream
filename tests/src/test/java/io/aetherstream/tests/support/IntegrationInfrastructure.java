@@ -11,9 +11,10 @@ import java.sql.Statement;
 import java.util.Collection;
 import java.util.List;
 import java.util.Properties;
-import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicReference;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.NewTopic;
+import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.serialization.StringSerializer;
@@ -69,17 +70,21 @@ public final class IntegrationInfrastructure {
         properties.put("key.serializer", StringSerializer.class.getName());
         properties.put("value.serializer", StringSerializer.class.getName());
         try (KafkaProducer<String, String> producer = new KafkaProducer<>(properties)) {
+            // Preserve per-partition send order without a network round trip per record.
+            var failure = new AtomicReference<Exception>();
+            Callback completed = (metadata, error) -> {
+                if (error != null) failure.compareAndSet(null, error);
+            };
             for (ProducerRecord<String, String> record : records) {
-                try {
-                    producer.send(record).get();
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    throw new IllegalStateException("interrupted producing integration-test records", e);
-                } catch (ExecutionException e) {
-                    throw new IllegalStateException("cannot produce integration-test record", e.getCause());
+                if (Thread.currentThread().isInterrupted()) {
+                    throw new IllegalStateException("interrupted producing integration-test records");
                 }
+                producer.send(record, completed);
             }
             producer.flush();
+            if (failure.get() != null) {
+                throw new IllegalStateException("cannot produce integration-test record", failure.get());
+            }
         }
     }
 

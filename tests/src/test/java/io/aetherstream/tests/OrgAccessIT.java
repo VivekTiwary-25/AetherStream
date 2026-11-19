@@ -338,7 +338,7 @@ class OrgAccessIT {
         Files.writeString(initScript, "gradle.beforeProject { p -> p.layout.buildDirectory.set(new File('"
                 + buildPath + "', p.path.substring(1).replace(':', '/'))) }\n");
         List<String> command = new ArrayList<>();
-        if (windows()) command.addAll(List.of("cmd.exe", "/c", root.resolve("gradlew.bat").toString()));
+        if (windows()) command.addAll(List.of("cmd.exe", "/c", "gradlew.bat"));
         else command.addAll(List.of("sh", root.resolve("gradlew").toString()));
         // The enclosing :tests:integrationTest still owns its project-cache lock.
         command.addAll(List.of("--no-daemon", "--max-workers=2", "--console=plain", "--project-cache-dir",
