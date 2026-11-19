@@ -34,14 +34,15 @@ Fresh boss session: read swarm/BOSS.md, then design/ui-glorious/BOSS_PROMPT.md (
 5. Rerun clean-checkout check after map+recovery merges (queued t261120-0229-b8ea).
 6. When stack is up: FIRST real kill test (worker kill 2 -> dead -> recovering -> rejoined, screenshots), THEN full demo-path pass.
 
-## Running / queued — 02:50
-- utkarsh-pc: DISK FULL ("No space left on device"); do NOT queue there. Docker task t261120-0224-4b72 failed at worktree add. Waiting for Utkarsh to run cleanup (commands sent to Vivek 02:50).
-- upendra-pc: heartbeat stale (asleep/stuck?). D3 AI bridge t261120-0125-ed02 push failed (HTTP 408); old swarm code deleted the local branch -> commit is an unreachable object in upendra's ~/.swarm/repo. No Docker installed on upendra.
-- vimlesh-pc: t261120-0229-b8ea integration rerun (claude). Docker engine down + 3 GB free RAM.
-- t261120-0228-9f5b DONE: preview-dist build artifact on branch task/t261120-0228-9f5b (NEVER merge; reject after use).
-- UNCOMMITTED swarm change in D:\projects\AetherStream (main working tree): upkeep.py (keep+retry failed pushes, recover orphaned task commits for OPEN tasks, sweep ~/.swarm/work: task dirs >30 min not running, scratch >6 h) + hooks in tasks/gitops/listener/lifecycle. Tested on vivek-pc (dry-run sweep: 94 folders 21.4 GB; recover_orphans ok, fsck 2 min -> runs in a thread). Commit+push to main was BLOCKED by the permission classifier at 02:45 -> needs Vivek's explicit OK.
-- Docker fallback: no worker PC has Docker -> asked Vivek (02:50) whether preview may read live data from vivek-pc's stack (read-only nginx GET-only on :8089, config in scratchpad\preview\nginx.conf).
-- Merged into ui-glorious: all tracks' main code + smoke tests + video crossfade loop (2.5 MB).
+## Running / queued — 03:00
+- Vivek 02:52: approved + pushed swarm upkeep change (main 32d75a0); chose Docker fallback A.
+- PREVIEW A RUNNING on vivek-pc: docker container `glorious-preview` (nginx:1.29-alpine, 127.0.0.1:8089 only, 64 MB, GET-only proxy to live API host.docker.internal:18080, POST -> 403). Files: scratchpad\preview\{html,nginx.conf} (html = dist from task/t261120-0228-9f5b built at ui-glorious 1c90f92). Rebuild: new dist task -> git archive FETCH_HEAD preview-dist | tar -x -C html --strip-components=1. Stop: docker rm -f glorious-preview. NEVER kill/breakdown against it.
+- Walkthrough with LIVE data 02:50-02:58 (screenshots in C:\Users\Arena\AppData\Local\Temp\claude-chrome-screenshots-hgitD0\): Home OK (video, rail, pill Running ~40 ev/s); Live World: 6 markers + hover card real (truck-001 DRIVING 37.9 km/h, P5 W3 correct) BUT basemap blank: MapLibre "Worker failed to load" in prod build (fix queued t261120-0253-e411 vimlesh-pc/codex-sol: nginx .mjs MIME + maplibre classic-vs-module worker); Analytics Truck Speeds + row->chart same window OK; Failed Records OK live; Settings sub-menu OK; Logs & Recovery OK (3 workers, P0-P5, checkpoints; history 'endpoint not found' expected on live main); Pipelines panel renders (no backend on live).
+- Fixed by boss: 20b2f8c strong glass 0.72 -> 0.9 (text over content was unreadable).
+- Video has a 'Grok' watermark bottom-right (Grok Imagine). Ask Vivek; do NOT remove without his OK.
+- t261120-0125-ed02 D3 AI bridge: upendra-pc down 22 min, swarm moved task to vivek-pc/codex-luna (running; light python). After it: consider disabling vivek-pc workers (ask Vivek).
+- utkarsh-pc: disk 1.6 GB free after sweep (only 0.3 GB was worktrees) -> Utkarsh must run manual cleanup (commands sent 02:50) / Docker disk. Do not queue there.
+- Integration rerun t261120-0229-b8ea PASSED (214 tests, build OK, map+recovery tracked) -> closed.
 
 ## Key recon decisions
 - Worker-card bug: killed worker restarts + re-registers before 4 s timeout, never DEAD server-side; old UI used client overlay only on its own button -> terminal kill invisible. C1 adds server-side recovery history (/api/recovery/history + WS).
