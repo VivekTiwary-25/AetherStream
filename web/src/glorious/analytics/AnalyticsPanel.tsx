@@ -21,8 +21,13 @@ export function AnalyticsPanel({ id }: { id: AnalyticsId }) {
   const [selectedTruck, setSelectedTruck] = useState<string | null>(null)
   const [selectedFailure, setSelectedFailure] = useState<DeadLetter | null>(null)
   const [failureKind, setFailureKind] = useState<'ALL' | DeadLetter['kind']>('ALL')
+  const [snapshotTrucks, setSnapshotTrucks] = useState<SimulatorTruck[]>([])
 
   useAetherMessages((message: WebSocketMessage) => {
+    if (message.type === 'snapshot' && message.data && typeof message.data === 'object') {
+      const snapshot = message.data as { simulator?: { trucks?: SimulatorTruck[] } }
+      if (Array.isArray(snapshot.simulator?.trucks)) setSnapshotTrucks(snapshot.simulator.trucks)
+    }
     if (message.type === 'trucks' && message.data && typeof message.data === 'object' && 'trucks' in message.data) {
       const data = message.data as { trucks: SimulatorTruck[] }
       if (!Array.isArray(data.trucks)) return
@@ -35,11 +40,13 @@ export function AnalyticsPanel({ id }: { id: AnalyticsId }) {
     }
   })
 
+  const currentTrucks = trucks.length ? trucks : snapshotTrucks
+
   const speedWindows = windows.filter((window) => window?.sinkId === 'speedSink')
   const deliveryWindows = windows.filter((window) => window?.sinkId === 'delSink')
   const truckRows = groupTruckWindows(speedWindows)
   const speedByTruck = new Map(truckRows.map((row) => [row.truckId, row.latest]))
-  const truckIds = [...new Set([...trucks.map((truck) => truck.truckId), ...speedByTruck.keys()])].sort((a, b) => a.localeCompare(b))
+  const truckIds = [...new Set([...currentTrucks.map((truck) => truck.truckId), ...speedByTruck.keys()])].sort((a, b) => a.localeCompare(b))
   const latestDeliveryByTruck = new Map<string, WindowResult>()
   const deliveryByWindow = new Map<number, number>()
   for (const row of deliveryWindows) {
@@ -75,7 +82,7 @@ export function AnalyticsPanel({ id }: { id: AnalyticsId }) {
     {id === 'truck-speeds' && <section data-testid="analytics-truck-speeds">
       <p className="an-caption">Current speed from live simulator readings · completed averages and reading counts use simulation windows.</p>
       {truckIds.length ? <div className="an-list" role="list" aria-label="Truck speeds">{truckIds.map((truckId) => {
-        const current = trucks.find((truck) => truck.truckId === truckId)
+        const current = currentTrucks.find((truck) => truck.truckId === truckId)
         const latest = speedByTruck.get(truckId)
         return <button className="an-row" type="button" data-testid={`truck-row-${truckId}`} key={truckId} onClick={() => showTruck(truckId)}>
           <strong>{truckId}</strong><span>{current ? `${current.speedKmh.toFixed(1)} km/h now` : 'Live speed unavailable'}</span>
@@ -85,13 +92,13 @@ export function AnalyticsPanel({ id }: { id: AnalyticsId }) {
     </section>}
     {id === 'deliveries' && <section>
       <p className="an-caption">Per-truck counts use each truck's latest completed delSink window; the trend sums by simulation window end.</p>
-      <div className="an-list">{latestDeliveryByTruck.size ? [...latestDeliveryByTruck].sort(([a], [b]) => a.localeCompare(b)).map(([truckId, row]) => <div className="an-row" key={truckId}><strong>{truckId}</strong><span>{row.values.deliveries ?? 0} deliveries · {simClock(row.windowEnd)} sim time</span></div>) : <p className="an-empty">No delivery windows yet.</p>}</div>
+      <div className="an-list">{latestDeliveryByTruck.size ? [...latestDeliveryByTruck].sort(([a], [b]) => a.localeCompare(b)).map(([truckId, row]) => <div className="an-row" key={truckId}><strong>{truckId}</strong><span>{row.values.deliveries ?? 0} deliveries · {simClock(row.windowEnd)} sim time</span></div>) : <EmptyState socketStatus={socketStatus} execution={execution?.state} message="No delivery windows yet." />}</div>
       <Bars values={deliveryEntries.map(([, count]) => count)} label="Total deliveries per completed window" unit="deliveries" />
     </section>}
     {id === 'alerts' && <section>
       <p className="an-caption">Alert event times are simulation time.</p>
       <Bars values={alertEntries.map(([, count]) => count)} label="Alerts per simulation minute" unit="alerts/min" />
-      {sortedAlerts.length ? <div className="an-list">{sortedAlerts.map((alert) => <AlertRow key={alert.alertId} alert={alert} />)}</div> : <p className="an-empty">No alerts yet.</p>}
+      {sortedAlerts.length ? <div className="an-list">{sortedAlerts.map((alert) => <AlertRow key={alert.alertId} alert={alert} />)}</div> : <EmptyState socketStatus={socketStatus} execution={execution?.state} message="No alerts yet." />}
     </section>}
     {id === 'events-processed' && <section>
       <p className="an-caption">Rates are live flow messages. Per-partition values are estimates divided evenly across owned partitions.</p>
@@ -108,7 +115,7 @@ export function AnalyticsPanel({ id }: { id: AnalyticsId }) {
       <div className="an-tabs" aria-label="Failed record kind">{(['ALL', 'REJECTED', 'LATE'] as const).map((kind) => <button type="button" key={kind} aria-pressed={failureKind === kind} onClick={() => setFailureKind(kind)}>{kind === 'ALL' ? 'All' : kind}</button>)}</div>
       {failedRows.length ? <div className="an-list">{failedRows.map((row) => <button className="an-row" type="button" key={`${row.partition}:${row.offset}:${row.eventId}`} onClick={() => showFailure(deadLetters.find((item) => item.eventId === row.eventId)!)}>
         <strong>{row.kind} · {row.eventId}</strong><span>{simClock(row.eventTime)} · partition {row.partition}, offset {row.offset}</span><span>{row.reason}</span>
-      </button>)}</div> : <p className="an-empty">No failed records yet.</p>}
+      </button>)}</div> : <EmptyState socketStatus={socketStatus} execution={execution?.state} message="No failed records yet." />}
     </section>}
   </>
 
