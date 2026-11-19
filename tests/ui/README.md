@@ -70,3 +70,8 @@ The job is temporarily advisory (`continue-on-error: true`), but assertions rema
 strict and browser failures remain visible in reports. The inspected shell does
 not yet mount the existing editor, chaos, or comparison components; these are
 integration failures to fix in the UI lane, not reasons to weaken this scenario.
+
+## New-UI smoke tests
+Run `npm run test:glorious` for three independent Chromium checks (Home/map, Truck Speeds, Logs & Recovery).
+Set `GLORIOUS_URL` to override `http://localhost:8089`; use a running demo stack with live trucks and three workers.
+This isolated config uses fresh contexts, no classic storage flag, reduced motion, and no AI or mocked data.

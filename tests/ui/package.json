@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "test": "playwright test",
+    "test:glorious": "playwright test -c playwright.glorious.config.ts",
     "report": "playwright show-report"
   },
   "devDependencies": {
