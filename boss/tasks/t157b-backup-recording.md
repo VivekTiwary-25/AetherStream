@@ -1,0 +1,22 @@
+# T157b: Backup recording of the full demo - finish it (previous attempt timed out)  [expo safety, Claude]
+
+Your previous attempt (T157) timed out after 45 min. Its scripts are on branch origin/salvage/t157: docs/expo/backup/
+record_demo.py, post_process.py, moments.json, and two PNGs. Start from current main and bring over ONLY those
+(git checkout origin/salvage/t157 -- docs/expo/backup/record_demo.py docs/expo/backup/post_process.py docs/expo/backup/moments.json
+docs/expo/backup/github-actions-green.png docs/expo/backup/github-cd-deploy.png). Never commit docs/expo/backup/_video_tmp/.
+Keep each step time-boxed: record once (~2 min, 1280x720, against the live app: public link in boss/STATE.md), then convert:
+one final docs/expo/backup/demo-backup.webm (<= 25 MB) and 4 GIFs (city, kill+recovery, compare, footer; <= 3 MB each, ffmpeg if
+available; if not, 4 short .webm clips instead). Whole folder <= 40 MB. Write docs/expo/backup/README.md: what each file shows,
+the deployed commit, how to play fullscreen offline. If something takes longer than 10 minutes, simplify instead of retrying.
+Moments to show: city + glowing stream, panels updating, Kill worker -> red/Dead -> "Recovering from checkpoint #N" -> recovered,
+Compare -> "N / N results match", backpressure amber, footer version.
+
+Files (edit only these): docs/expo/backup/** (no _video_tmp), .gitignore (add docs/expo/backup/_video_tmp/).
+
+Acceptance check: ci-docs green on your branch; demo-backup.webm present and about 2 minutes; folder <= 40 MB.
+
+## Rules (apply to every task)
+- Read every file in docs/contracts/ first and follow them exactly. Do not edit docs/contracts/ or infra/db/schema.sql (if a contract looks wrong, say so in your report).
+- Do not read or change anything in swarm/ (except your own report file if the swarm asks you to write one).
+- Only edit the files listed. If you are on vivek-pc: do NOT start Docker containers or kind there (the live demo runs on it). Acceptance runs in GitHub Actions on your task branch.
+- If you are on vivek-pc: it runs the live demo. Do NOT run builds, test suites, Gradle, npm build/test, Playwright or any browser/renderer locally there - read code, edit, and rely on GitHub Actions for every check.

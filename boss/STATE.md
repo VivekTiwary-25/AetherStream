@@ -40,6 +40,12 @@ Updated: 19 Nov 09:20 IST. M1 + M2 DONE. M3 (12:30) in progress: T92 shell integ
   operator runtime, coordinator, simulator, control-api core and the first city UI are merged. Deploy runner
   `vivek-pc-deploy` is online. cloudflared at C:\Users\Arena\bin\cloudflared.exe.
 
+## ROUTING RULES (Vivek, 09:45)
+- vivek-pc (RTX 2050) runs ONLY the live demo + the boss. No heavy builds, renders or browser tests there. Heavy work ->
+  utkarsh-pc first (RTX 4050, always on), then vimlesh-pc / upendra-pc when online. vivek-pc workers: light work only.
+- A big UI REDESIGN is coming after Vivek approves mock-ups. Do NOT start any UI redesign until that prompt arrives.
+  Keep finishing expo-safety tasks (fixes from rehearsal are OK, not a redesign).
+
 ## LOOP RULES (Vivek, 08:05 - follow every loop)
 1. Queue FIRST, review SECOND: at loop start give every idle worker a task; keep one extra task pre-queued behind each busy worker.
 2. Fast-merge low-risk work (docs, tests, CI config, isolated UI components) on green CI + PASS without reading it. Read only

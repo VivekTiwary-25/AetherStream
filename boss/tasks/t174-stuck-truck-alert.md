@@ -1,0 +1,21 @@
+# T174: "Truck 7 hasn't moved for 10 min" alert must fire after every pipeline (re)start  [simulator, expo safety]
+
+Lane 4. Rehearsal (docs/expo/rehearsal-1.md, P1): after a pipeline restart (Run / Restore / expo-reset) the truck-007 stuck
+alert never fires, because the simulator stops truck-007 only once, relative to simulator start. The demo needs this alert
+within ~90 s of any new execution. Read contract 01 and the simulator scenario code. Make the stuck-truck behaviour repeatable:
+e.g. truck-007 cycles (drives N min, stops for longer than the rule's threshold in sim time, resumes), or the `breakdown`
+scenario (POST /scenario {"name":"breakdown","truckId":"truck-007"}) can be triggered any time and the DEMO uses it. Keep
+determinism by seed. Tests: after a restart / scenario call, truck-007 emits no movement for longer than the alert threshold
+within the expected window. Update DEMO.md's alert step and docs/expo/CHEATSHEET.md with the exact action if the presenter
+must press a button.
+
+Files (edit only these): simulator/src/main/java/**, simulator/src/test/java/**, DEMO.md (alert step only),
+docs/expo/CHEATSHEET.md (one line).
+
+Acceptance check: ci-java and ci-e2e green on your branch.
+
+## Rules (apply to every task)
+- Read every file in docs/contracts/ first and follow them exactly. Do not edit docs/contracts/ or infra/db/schema.sql (if a contract looks wrong, say so in your report).
+- Do not read or change anything in swarm/ (except your own report file if the swarm asks you to write one).
+- Only edit the files listed. If you are on vivek-pc: do NOT start Docker containers or kind there (the live demo runs on it). Acceptance runs in GitHub Actions on your task branch.
+- If you are on vivek-pc: it runs the live demo. Do NOT run builds, test suites, Gradle, npm build/test, Playwright or any browser/renderer locally there - read code, edit, and rely on GitHub Actions for every check.
