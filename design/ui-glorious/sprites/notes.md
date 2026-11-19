@@ -1,0 +1,5 @@
+- Source: design/ui-glorious/liveworld-mockup.png (1672x941). Re-run: `python design/ui-glorious/sprites/cut_sprites.py` from repo root (needs rembg[cpu]; use Python 3.12, rembg does not build on 3.15).
+- Truck crop box (x0,y0,x1,y1): (1370, 325, 1485, 425), the isolated truck right of "Mysuru Palace". Background removed with rembg model u2net (isnet-general-use left grey haze around the box), then alpha<24 cleared and only the largest blob kept.
+- Truck result: trimmed to 90x75 at source size, upscaled to 154x128 -> web/public/glorious/truck.png. No truck@2x.png because the source is only 75 px tall.
+- Card photo crop box: (449, 260, 584, 396), inset from the card photo (about 444-588 x 255-400) to cut off the rounded corners -> web/public/glorious/truck-photo.jpg, 135x136, quality 85.
+- Previews: preview-light.png (#f3efe6) and preview-green.png (#9bd3a0). Edges are clean, with no glow ring or halo. The sprite is a bit soft because it is upscaled about 1.7x.
