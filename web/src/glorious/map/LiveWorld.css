@@ -60,3 +60,22 @@
   .gl-live-world__controls { right: 16px; }
 }
 .gl-map-truck[data-loaded='true'] .gl-map-truck__placeholder { display: none; }
+@media (max-width: 768px) {
+  .gl-live-world__heading { left: 16px; top: 92px; max-width: calc(100% - 88px); }
+  .gl-live-world__heading p { max-width: none; }
+  .gl-live-world__search { top: 92px; right: 16px; width: 48px; max-width: calc(100% - 32px); }
+  .gl-live-world__search--open { z-index: 21; width: calc(100% - 32px); }
+  .gl-live-world__search > .gl-surface { display: flex; flex-wrap: wrap; }
+  .gl-live-world__search-toggle { display: grid; place-items: center; flex: 0 0 48px; height: 48px; padding: 0; border: 0; border-radius: 20px; background: transparent; color: inherit; font-size: 26px; cursor: pointer; }
+  .gl-live-world__search input { width: calc(100% - 48px); min-width: 0; padding: 0 12px; font-size: 16px; }
+  .gl-live-world__results { flex: 0 0 100%; box-sizing: border-box; max-height: min(340px, 45dvh); }
+  .gl-live-world__results button { min-height: 48px; }
+  .gl-live-world__controls { right: 16px; bottom: calc(84px + env(safe-area-inset-bottom, 0px)); }
+  .gl-live-world__card { z-index: 21; left: 12px; right: 12px; top: auto; bottom: calc(84px + env(safe-area-inset-bottom, 0px)); width: auto; max-width: none; transform: none !important; visibility: visible; }
+  .gl-live-world__card > .gl-surface { max-height: calc(100dvh - 252px - env(safe-area-inset-bottom, 0px)); overscroll-behavior: contain; }
+  .gl-live-world__card-title button { min-width: 44px; min-height: 44px; }
+  .gl-live-world__photo { height: 80px; }
+  .gl-live-world__notice { left: 16px; top: 164px; max-width: calc(100% - 32px); }
+  .gl-live-world .maplibregl-ctrl-bottom-left { left: 12px; bottom: calc(76px + env(safe-area-inset-bottom, 0px)); }
+  .gl-map-truck { -webkit-touch-callout: none; user-select: none; -webkit-user-select: none; }
+}

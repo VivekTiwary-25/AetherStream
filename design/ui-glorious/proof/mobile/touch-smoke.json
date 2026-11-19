@@ -1,0 +1,14 @@
+{
+  "passed": [
+    "mobile search expansion and truck selection",
+    "tap opens bottom card without actions",
+    "long press opens actions and survives touch release",
+    "cancel sends no request; confirm sends one",
+    "native MapLibre touch pan and pinch",
+    "horizontal palette and tap-to-add",
+    "inspector below usable canvas",
+    "name editing and responsive guidance"
+  ],
+  "fixture": "Only simulator state/scenario intercepted; screenshots with fixture suffix are not live-backend proof",
+  "shellLimitation": "Existing sidebar overlays phone content; shell files left untouched"
+}

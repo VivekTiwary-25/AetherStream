@@ -28,6 +28,15 @@ function initialPipeline(): { pipeline: Pipeline; note: string } {
 
 export function EditorPage() {
   const [start] = useState(initialPipeline)
+  const [phoneLayout, setPhoneLayout] = useState(() => window.matchMedia?.('(max-width: 768px)').matches ?? false)
+  useEffect(() => {
+    const query = window.matchMedia?.('(max-width: 768px)')
+    if (!query) return
+    const update = () => setPhoneLayout(query.matches)
+    update()
+    query.addEventListener('change', update)
+    return () => query.removeEventListener('change', update)
+  }, [])
   const startFlow = useMemo(() => pipelineToFlow(start.pipeline), [start])
   const [name, setName] = useState(start.pipeline.name)
   const [nodes, setNodes, onNodesChange] = useNodesState<StepNode>(startFlow.nodes)
@@ -163,6 +172,7 @@ export function EditorPage() {
         <a className="gl-pe__back" href="/pipelines">Back to Pipelines</a>
       </div>
     </GlassSurface>
+    {phoneLayout && <p className="gl-pe__mobile-note" role="note">The pipeline editor is best on a larger screen. On phones, swipe the steps to add one, then select a step on the canvas and edit its settings below. Use Input to connect steps without dragging.</p>}
 
     <div className="gl-pe__body">
       <GlassSurface strong className="gl-pe__palette">

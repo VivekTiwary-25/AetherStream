@@ -1,0 +1,19 @@
+{
+  "server": "Vite production preview on localhost:4173",
+  "desktop": {
+    "viewport": { "width": 1440, "height": 900 },
+    "comparison": "Before/after PNG buffers are byte-identical",
+    "map": true,
+    "pipelines": true,
+    "editor": true
+  },
+  "phone": {
+    "viewport": { "width": 390, "height": 844 },
+    "screenshots": ["map-390x844-after.png", "pipelines-390x844-after.png", "editor-390x844-after.png"]
+  },
+  "limitations": [
+    "Production screenshots use the genuine disconnected UI because localhost:18080 is unavailable; no screenshot API responses were intercepted.",
+    "Desktop map screenshots show the early loading surface; mobile map screenshot shows the rendered basemap.",
+    "Existing shell sidebar overlays base phone map and pipeline content; shell is outside this task's edit scope. Expanded search and truck cards render above it."
+  ]
+}
