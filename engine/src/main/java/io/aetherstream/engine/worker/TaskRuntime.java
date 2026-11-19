@@ -276,7 +276,7 @@ public final class TaskRuntime {
             }
         } catch (InterruptedException e) {
             // stopping
-        } catch (RuntimeException e) {
+        } catch (Throwable e) {
             if (running) {
                 log.error("Source thread failed", e);
                 stopByItself("source failed: " + e);
@@ -374,7 +374,7 @@ public final class TaskRuntime {
             }
         } catch (InterruptedException e) {
             // stopping
-        } catch (RuntimeException e) {
+        } catch (Throwable e) {
             if (running) {
                 log.error("Operator thread failed", e);
                 stopByItself("operator failed: " + e);
@@ -464,7 +464,7 @@ public final class TaskRuntime {
             }
         } catch (InterruptedException e) {
             // stopping: queued and pending outputs are discarded (replayed from the last checkpoint)
-        } catch (RuntimeException e) {
+        } catch (Throwable e) {
             if (running) {
                 log.error("Sink thread failed", e);
                 stopByItself("sink failed: " + e);

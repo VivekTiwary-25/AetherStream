@@ -22,12 +22,14 @@ import org.slf4j.LoggerFactory;
 /**
  * Best-effort startup fence; manual assignment never joins or commits an execution's group.
  * Scans tail windows for their maximum non-late time, walking backwards past all-chaos windows
- * within the startup deadline. Reads are bounded by the captured end offsets and retention floor.
+ * within bounded startup attempts with backoff. Reads use captured end offsets and the retention floor.
  */
 final class KafkaEventTime {
     private static final Logger LOG = LoggerFactory.getLogger(KafkaEventTime.class);
     private static final Duration TIMEOUT = Duration.ofSeconds(3);
     private static final int TAIL_WINDOW_RECORDS = 256;
+    private static final int MAX_ATTEMPTS = 3;
+    private static final long RETRY_BACKOFF_MS = 250;
 
     static OptionalLong latest(SimulatorConfig config) {
         Properties properties = new Properties();
@@ -57,67 +59,83 @@ final class KafkaEventTime {
     }
 
     static OptionalLong latest(Consumer<String, String> consumer, String topic, Duration timeout) {
-        long deadline = System.nanoTime() + timeout.toNanos();
         long latest = Long.MIN_VALUE;
         boolean found = false;
-        try {
-            List<TopicPartition> partitions = consumer.partitionsFor(topic, remaining(deadline)).stream()
-                    .map(p -> new TopicPartition(topic, p.partition())).toList();
-            Map<TopicPartition, Long> ends = consumer.endOffsets(partitions, remaining(deadline));
-            Map<TopicPartition, Long> starts = consumer.beginningOffsets(partitions, remaining(deadline));
-            Map<TopicPartition, Long> pending = new HashMap<>();
-            Map<TopicPartition, Long> windowStarts = new HashMap<>();
-            Set<TopicPartition> anchored = new HashSet<>();
-            for (TopicPartition partition : partitions) {
-                long end = ends.get(partition);
-                long beginning = starts.get(partition);
-                if (end > beginning) {
-                    pending.put(partition, end);
-                    windowStarts.put(partition, Math.max(beginning, end - TAIL_WINDOW_RECORDS));
-                }
-            }
-            consumer.assign(pending.keySet());
-            windowStarts.forEach(consumer::seek);
-            while (!pending.isEmpty()) {
-                for (var record : consumer.poll(remaining(deadline))) {
-                    TopicPartition partition = new TopicPartition(record.topic(), record.partition());
-                    Long end = pending.get(partition);
-                    if (end == null || record.offset() < windowStarts.get(partition)
-                            || record.offset() >= end) continue;
-                    try {
-                        JsonNode event = record.value() == null ? null : Json.MAPPER.readTree(record.value());
-                        JsonNode id = event == null ? null : event.get("eventId");
-                        if (id != null && id.isTextual() && id.textValue().contains("-late-")) continue;
-                        JsonNode time = event == null ? null : event.get("eventTime");
-                        if (time != null && time.isIntegralNumber() && time.canConvertToLong()) {
-                            anchored.add(partition);
-                            latest = Math.max(latest, time.longValue());
-                            found = true;
-                        }
-                    } catch (JsonProcessingException e) {
-                        LOG.warn("Ignoring unparseable Kafka tail at {}:{}", partition, record.offset());
-                    }
-                }
-                // Take the maximum over each captured window, not the last offset's timestamp.
-                // A whole window of chaos records must not hide the preceding normal timestamp.
-                for (var iterator = pending.entrySet().iterator(); iterator.hasNext();) {
-                    var entry = iterator.next();
-                    TopicPartition partition = entry.getKey();
-                    if (consumer.position(partition, remaining(deadline)) < entry.getValue()) continue;
-                    long start = windowStarts.get(partition);
+        for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+            long deadline = System.nanoTime() + timeout.multipliedBy(1L << (attempt - 1)).toNanos();
+            try {
+                List<TopicPartition> partitions = consumer.partitionsFor(topic, remaining(deadline)).stream()
+                        .map(p -> new TopicPartition(topic, p.partition())).toList();
+                Map<TopicPartition, Long> ends = consumer.endOffsets(partitions, remaining(deadline));
+                Map<TopicPartition, Long> starts = consumer.beginningOffsets(partitions, remaining(deadline));
+                Map<TopicPartition, Long> pending = new HashMap<>();
+                Map<TopicPartition, Long> windowStarts = new HashMap<>();
+                Set<TopicPartition> anchored = new HashSet<>();
+                for (TopicPartition partition : partitions) {
+                    long end = ends.get(partition);
                     long beginning = starts.get(partition);
-                    if (anchored.contains(partition) || start == beginning) {
-                        iterator.remove();
-                    } else {
-                        entry.setValue(start);
-                        long previousStart = Math.max(beginning, start - TAIL_WINDOW_RECORDS);
-                        windowStarts.put(partition, previousStart);
-                        consumer.seek(partition, previousStart);
+                    if (end > beginning) {
+                        pending.put(partition, end);
+                        windowStarts.put(partition, Math.max(beginning, end - TAIL_WINDOW_RECORDS));
                     }
                 }
+                consumer.assign(pending.keySet());
+                windowStarts.forEach(consumer::seek);
+                while (!pending.isEmpty()) {
+                    for (var record : consumer.poll(remaining(deadline))) {
+                        TopicPartition partition = new TopicPartition(record.topic(), record.partition());
+                        Long end = pending.get(partition);
+                        if (end == null || record.offset() < windowStarts.get(partition)
+                                || record.offset() >= end) continue;
+                        try {
+                            JsonNode event = record.value() == null ? null : Json.MAPPER.readTree(record.value());
+                            JsonNode id = event == null ? null : event.get("eventId");
+                            if (id != null && id.isTextual() && id.textValue().contains("-late-")) continue;
+                            JsonNode time = event == null ? null : event.get("eventTime");
+                            if (time != null && time.isIntegralNumber() && time.canConvertToLong()) {
+                                anchored.add(partition);
+                                latest = Math.max(latest, time.longValue());
+                                found = true;
+                            }
+                        } catch (JsonProcessingException e) {
+                            LOG.warn("Ignoring unparseable Kafka tail at {}:{}", partition, record.offset());
+                        }
+                    }
+                    // Take the maximum over each captured window, not the last offset's timestamp.
+                    // A whole window of chaos records must not hide the preceding normal timestamp.
+                    for (var iterator = pending.entrySet().iterator(); iterator.hasNext();) {
+                        var entry = iterator.next();
+                        TopicPartition partition = entry.getKey();
+                        if (consumer.position(partition, remaining(deadline)) < entry.getValue()) continue;
+                        long start = windowStarts.get(partition);
+                        long beginning = starts.get(partition);
+                        if (anchored.contains(partition) || start == beginning) {
+                            iterator.remove();
+                        } else {
+                            entry.setValue(start);
+                            long previousStart = Math.max(beginning, start - TAIL_WINDOW_RECORDS);
+                            windowStarts.put(partition, previousStart);
+                            consumer.seek(partition, previousStart);
+                        }
+                    }
+                }
+                return found ? OptionalLong.of(latest) : OptionalLong.empty();
+            } catch (RuntimeException e) {
+                if (attempt == MAX_ATTEMPTS || Thread.currentThread().isInterrupted()) {
+                    LOG.warn("Kafka startup event-time fence incomplete after {} attempts; clock may restart behind Kafka",
+                            attempt, e);
+                    break;
+                }
+                long backoff = RETRY_BACKOFF_MS << (attempt - 1);
+                LOG.warn("Kafka startup event-time fence attempt {} failed; retrying in {} ms", attempt, backoff, e);
+                try {
+                    Thread.sleep(backoff);
+                } catch (InterruptedException interrupted) {
+                    Thread.currentThread().interrupt();
+                    LOG.warn("Kafka startup event-time fence interrupted; clock may restart behind Kafka", interrupted);
+                    break;
+                }
             }
-        } catch (RuntimeException e) {
-            LOG.warn("Kafka startup event-time fence incomplete: {}", e.toString());
         }
         return found ? OptionalLong.of(latest) : OptionalLong.empty();
     }
