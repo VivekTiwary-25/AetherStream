@@ -54,6 +54,10 @@ navigates to `/live` without reloading or closing existing windows. Sidebar
 sub-options stay selected. From Home this uses the usual slide-up; reduced motion
 uses a fade instead.
 
+Pipelines checkpoint: change `PIPELINES_MODE` in `pipelines/mode.ts` (default `'full'`).
+`'full'` keeps Ask AI + Open Editor; `'editor'` shows only Open Editor and its description.
+`'hidden'` removes the sidebar item and redirects `/pipelines` and `/pipelines/editor` to Home.
+
 ## Classic Playwright limitation
 
 The existing tests call `page.goto('/')`. URL resolution drops a baseURL query,
