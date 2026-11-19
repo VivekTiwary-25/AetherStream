@@ -3,7 +3,7 @@ import { getCheckpoints, getCurrentExecution } from '../../api/client'
 import type { CheckpointInfo, ExecutionEvent, ExecutionInfo, WorkerInfo } from '../../api/types'
 import { useAetherSocket } from '../../api/ws'
 import { GlassPanel } from '../ui/GlassPanel'
-import { buildTimelineModel, formatApiDuration, type TimedExecutionEvent } from './timelineModel'
+import { buildTimelineModel, formatApiDuration, humanState, type TimedExecutionEvent } from './timelineModel'
 
 const WINDOW_MS = 120_000
 const TRACK_WIDTH = 720
@@ -99,7 +99,7 @@ export function CheckpointTimeline() {
 
   const recovering = execution?.state === 'RECOVERING'
   const pendingCheckpoint = checkpoints.some((checkpoint) => checkpoint.state === 'PENDING')
-  const status = recovering ? 'Recovering' : pendingCheckpoint ? 'Checkpointing' : execution?.state ?? 'Waiting'
+  const status = recovering ? 'Recovering' : pendingCheckpoint ? 'Checkpointing' : humanState(execution?.state) || 'Waiting'
   const statusColor = recovering ? '#f59e0b' : pendingCheckpoint ? '#a78bfa' : execution?.state === 'RUNNING' ? '#4ade80' : execution?.state === 'FAILED' ? '#f87171' : '#94a3b8'
   const restored = execution?.restoredFromCheckpoint ?? model.recoveries.at(-1)?.checkpointId
   const latestCheckpoint = checkpoints.find((checkpoint) => checkpoint.checkpointId === execution?.lastCompletedCheckpoint)

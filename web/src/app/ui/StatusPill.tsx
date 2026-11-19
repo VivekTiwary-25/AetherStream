@@ -17,12 +17,15 @@ const labels: Record<StatusState, string> = {
   healthy: 'Healthy',
 }
 
-export function StatusPill({ state }: { state: StatusState }) {
+export function StatusPill({ state, label }: { state: StatusState; label?: string }) {
+  // One marker only: an icon glyph for states that need more than colour (failed/recovering/paused), otherwise a dot.
+  const glyph = state === 'failed' || state === 'recovering' ? '!' : state === 'paused' ? 'Ⅱ' : null
   return (
     <span className={`status-pill status-pill--${state}`}>
-      <span className="status-pill__dot" aria-hidden="true" />
-      <span aria-hidden="true">{state === 'failed' || state === 'recovering' ? '!' : state === 'paused' ? 'Ⅱ' : '●'}</span>
-      <span>{labels[state]}</span>
+      {glyph
+        ? <span className="status-pill__glyph" aria-hidden="true">{glyph}</span>
+        : <span className="status-pill__dot" aria-hidden="true" />}
+      <span>{label ?? labels[state]}</span>
     </span>
   )
 }

@@ -7,10 +7,16 @@ export interface TimedExecutionEvent extends ExecutionEvent {
 }
 
 /** Formats a duration the API returned; "-" when it returned none. Never derived from client clocks. */
+/** Human label for a raw execution state enum (RUNNING -> Running). */
+export function humanState(state: string | null | undefined): string {
+  if (!state) return ''
+  return state.charAt(0) + state.slice(1).toLowerCase().replace(/_/g, ' ')
+}
+
 export function formatApiDuration(durationMs: number | null | undefined, unit: 'ms' | 's' = 's'): string {
   if (typeof durationMs !== 'number' || !Number.isFinite(durationMs) || durationMs < 0) return '-'
   if (unit === 'ms') return `${Math.round(durationMs)} ms`
-  return durationMs > 0 && durationMs < 100 ? '< 0.1 s' : `${(durationMs / 1000).toFixed(1)} s`
+  return durationMs < 100 ? '< 0.1 s' : `${(durationMs / 1000).toFixed(1)} s`
 }
 
 function apiDuration(event: TimedExecutionEvent): number | null {

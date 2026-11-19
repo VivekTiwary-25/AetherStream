@@ -121,7 +121,7 @@ export function CityView() {
   const status = hud.status
   return <section ref={section} className={`city${dragOver ? ' city--drop' : ''}`} aria-label="Live delivery city"
     onDragOver={onDragOver} onDragLeave={(e) => { if (!section.current?.contains(e.relatedTarget as Node | null)) clearDrag() }} onDrop={(e) => void onDrop(e)}>
-    <div ref={host} className="city__canvas" onPointerMove={onPointerMove} onPointerLeave={() => { setHover(null); if (scene.current) scene.current.hoveredId = null }} />
+    <div ref={host} className="city__canvas" onMouseDown={(e) => { if (e.detail > 1) e.preventDefault() }} onPointerMove={onPointerMove} onPointerLeave={() => { setHover(null); if (scene.current) scene.current.hoveredId = null }} />
     <div className="city__vignette" aria-hidden="true" />
 
     <div className="city__glass city__title">
@@ -129,7 +129,7 @@ export function CityView() {
       <span>2 km grid · {hud.trucks} trucks · sim {simClock(hud.simTime)}</span>
     </div>
 
-    <div className={`city__glass city__status city__status--${status.mode}`} role="status" style={{ color: status.color }}>
+    <div className={`city__glass city__status city__status--${status.mode}`} role="status" title={status.label} style={{ color: status.color }}>
       <i className="city__dot" style={{ background: status.color, boxShadow: `0 0 10px ${status.color}` }} />{status.label}
     </div>
 
@@ -158,11 +158,11 @@ export function CityView() {
       <span><i style={{ background: '#ffb547' }} />Unloading</span>
       <span><i style={{ background: '#ff4d64' }} />Stopped</span>
       <span className="city__legend-sep" />
-      <span><i style={{ background: '#ff4d64' }} />Rejected</span>
-      <span><i style={{ background: '#b07cff' }} />Late</span>
+      <span><i className="city__legend-mark city__legend-mark--square" style={{ background: '#ff4d64' }} />Rejected</span>
+      <span><i className="city__legend-mark city__legend-mark--square" style={{ background: '#b07cff' }} />Late</span>
       <span className="city__legend-sep" />
       <span>{hud.workersAlive}/{hud.workers} workers · {hud.backpressured ? 'backpressured' : 'healthy'}</span>
     </div>
-    <div className="city__hint" aria-hidden="true">scroll to zoom · drag to pan · double-click to reset</div>
+    <div className="city__hint" aria-hidden="true"><span className="city__hint-mouse">scroll to zoom · drag to pan · double-click to reset</span><span className="city__hint-touch">pinch to zoom · drag to pan · double-tap to reset</span></div>
   </section>
 }

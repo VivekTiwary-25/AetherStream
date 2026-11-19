@@ -150,3 +150,45 @@ Severity: **Critical** = broken or misleading at first glance · **High** = clea
 17.4 s banner "Checkpointing #188"   city "Checkpoint #188 saved"
 28.1 s banner "Checkpointing #188"   city "Checkpoint #189 saved"
 ```
+
+---
+
+## T98 polish pass — status per item
+
+Checked after T92 was merged (the shell mounts OpsPanel, ScenarioPanel, TourOverlay, chaos, compare and the timeline). Verified
+against the dev mock server with headless Edge at 1440×900 and 390×844, plus `npm run lint`, `tsc -b`, `npm test` and `npm run build`.
+"Not fixed" items are outside T98's files (city scene, `web/src/api/*`, backend) or need data the UI does not get.
+
+### Cross-cutting
+- **X1** panels overlap — Fixed in T98: `.panel-grid` has no fixed row heights any more (6 columns, `grid-auto-rows: auto`); each panel has `max-height: 26rem` and scrolls inside.
+- **X2** broken layout / empty void — Fixed in T98: the city is now the full-page backdrop (from T92). The panels form one right-aligned bento block (speed · deliveries · alerts / workers · dead letters / chaos · compare / timeline / ops · scenarios) with the footer last, in normal flow. Also fixed a horizontal overflow on mobile (page was ~770 px wide at 390 px) by giving the shell grid a `minmax(0, 1fr)` column.
+- **X3** recovery contradicts itself — Partly fixed in T98: the header badge and the execution banner now use one shared `useExecutionStatus()` hook (same state, same recovery hold), and the recovering checkpoint comes from the RECOVERING event / `restoredFromCheckpoint`, not the last completed one. Not fixed: the Workers panel can only show what `workers` messages report ("Dead" is shown when `alive=false`). The city HUD has its own model (lane 5). See also the dropped-message note under X4.
+- **X4** recovery too short — Fixed in T98: the UI keeps Recovering visible for at least 3 s (`RECOVERY_HOLD_MS`). The banner shows "Recovered in …" from the server's `durationMs`, and values under 100 ms (including 0) read "< 0.1 s" instead of "0.0 s". **Not fixed (out of scope):** `web/src/api/ws.ts` only exposes `lastMessage`, so when two WS frames arrive in one React batch (for example RECOVERING followed by a 250 ms `trucks` frame) the earlier one never reaches the store. In one of two mock runs the banner skipped Recovering completely. The fix is to let the store subscribe to every message (for example an exported `subscribe(listener)` in ws.ts).
+- **X5** banner run-on text — Fixed in T98: the banner is a glass flex bar with `gap`. Connection status is its own chip (green "● Live", amber "Connecting…", red "⚠ Live connection lost — reconnecting…"). The city is desaturated and dimmed while the socket is disconnected.
+- **X6** double dots — Fixed in T98: `StatusPill` renders one marker, either a dot or the "!" / "Ⅱ" glyph for recovering/failed/paused, never both.
+- **X7** label/value run together — Fixed in T98: speed rows are a 4-column grid (truck · km/h · sparkline · minute), alert time is on its own muted line, and dead-letter reason and time are split left/right.
+- **X8** mobile footer hidden — Fixed in T98 (follows from X1): the footer stays in flow after the single-column panel list.
+
+### Per screenshot
+- desktop-01 map offset / engine text ~7 px / ring tick labels / truck labels — Not fixed: city scene (`web/src/city/scene/*`, lane 5).
+- desktop-01 zoom hint low contrast, overlapping map edge — Fixed in T98: moved to the bottom-left HUD column at 12 px, 82% slate (passes AA on the navy glass).
+- desktop-01 nothing hints at panels below the fold — Fixed in T98: the panels now sit beside the city on the first screen (X2).
+- desktop-02 speed empty state blames the user — Fixed in T98: "Waiting for the first 1-minute window…" while an execution is running or recovering. Deliveries and alerts have matching wording.
+- desktop-02 deliveries number unexplained — Fixed in T98: "N deliveries in the last completed sim minute".
+- desktop-02b reconnecting as plain text, city keeps animating — Fixed in T98 (X5 chip + dimmed city). The canvas keeps rendering; pausing it is lane 5.
+- desktop-03 zoom hides the engine, no reset chip / packets over rooftops — Not fixed: city scene.
+- mobile-03 no touch hint — Fixed in T98: on `pointer: coarse` the hint reads "pinch to zoom · drag to pan · double-tap to reset". It is still hidden below 760 px by `city.css` (lane 5 file) to keep the small screen uncluttered.
+- desktop-04/05 engine caption ~6 px — Not fixed: city scene. Off-by-one between city and banner — partly fixed (banner uses the restore checkpoint, see X3).
+- desktop-06 no record of the failure — Fixed by T92 + T98: the Checkpoint & recovery timeline panel shows "✕ worker lost" and "✓ Recovered in …" markers, and the banner shows "Recovered in …". Synthetic alerts were not added, because Alerts only shows engine alert rows.
+- execution banner bare row — Fixed in T98 (glass bar). Raw "RUNNING" — Fixed in T98: human labels in the banner, timeline and operations headers.
+- recovered banner "0.0 s" — Fixed in T98 (X4). Mobile wrap — Fixed in T98: below 700 px the banner shows "Recovering · #N". "!" plus dot — Fixed in T98 (X6).
+- speed windows: 3 px white sparklines, time floats below, panel 1124 px tall — Fixed in T98: 1.5 px cyan lines in compact one-line rows, a caption explains units/axis, and the panel height is capped with scrolling. A single window draws a short flat line instead of nothing.
+- deliveries: pure white bars, no axis — Fixed in T98: cyan bars at 55% with the latest bar highlighted, plus first/last sim-minute labels.
+- alerts: "s ago" raw seconds, no severity — Fixed in T98: "58 min ago" / "2 h 5 min ago", "since HH:MM", amber stripe. Dismiss/auto-resolve — Not fixed: alert lifecycle is engine/API behaviour.
+- dead letters: cramped header, unstyled tabs, clipped rows, capped count — Fixed in T98: counts moved into a segmented control ("Rejected (1)", "Late (200+)") with a clear active state, and reasons are ellipsized with a `title`, time on the right. "200+" is shown when the 200-row client buffer is full.
+- workers: tall card, overflowing queue bars, idle wording, double dot — Fixed in T98: compact worker blocks in a wider column, grid-based queue bars with `width:100%`, "Idle (no partitions)", one marker per pill, dead workers get a red outline.
+- mobile-01 map width / engine sliver — Not fixed: city scene. Heading wrap — already fixed by T92 (eyebrow hidden below 700 px).
+- mobile-02/06 pile-up and footer — Fixed in T98 (X1, X8; single column below 1100 px).
+- mobile-04b recovering pill covers "AETHER CITY" — Fixed in T98: the city title card moved down above the dock, and the status pill is ellipsized to the viewport width. Double-click selecting heading text — Fixed in T98: `preventDefault` on multi-click mousedown on the canvas host.
+- legend Stopped vs Rejected both red dots — Fixed in T98: Rejected/Late use square marks, truck states keep round dots.
+- reduced motion — kept: alert and checkpoint flashes are skipped under `prefers-reduced-motion`, and the global rule disables CSS animation/transition (including the new city dimming). Canvas motion is lane 5.

@@ -69,7 +69,7 @@ export function OpsPanel() {
     }
   }
 
-  const executionStatus = executionState ?? 'No active execution'
+  const executionStatus = executionState ? executionState.charAt(0) + executionState.slice(1).toLowerCase() : 'No active execution'
   const statusColor = executionState === 'RUNNING' ? '#4ade80' : executionState === 'FAILED' ? '#f87171' : executionState ? '#fbbf24' : '#94a3b8'
 
   return (
