@@ -83,6 +83,7 @@ services:
       start_period: 20s
     networks:
       - aether
+    restart: unless-stopped
 
   kafka-init:
     image: apache/kafka:4.3.2
@@ -124,6 +125,7 @@ services:
       start_period: 5s
     networks:
       - aether
+    restart: unless-stopped
 
   minio:
     image: pgsty/minio:RELEASE.2026-08-04T00-00-00Z
@@ -146,6 +148,7 @@ services:
       start_period: 5s
     networks:
       - aether
+    restart: unless-stopped
 
   minio-init:
     # pgsty/mc entrypoint is /usr/bin/mc (no shell). MC_HOST_* skips `mc alias set`.
@@ -233,6 +236,7 @@ services:
       timeout: 5s
       retries: 30
       start_period: 10s
+    restart: unless-stopped
 
   control-api:
     <<: *app
@@ -254,6 +258,7 @@ services:
       timeout: 5s
       retries: 30
       start_period: 30s
+    restart: unless-stopped
 
   web:
     <<: *app
@@ -273,6 +278,7 @@ services:
       timeout: 5s
       retries: 30
       start_period: 5s
+    restart: unless-stopped
 
   prometheus:
     image: prom/prometheus:v3.5.0

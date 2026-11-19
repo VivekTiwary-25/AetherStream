@@ -27,6 +27,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
@@ -89,9 +90,9 @@ class CompareServiceTest {
         Fixture fixture = new Fixture(true);
         fixture.lineageVisible = false;
         AtomicInteger reads = new AtomicInteger();
-        CompareService service = fixture.service((bootstrap, topic, from, to) -> {
+        CompareService service = fixture.service((bootstrap, topic, from, to, sink) -> {
             reads.incrementAndGet();
-            return fixture.readRange(bootstrap, topic, from, to);
+            fixture.readRange(bootstrap, topic, from, to, sink);
         });
 
         mvc(service).perform(post("/api/compare").contentType("application/json").content("{}"))
@@ -105,9 +106,9 @@ class CompareServiceTest {
         Fixture fixture = new Fixture();
         fixture.hasCompletedCheckpoint = false;
         AtomicInteger reads = new AtomicInteger();
-        CompareService service = fixture.service((bootstrap, topic, from, to) -> {
+        CompareService service = fixture.service((bootstrap, topic, from, to, sink) -> {
             reads.incrementAndGet();
-            return fixture.readRange(bootstrap, topic, from, to);
+            fixture.readRange(bootstrap, topic, from, to, sink);
         });
 
         mvc(service).perform(post("/api/compare").contentType("application/json").content("{}"))
@@ -132,9 +133,9 @@ class CompareServiceTest {
         Fixture fixture = new Fixture();
         fixture.expectedOrg = "acme";
         AtomicInteger reads = new AtomicInteger();
-        CompareService service = fixture.service((bootstrap, topic, from, to) -> {
+        CompareService service = fixture.service((bootstrap, topic, from, to, sink) -> {
             reads.incrementAndGet();
-            return fixture.readRange(bootstrap, topic, from, to);
+            fixture.readRange(bootstrap, topic, from, to, sink);
         });
         mvc(service).perform(post("/api/compare").header("X-Org", "acme")
                         .contentType("application/json").content("{}"))
@@ -149,7 +150,7 @@ class CompareServiceTest {
         CountDownLatch entered = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
         AtomicInteger attempts = new AtomicInteger();
-        CompareService service = fixture.service((bootstrap, topic, from, to) -> {
+        CompareService service = fixture.service((bootstrap, topic, from, to, sink) -> {
             if (attempts.getAndIncrement() == 0) {
                 entered.countDown();
                 try {
@@ -160,7 +161,7 @@ class CompareServiceTest {
                 }
                 throw new IllegalStateException("Kafka unavailable");
             }
-            return fixture.readRange(bootstrap, topic, from, to);
+            fixture.readRange(bootstrap, topic, from, to, sink);
         });
         MockMvc mvc = mvc(service);
         var executor = Executors.newSingleThreadExecutor();
@@ -278,7 +279,8 @@ class CompareServiceTest {
                                 "window_start", result.windowStart(), "window_end", result.windowEnd(),
                                 "values", Json.MAPPER.writeValueAsString(result.values()), "event_count", result.eventCount()));
                     } else if (output instanceof ListCollector.AlertOutput alert) {
-                        alerts.add(Map.of("sink_id", alert.sinkNodeId(), "alert_id", alert.alert().alertId()));
+                        alerts.add(Map.of("sink_id", alert.sinkNodeId(), "alert_id", alert.alert().alertId(),
+                                "key", alert.alert().key(), "event_time", alert.alert().eventTime()));
                     }
                 }
             }
@@ -317,13 +319,24 @@ class CompareServiceTest {
                         row.put("source_offsets", Json.MAPPER.writeValueAsString(starts.get(id)));
                         row.put("manifest_key", manifests.get(id));
                         rows = List.of(row);
-                    } else {
+                    } else if (sql.contains("FROM checkpoints")) {
                         assertThat(parameters).containsExactly("exec-current");
-                        if (sql.contains("FROM checkpoints")) rows = hasCompletedCheckpoint
+                        rows = hasCompletedCheckpoint
                                 ? List.of(Map.of("checkpoint_id", 7L, "source_offsets", to)) : List.of();
-                        else if (sql.contains("FROM window_results")) rows = windows;
-                        else if (sql.contains("FROM alerts")) rows = alerts;
-                        else throw new AssertionError("Unexpected query: " + sql);
+                    } else {
+                        // Result reads are bounded by the replay horizon: (execution, end-time floor).
+                        assertThat(parameters).hasSize(2);
+                        assertThat(parameters[0]).isEqualTo("exec-current");
+                        long floor = ((Number) parameters[1]).longValue();
+                        if (sql.contains("FROM window_results")) {
+                            assertThat(sql).contains("window_end>?");
+                            rows = windows.stream()
+                                    .filter(row -> ((Number) row.get("window_end")).longValue() > floor).toList();
+                        } else if (sql.contains("FROM alerts")) {
+                            assertThat(sql).contains("event_time>?");
+                            rows = alerts.stream()
+                                    .filter(row -> ((Number) row.get("event_time")).longValue() > floor).toList();
+                        } else throw new AssertionError("Unexpected query: " + sql);
                     }
                 }
                 List<Object> mapped = new ArrayList<>();
@@ -343,18 +356,23 @@ class CompareServiceTest {
             return new CompareService(jdbc, Json.MAPPER, "test-kafka:9092", "truck-events", reader);
         }
 
-        Map<Integer, List<RawRecord>> readRange(String bootstrap, String topic,
-                                               Map<Integer, Long> from, Map<Integer, Long> to) {
+        void readRange(String bootstrap, String topic, Map<Integer, Long> from, Map<Integer, Long> to,
+                       Consumer<RawRecord> sink) {
             assertThat(bootstrap).isEqualTo("test-kafka:9092");
             assertThat(topic).isEqualTo("truck-events");
-            int stage = boundaries.indexOf(from);
+            // The service streams one partition at a time, so offsets are never materialised together.
+            assertThat(from).hasSize(1);
+            assertThat(to.keySet()).isEqualTo(from.keySet());
+            int partition = from.keySet().iterator().next();
+            int stage = -1;
+            for (int i = 0; i < boundaries.size() - 1; i++) {
+                if (boundaries.get(i).get(partition).equals(from.get(partition))) stage = i;
+            }
             assertThat(stage).isBetween(0, boundaries.size() - 2);
-            assertThat(to).isEqualTo(boundaries.get(stage + 1));
-            Map<Integer, List<RawRecord>> range = new LinkedHashMap<>();
-            records.forEach((partition, input) -> range.put(partition, input.stream()
+            assertThat(to.get(partition)).isEqualTo(boundaries.get(stage + 1).get(partition));
+            records.get(partition).stream()
                     .filter(record -> record.offset() >= from.get(partition) && record.offset() < to.get(partition))
-                    .toList()));
-            return range;
+                    .forEach(sink);
         }
     }
 }

@@ -44,6 +44,28 @@ public final class KafkaRangeReader {
     public Map<Integer, List<RawRecord>> read(String bootstrap, String topic,
                                              Map<Integer, Long> fromInclusive,
                                              Map<Integer, Long> toExclusive) {
+        Map<Integer, List<RawRecord>> polled = new HashMap<>();
+        stream(bootstrap, topic, fromInclusive, toExclusive,
+                record -> polled.computeIfAbsent(record.partition(), partition -> new ArrayList<>()).add(record));
+        // Validated by stream(): partitions are non-null, so sorting is safe here.
+        Map<Integer, List<RawRecord>> result = new LinkedHashMap<>();
+        for (int partition : fromInclusive.keySet().stream().sorted().toList()) {
+            result.put(partition, polled.getOrDefault(partition, new ArrayList<>()));
+        }
+        return result;
+    }
+
+    /**
+     * Same range semantics as {@link #read}, but hands each record to {@code sink} as it is polled
+     * instead of materialising the range, so memory stays bounded by one poll batch. Records of a
+     * partition arrive in offset order. Callers needing a deterministic partition order should
+     * stream one partition at a time.
+     */
+    public void stream(String bootstrap, String topic,
+                       Map<Integer, Long> fromInclusive,
+                       Map<Integer, Long> toExclusive,
+                       java.util.function.Consumer<RawRecord> sink) {
+        Objects.requireNonNull(sink, "sink");
         if (bootstrap == null || bootstrap.isBlank() || topic == null || topic.isBlank()) {
             throw new IllegalArgumentException("bootstrap and topic must not be blank");
         }
@@ -61,16 +83,14 @@ public final class KafkaRangeReader {
             }
         }
 
-        Map<Integer, List<RawRecord>> result = new LinkedHashMap<>();
         Set<TopicPartition> pending = new LinkedHashSet<>();
         for (int partition : fromInclusive.keySet().stream().sorted().toList()) {
-            result.put(partition, new ArrayList<>());
             if (fromInclusive.get(partition) < toExclusive.get(partition)) {
                 pending.add(new TopicPartition(topic, partition));
             }
         }
         if (pending.isEmpty()) {
-            return result;
+            return;
         }
 
         long started = System.nanoTime();
@@ -107,7 +127,7 @@ public final class KafkaRangeReader {
                     long to = toExclusive.get(number);
                     for (ConsumerRecord<String, String> record : records.records(partition)) {
                         if (record.offset() >= from && record.offset() < to) {
-                            result.get(number).add(new RawRecord(number, record.offset(), record.value()));
+                            sink.accept(new RawRecord(number, record.offset(), record.value()));
                         }
                     }
                     // Position advances over compacted/transactional gaps, unlike record counts.
@@ -118,7 +138,6 @@ public final class KafkaRangeReader {
                 }
             }
             remaining(started);
-            return result;
         } catch (RuntimeException | Error exception) {
             failure = exception;
             throw exception;

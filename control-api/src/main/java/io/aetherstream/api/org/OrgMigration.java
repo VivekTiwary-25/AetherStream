@@ -20,5 +20,9 @@ public class OrgMigration implements ApplicationRunner {
         jdbc.execute("ALTER TABLE executions ADD COLUMN IF NOT EXISTS org_id TEXT NOT NULL DEFAULT 'demo'");
         jdbc.execute("CREATE INDEX IF NOT EXISTS pipelines_org_id_idx ON pipelines(org_id)");
         jdbc.execute("CREATE INDEX IF NOT EXISTS executions_org_id_idx ON executions(org_id)");
+        // R08 #4: the 1 s WebSocket result polls filter on written_at. Same indexes as infra/db/schema.sql.
+        jdbc.execute("CREATE INDEX IF NOT EXISTS window_results_written_at_idx ON window_results (execution_id, written_at)");
+        jdbc.execute("CREATE INDEX IF NOT EXISTS alerts_written_at_idx ON alerts (execution_id, written_at)");
+        jdbc.execute("CREATE INDEX IF NOT EXISTS dead_letters_written_at_idx ON dead_letters (execution_id, written_at)");
     }
 }
