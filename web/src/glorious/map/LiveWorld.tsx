@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import * as maplibregl from 'maplibre-gl'
-import mapWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url'
+import mapWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
 import { Protocol } from 'pmtiles'
 import { useDashboard } from '../../app/state/store'
 import { partitionForTruck } from '../../city/cityLogic'
@@ -15,7 +15,7 @@ type Motion = { route: PreparedRoute; distance: number; point: { lon: number; la
 const INITIAL_BOUNDS: [number, number, number, number] = [76.55, 12.23, 76.75, 12.42]
 let protocolUsers = 0
 const protocol = new Protocol()
-// Pin the emitted local worker URL; Vite's dependency prebundle relocates MapLibre's default relative URL.
+// Bundle the module entry as a standalone .js worker, not a raw .mjs asset requiring server MIME support.
 maplibregl.setWorkerUrl(mapWorkerUrl)
 const stopped = (status: string) => ['STOPPED', 'IDLE', 'UNLOADING'].includes(status.toUpperCase())
 const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
