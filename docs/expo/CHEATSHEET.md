@@ -13,10 +13,10 @@ Click only these labels. No **MOCK DATA** badge. Do not push to `main`. Do not r
 
 1. **City** — Banner **No execution**: **Start demo pipeline**. Else point at **AETHER CITY**, **Speed windows**, **Deliveries / min**, **Alerts**, **Workers**.
 2. **Editor** — **Pipeline** → **Broken logistics demo** → **Validate** → **Show me** → **Truck city: speed, deliveries, stuck trucks** → **Validate**. **Run** only if you can wait; else **Close pipeline editor**. If **Examples** is missing: **Load demo**, then **Validate**.
-3. **Chaos** — In **Chaos controls**, **Send late events**. Open **Dead letters**, tab **Late (N)** (other tab **Rejected (N)**). **Slow down output** to **200 ms per record**, then **Off**. **Kill worker** → **Busiest worker (worker-1)** → **Confirm kill**. Banner **Recovering from checkpoint #N**, then **Recovered**. Do not wait for **Dead**. Do not click **Confirm kill** twice.
-4. **Compare** — In **Reference comparison**, **Compare with reference**. Wait for **Comparing…**. Read **N / N results match** on the page. Do not reuse 71 or 811.
+3. **Chaos** — In **Chaos controls**, click **Send late events**. Open **Dead letters**, tab **Late (N)** (other tab **Rejected (N)**); rehearsal reached **Late (20)** within 1.5 s without reload. Set **Slow down output** to **200 ms per record**, then **Off**; **Backpressured** appeared within 5 s at queues 32/32. The on-screen hint says bounded at 1,000; Compose uses a bounded queue (32 in the demo config). **Kill worker** → **Busiest worker (worker-1)** → **Confirm kill**. Banner **Recovering from checkpoint #N**, then **Recovered**. Do not wait for **Dead**. Do not click **Confirm kill** twice.
+4. **Compare** — In **Reference comparison**, click **Compare with reference**. It took 2.6 s in rehearsal; **Comparing…** was too brief to see. Read **N / N results match** on the page. Do not reuse 71 or 811.
 5. **Ops** — Open **Operations**. **Take savepoint**. **Restore** asks **Restart the pipeline from this savepoint?** — only if you can wait. **Rescale** on a balanced assignment returns `execution ID does not need a rebalance`. That refusal is the feature.
-6. **Scenarios** — Open **City scenarios**. **Rush hour**, **Breakdown**, **Surge**, or **Reset**. **Breakdown** also has **Breakdown truck**. Status **Active: Rush hour** (or the label you clicked).
+6. **Scenarios** — Open **City scenarios**. Click **Rush hour**, **Breakdown**, **Surge**, or **Reset**. **Breakdown** also has **Breakdown truck**. Status shows **Active: Rush hour**, **Active: Breakdown**, **Active: Surge**, or **Active: Reset** for the clicked button; Reset corresponds to simulator scenario `none`.
 
 ## Five saves (only commands in this checkout)
 
