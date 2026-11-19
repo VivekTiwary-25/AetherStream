@@ -49,7 +49,7 @@ class WebSocketContractTest {
 
     @Configuration(proxyBeanMethods = false)
     @EnableAutoConfiguration(exclude = DataSourceAutoConfiguration.class)
-    @Import({LiveHub.class, WebSocketConfig.class})
+    @Import({LiveHub.class, WebSocketConfig.class, io.aetherstream.api.recovery.RecoveryHistory.class})
     static class Application {}
 
     @LocalServerPort int port;

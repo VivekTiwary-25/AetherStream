@@ -18,6 +18,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.aetherstream.api.recovery.RecoveryHistory;
 import java.sql.ResultSet;
 import java.sql.Timestamp;
 import java.time.Instant;
@@ -56,6 +57,7 @@ class ControlApiContractTest {
     @MockitoBean CoordinatorClient coordinator;
     @MockitoBean SimulatorClient simulator;
     @MockitoBean JdbcTemplate jdbc;
+    @MockitoBean RecoveryHistory recoveryHistory;
     private String executionState;
 
     @BeforeEach

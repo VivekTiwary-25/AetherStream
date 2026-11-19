@@ -11,6 +11,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.aetherstream.api.recovery.RecoveryHistory;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -31,6 +32,7 @@ class ControlApiControllerTest {
     @MockitoBean SimulatorClient simulator;
     @MockitoBean ResultRepository results;
     @MockitoBean JdbcTemplate jdbc;
+    @MockitoBean RecoveryHistory recoveryHistory;
 
     @Test void versionContainsBuildMetadata() throws Exception {
         mvc.perform(get("/api/version"))
@@ -56,6 +58,26 @@ class ControlApiControllerTest {
         mvc.perform(get("/api/simulator/state")).andExpect(status().isBadGateway())
                 .andExpect(jsonPath("$.error").value("UPSTREAM_DOWN"))
                 .andExpect(jsonPath("$.message").value("coordinator is not reachable"));
+    }
+
+    @Test void killRecordsResolvedWorkerAndActorWithoutClaimingDeath() throws Exception {
+        when(results.currentExecutionId()).thenReturn("exec-1");
+        when(jdbc.queryForObject(anyString(), eq(Boolean.class), eq("exec-1"), eq("alpha"))).thenReturn(true);
+        when(coordinator.state()).thenReturn(mapper.readTree("{\"execution\":{\"id\":\"exec-1\",\"state\":\"RUNNING\"}}"));
+        when(coordinator.chaos(eq("/coord/chaos/kill"), any()))
+                .thenReturn(mapper.readTree("{\"workerId\":\"worker-2\"}"));
+        mvc.perform(post("/api/chaos/kill-worker").header("X-Org", "alpha")
+                        .principal(() -> "terminal-operator").contentType("application/json").content("{}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.workerId").value("worker-2"));
+        org.mockito.Mockito.verify(recoveryHistory).killRequested(eq("alpha"), eq("exec-1"),
+                eq("worker-2"), eq("terminal-operator"), org.mockito.ArgumentMatchers.anyLong());
+    }
+
+    @Test void recoveryHistoryUsesRequestOrganisation() throws Exception {
+        when(recoveryHistory.history("alpha")).thenReturn(java.util.List.of(Map.of("id", 1, "event", "RECOVERED")));
+        mvc.perform(get("/api/recovery/history").header("X-Org", "alpha"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$[0].event").value("RECOVERED"));
+        org.mockito.Mockito.verify(recoveryHistory).history("alpha");
     }
 
     @Test void summaryHasContractShape() throws Exception {

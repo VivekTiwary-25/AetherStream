@@ -5,6 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.aetherstream.api.org.OrgAccess;
 import io.aetherstream.api.org.OrgContext;
 import io.aetherstream.api.org.OrgException;
+import io.aetherstream.api.recovery.RecoveryHistory;
+import jakarta.servlet.http.HttpServletRequest;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
@@ -37,15 +39,17 @@ class ControlApiController {
     private final ResultRepository results;
     private final JdbcTemplate jdbc;
     private final ObjectMapper mapper;
+    private final RecoveryHistory recoveryHistory;
     private final String kafkaBootstrap, gitSha, builtAt;
 
     ControlApiController(CoordinatorClient coordinator, SimulatorClient simulator, ResultRepository results,
-                         JdbcTemplate jdbc, ObjectMapper mapper,
+                         JdbcTemplate jdbc, ObjectMapper mapper, RecoveryHistory recoveryHistory,
                          @Value("${aetherstream.kafka-bootstrap}") String kafkaBootstrap,
                          @Value("${aetherstream.git-sha}") String gitSha,
                          @Value("${aetherstream.built-at}") String builtAt) {
         this.coordinator = coordinator; this.simulator = simulator; this.results = results; this.jdbc = jdbc;
         this.mapper = mapper; this.kafkaBootstrap = kafkaBootstrap; this.gitSha = gitSha; this.builtAt = builtAt;
+        this.recoveryHistory = recoveryHistory;
     }
 
     @GetMapping("/health") Map<String,String> health() { return Map.of("status", "UP"); }
@@ -67,6 +71,9 @@ class ControlApiController {
     }
 
     @GetMapping("/workers") JsonNode workers() { return coordinator.state().path("workers"); }
+    @GetMapping("/recovery/history") List<Map<String, Object>> recoveryHistory() {
+        return recoveryHistory.history(OrgContext.current());
+    }
     @GetMapping("/executions/current") ResponseEntity<Map<String,Object>> currentExecution() {
         String id = results.currentExecutionId();
         return id == null ? ResponseEntity.noContent().build() : ResponseEntity.ok(execution(id));
@@ -123,13 +130,19 @@ class ControlApiController {
         requireChaosExecution(); return coordinator.chaos("/coord/chaos/sink-delay", body);
     }
     @PostMapping("/chaos/kill-worker") @Transactional
-    public JsonNode killWorker(@RequestBody JsonNode body) {
-        requireChaosExecution(); return coordinator.chaos("/coord/chaos/kill", body);
+    public JsonNode killWorker(@RequestBody JsonNode body, HttpServletRequest request) {
+        String executionId = requireChaosExecution();
+        JsonNode response = coordinator.chaos("/coord/chaos/kill", body);
+        String actor = request.getUserPrincipal() == null ? "api:" + OrgContext.current()
+                : request.getUserPrincipal().getName();
+        recoveryHistory.killRequested(OrgContext.current(), executionId, response.path("workerId").asText(),
+                actor, System.currentTimeMillis());
+        return response;
     }
     @GetMapping("/simulator/state") JsonNode simulatorState() { return simulator.state(); }
     @PostMapping("/simulator/trucks") JsonNode addTruck(@RequestBody JsonNode body) { return simulator.post("/trucks", body); }
 
-    private void requireChaosExecution() {
+    private String requireChaosExecution() {
         // Chaos targets shared services; serialize it with starts/restores and verify their active target.
         jdbc.execute("SELECT pg_advisory_xact_lock(1095062612)");
         String id = results.currentExecutionId();
@@ -139,6 +152,7 @@ class ControlApiController {
         if (!id.equals(current.path("id").asText())
                 || !List.of("RUNNING", "RECOVERING").contains(current.path("state").asText()))
             throw new OrgException(HttpStatus.NOT_FOUND, "NOT_FOUND", "execution not found");
+        return id;
     }
 
     private Map<String,Object> execution(String id) {
