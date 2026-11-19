@@ -1,0 +1,190 @@
+name: ci-offline
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ['task/**']
+    paths:
+      - 'docker-compose*.yml'
+      - 'infra/scripts/expo-*.sh'
+      - 'infra/scripts/demo-ready.sh'
+      - '.github/workflows/ci-offline.yml'
+      - 'docs/EXPO_OFFLINE.md'
+      - 'web/**'
+      - 'infra/docker/**'
+      - 'infra/monitoring/**'
+      - 'infra/db/schema.sql'
+      - 'common/**'
+      - 'compiler/**'
+      - 'reference/**'
+      - 'engine/**'
+      - 'control-api/**'
+      - 'simulator/**'
+      - '*gradle*'
+      - 'gradle/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-offline-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  offline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      EXPO_TAG: ${{ github.sha }}
+      COMPOSE_PROJECT_NAME: aether-offline
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Prepare browser while online
+        working-directory: tests/ui
+        run: |
+          npm install --package-lock=false --no-audit --no-fund
+          npx playwright install --with-deps chromium
+      - name: Build branch images and cache all infrastructure while online
+        run: |
+          set -euo pipefail
+          bash -n infra/scripts/expo-prepull.sh infra/scripts/expo-offline-up.sh
+          for service in engine simulator control-api web; do
+            docker build -f "infra/docker/$service.Dockerfile" \
+              --build-arg "GIT_SHA=$EXPO_TAG" --build-arg "VITE_GIT_SHA=$EXPO_TAG" \
+              -t "ghcr.io/vivektiwary-25/aetherstream-$service:$EXPO_TAG" .
+          done
+          docker compose -f docker-compose.yml -f docker-compose.offline.yml --profile monitoring \
+            config --format json > offline-config.json
+          jq -e 'all(.services[]; .build == null and .pull_policy == "never")' offline-config.json
+          mapfile -t images < <(jq -r '.services[].image' offline-config.json | sort -u)
+          for image in "${images[@]}"; do
+            if [[ "$image" != ghcr.io/vivektiwary-25/aetherstream-* ]]; then docker pull "$image"; fi
+          done
+          # Branch images are built locally with CD's names; task SHAs are not published to GHCR.
+          docker image save --output "$RUNNER_TEMP/expo-images.tar" "${images[@]}"
+          docker compose -f docker-compose.yml -f docker-compose.offline.yml --profile monitoring down -v --remove-orphans
+          docker image rm "${images[@]}"
+      - name: Block outbound, restore from backup, and prove cold offline demo
+        timeout-minutes: 12
+        run: |
+          set -euo pipefail
+          github_ip="$(getent ahostsv4 github.com | awk 'NR == 1 { print $1 }')"
+          test -n "$github_ip"
+          sudo iptables-save > "$RUNNER_TEMP/expo-iptables"
+          sudo ip6tables-save > "$RUNNER_TEMP/expo-ip6tables"
+          cleanup() {
+            status=$?
+            trap - EXIT
+            sudo iptables -nvL EXPO_OUTPUT > offline-firewall.txt 2>&1 || true
+            sudo iptables -nvL EXPO_FORWARD >> offline-firewall.txt 2>&1 || true
+            sudo ip6tables -nvL EXPO_OUTPUT >> offline-firewall.txt 2>&1 || true
+            sudo ip6tables -nvL EXPO_FORWARD >> offline-firewall.txt 2>&1 || true
+            docker compose -f docker-compose.yml -f docker-compose.offline.yml --profile monitoring ps -a > offline-status.txt 2>&1 || true
+            docker compose -f docker-compose.yml -f docker-compose.offline.yml --profile monitoring logs --no-color > offline-compose.log 2>&1 || true
+            sudo iptables-restore < "$RUNNER_TEMP/expo-iptables"
+            sudo ip6tables-restore < "$RUNNER_TEMP/expo-ip6tables"
+            exit "$status"
+          }
+          trap cleanup EXIT
+          # No ESTABLISHED exception: even pre-existing external connections are blocked.
+          # OUTPUT covers runner and daemon; FORWARD covers container egress.
+          for firewall in iptables ip6tables; do
+            sudo "$firewall" -N EXPO_OUTPUT
+            sudo "$firewall" -A EXPO_OUTPUT -o lo -j ACCEPT
+            sudo "$firewall" -A EXPO_OUTPUT -o docker0 -j ACCEPT
+            sudo "$firewall" -A EXPO_OUTPUT -o br+ -j ACCEPT
+            sudo "$firewall" -A EXPO_OUTPUT -j REJECT
+            sudo "$firewall" -I OUTPUT 1 -j EXPO_OUTPUT
+            sudo "$firewall" -N EXPO_FORWARD
+            sudo "$firewall" -A EXPO_FORWARD -i docker0 -o docker0 -j ACCEPT
+            sudo "$firewall" -A EXPO_FORWARD -i br+ -o br+ -j ACCEPT
+            sudo "$firewall" -A EXPO_FORWARD -j REJECT
+            sudo "$firewall" -I FORWARD 1 -j EXPO_FORWARD
+            # Docker may move its FORWARD jump when creating a new bridge.
+            if sudo "$firewall" -S DOCKER-USER >/dev/null 2>&1; then
+              sudo "$firewall" -I DOCKER-USER 1 -j EXPO_FORWARD
+            fi
+          done
+          # --resolve proves an IP connection fails, not merely DNS; bypass proxy env.
+          if curl --noproxy '*' --resolve "github.com:443:$github_ip" -4 \
+            --connect-timeout 5 --max-time 10 https://github.com > offline-egress.txt 2>&1; then
+            echo 'ERROR: external HTTPS was reachable' >&2
+            exit 1
+          fi
+          echo 'Outbound HTTPS to github.com proven blocked' | tee -a offline-egress.txt
+          docker image load --input "$RUNNER_TEMP/expo-images.tar"
+          bash infra/scripts/expo-offline-up.sh | tee offline-demo-ready.log
+          # demo-ready already checks nonzero equal counts; independently require its marker.
+          grep -E '^DEMO READY .* compare=([1-9][0-9]*)/\1$' offline-demo-ready.log
+          if docker compose -f docker-compose.yml -f docker-compose.offline.yml --profile monitoring \
+            exec -T control-api curl --noproxy '*' --resolve "github.com:443:$github_ip" -4 \
+            --connect-timeout 5 --max-time 10 https://github.com >> offline-egress.txt 2>&1; then
+            echo 'ERROR: container external HTTPS was reachable' >&2
+            exit 1
+          fi
+          echo 'Container outbound HTTPS to github.com proven blocked' | tee -a offline-egress.txt
+          curl --noproxy '*' --fail http://localhost:19090/-/ready
+          curl --noproxy '*' --fail http://localhost:13000/api/health
+          cd tests/ui
+          node --input-type=module <<'JS'
+          import assert from 'node:assert/strict';
+          import { chromium, expect } from '@playwright/test';
+          const browser = await chromium.launch({ args: ['--no-sandbox', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+          const external = [];
+          const failures = [];
+          const allowed = new Set(['localhost', '127.0.0.1', '[::1]']);
+          function isExternal(url) {
+            const parsed = new URL(url);
+            return ['http:', 'https:', 'ws:', 'wss:'].includes(parsed.protocol) && !allowed.has(parsed.hostname);
+          }
+          try {
+            const context = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
+            context.on('request', request => { if (isExternal(request.url())) external.push(request.url()); });
+            context.on('requestfailed', request => { failures.push(`${request.url()}: ${request.failure()?.errorText}`); });
+            context.on('response', response => { if (response.status() >= 400) failures.push(`${response.status()} ${response.url()}`); });
+            const page = await context.newPage();
+            let liveFrames = 0;
+            page.on('websocket', socket => {
+              if (isExternal(socket.url())) external.push(socket.url());
+              socket.on('framereceived', () => { liveFrames++; });
+              socket.on('socketerror', error => failures.push(String(error)));
+            });
+            await page.goto('http://localhost:8088', { waitUntil: 'networkidle' });
+            await expect(page.getByRole('region', { name: 'Speed windows', exact: true })).toBeVisible();
+            await expect(page.getByRole('region', { name: 'Workers', exact: true })).toBeVisible();
+            await expect(page.locator('canvas')).toBeVisible();
+            await expect.poll(() => liveFrames, { timeout: 15000 }).toBeGreaterThan(1);
+            await page.screenshot({ path: '../../offline-web.png', fullPage: true });
+            // Also exercise the provisioned monitoring surface, not Grafana's news home.
+            await page.goto('http://localhost:13000/d/aetherstream-engine', { waitUntil: 'networkidle' });
+            await expect(page.getByText('Workers alive', { exact: true })).toBeVisible();
+            await page.waitForTimeout(10000);
+            await page.screenshot({ path: '../../offline-grafana.png', fullPage: true });
+            assert.deepEqual(external, [], 'External browser requests (including failed attempts)');
+            assert.deepEqual(failures, [], 'Failed browser requests');
+            console.log(`Offline web rendered with ${liveFrames} live WebSocket frames; Grafana rendered; no external or failed requests`);
+          } finally {
+            await browser.close();
+          }
+          JS
+      - name: Publish offline proof summary
+        if: always()
+        run: |
+          if [[ -f offline-egress.txt ]]; then cat offline-egress.txt >> "$GITHUB_STEP_SUMMARY"; fi
+          if [[ -f offline-demo-ready.log ]]; then grep '^DEMO READY ' offline-demo-ready.log >> "$GITHUB_STEP_SUMMARY" || true; fi
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: offline-proof-${{ github.run_id }}
+          path: |
+            offline-*.txt
+            offline-*.log
+            offline-*.png
+            offline-config.json
+          retention-days: 14
+      - name: Stop isolated CI stack
+        if: always()
+        run: docker compose -f docker-compose.yml -f docker-compose.offline.yml --profile monitoring down -v --remove-orphans
