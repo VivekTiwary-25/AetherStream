@@ -1,0 +1,18 @@
+# T154: Release workflow (tag v* -> versioned images + GitHub Release)  [CI/CD]
+
+Lane 7. Add .github/workflows/release.yml: on push of tags `v*` (and workflow_dispatch with an input `version` and
+`dry_run: true` default), build and push the same images ci-images/cd build to GHCR tagged with the version AND the commit SHA
+(reuse the exact build steps/contexts from the existing workflows), then create a GitHub Release whose body is the matching
+section of CHANGELOG.md (extract with awk/sed). In dry_run mode: build but do not push and do not create the release; print the
+release notes to the step summary. Permissions: contents: write, packages: write only in this workflow. Never trigger on
+branches or pull requests.
+
+Files (edit only these): .github/workflows/release.yml (new).
+
+Acceptance check: run it once with workflow_dispatch dry_run=true on your branch (gh workflow run release.yml --ref <branch>
+-f version=1.0.0 -f dry_run=true) and paste the run URL; it must be green and show the notes in the summary.
+
+## Rules (apply to every task)
+- Read every file in docs/contracts/ first and follow them exactly. Do not edit docs/contracts/ or infra/db/schema.sql (if a contract looks wrong, say so in your report).
+- Do not read or change anything in swarm/ (except your own report file if the swarm asks you to write one).
+- Only edit the files listed. If you are on vivek-pc: do NOT start Docker containers or kind there (the live demo runs on it). Acceptance runs in GitHub Actions on your task branch.
