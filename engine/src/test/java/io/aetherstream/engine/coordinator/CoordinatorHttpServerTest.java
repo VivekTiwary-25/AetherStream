@@ -113,6 +113,7 @@ class CoordinatorHttpServerTest {
                 "aether_checkpoints_completed_total", "aether_checkpoints_aborted_total",
                 "aether_last_checkpoint_duration_ms", "aether_recoveries_total",
                 "aether_last_recovery_duration_ms", "aether_worker_records_per_sec",
+                "aether_checkpoint_duration_seconds_bucket", "aether_recovery_duration_seconds_bucket",
                 "aether_worker_queue_size", "aether_worker_backpressured");
     }
 }
