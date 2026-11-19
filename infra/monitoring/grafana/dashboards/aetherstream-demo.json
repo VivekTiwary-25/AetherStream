@@ -1,0 +1,98 @@
+{
+  "annotations": {"list": []},
+  "editable": false,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Workers alive",
+      "description": "Workers currently reporting as alive.",
+      "gridPos": {"h": 8, "w": 5, "x": 0, "y": 0},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"refId": "A", "expr": "aether_workers_alive", "legendFormat": "alive"}],
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": null}, {"color": "green", "value": 1}]}}, "overrides": []},
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "orientation": "auto", "textMode": "value", "colorMode": "value", "graphMode": "none", "justifyMode": "center", "wideLayout": true}
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Execution generation",
+      "description": "Current coordinator fencing generation.",
+      "gridPos": {"h": 8, "w": 5, "x": 5, "y": 0},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"refId": "A", "expr": "aether_execution_generation", "legendFormat": "generation"}],
+      "fieldConfig": {"defaults": {}, "overrides": []},
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "orientation": "auto", "textMode": "value", "colorMode": "value", "graphMode": "none", "justifyMode": "center", "wideLayout": true}
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Last completed checkpoint",
+      "description": "Highest completed checkpoint reported by a worker.",
+      "gridPos": {"h": 8, "w": 5, "x": 10, "y": 0},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"refId": "A", "expr": "aether_worker_last_checkpoint_id", "legendFormat": "{{worker}}"}],
+      "fieldConfig": {"defaults": {"decimals": 0}, "overrides": []},
+      "options": {"reduceOptions": {"calcs": ["max"], "fields": "", "values": false}, "orientation": "auto", "textMode": "value", "colorMode": "value", "graphMode": "none", "justifyMode": "center", "wideLayout": true}
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Consumer lag total",
+      "description": "Sum of reported worker partition lag; excludes the idle NaN series.",
+      "gridPos": {"h": 8, "w": 5, "x": 15, "y": 0},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"refId": "A", "expr": "aether_worker_consumer_lag{partition=~\".+\"}", "legendFormat": "{{worker}} / partition {{partition}}"}],
+      "fieldConfig": {"defaults": {"min": 0, "decimals": 0, "unit": "short"}, "overrides": []},
+      "options": {"reduceOptions": {"calcs": ["sum"], "fields": "", "values": false}, "orientation": "auto", "textMode": "value", "colorMode": "value", "graphMode": "none", "justifyMode": "center", "wideLayout": true}
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "Last recovery duration",
+      "description": "Duration of the most recent recovery, in milliseconds.",
+      "gridPos": {"h": 8, "w": 4, "x": 20, "y": 0},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"refId": "A", "expr": "aether_last_recovery_duration_ms", "legendFormat": "ms"}],
+      "fieldConfig": {"defaults": {"unit": "ms"}, "overrides": []},
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "orientation": "auto", "textMode": "value", "colorMode": "value", "graphMode": "none", "justifyMode": "center", "wideLayout": true}
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Events into the engine / second",
+      "description": "Worker processing rates by worker.",
+      "gridPos": {"h": 12, "w": 12, "x": 0, "y": 8},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"refId": "A", "expr": "aether_worker_records_per_sec", "legendFormat": "{{worker}}"}],
+      "fieldConfig": {"defaults": {"min": 0, "unit": "ops"}, "overrides": []},
+      "options": {"legend": {"displayMode": "list", "placement": "bottom", "showLegend": false}, "tooltip": {"mode": "single", "sort": "none"}}
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Successful sink transactions",
+      "description": "Cumulative successful sink batches. This is not a window-row count; no windows-written metric is currently exposed.",
+      "gridPos": {"h": 12, "w": 12, "x": 12, "y": 8},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"refId": "A", "expr": "aether_worker_sink_batches_total", "legendFormat": "{{worker}}"}],
+      "fieldConfig": {"defaults": {"min": 0, "unit": "short"}, "overrides": []},
+      "options": {"legend": {"displayMode": "list", "placement": "bottom", "showLegend": false}, "tooltip": {"mode": "single", "sort": "none"}}
+    }
+  ],
+  "refresh": "5s",
+  "schemaVersion": 41,
+  "style": "dark",
+  "tags": ["aetherstream", "monitoring", "expo"],
+  "templating": {"list": []},
+  "time": {"from": "now-15m", "to": "now"},
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "AetherStream Demo",
+  "uid": "aetherstream-demo",
+  "version": 1
+}
