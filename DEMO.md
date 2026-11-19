@@ -1,187 +1,238 @@
-# AetherStream: examiner demo script (about 13 minutes)
+# AetherStream examiner demo (12 minutes)
 
-**Status note for the presenter:** The dashboard shell at `web/src/app/shell/AppShell.tsx` shows the truck city, live panels, and a **Start demo pipeline** button. It does not mount the pipeline editor, chaos controls, compare panel, scenario buttons, or checkpoint timeline. Those components are in the tree. Do not click a control that is not on the page. The APIs and the Actions logs below are the evidence for those features. A contract, or a workflow file, is not a passing run.
+Presenter script. Click only labels that are on the page. Read numbers off the screen. Do not push to `main` during the slot: `cd` deploys onto the machine you are demoing.
 
-## Before the examiner arrives
+Checked against this checkout: `web/src/app/shell/AppShell.tsx` mounts the city, **Pipeline** editor, live panels, **Chaos controls**, **Reference comparison**, **Checkpoint & recovery timeline**, and the footer. It does not import `OpsPanel`, `ScenarioPanel`, `TourOverlay`, or `IntroSplash`. Those labels exist in `web/src/app/ops`, `web/src/app/scenarios`, and `web/src/app/tour`. If a later build puts them on the page, click the label named below. If it does not, run the command. Do not hunt for a missing button.
 
-- Build and start the local stack: `docker compose up -d --build`.
-- Optional metrics: `docker compose --profile monitoring up -d`. Grafana is [http://localhost:13000](http://localhost:13000), dashboard **AetherStream engine**. Prometheus is [http://localhost:19090](http://localhost:19090). A plain `docker compose up` does not start this profile. See `infra/monitoring/README.md`.
-- Confirm services: `docker compose ps`. App services should show healthy; one-shot `kafka-init` and `minio-init` should show exited successfully, not running. If any service is unhealthy, use the recovery section below.
-- Open the web UI at `http://localhost:8088` and check it loads. Keep a terminal ready at the repository root.
-- Open these Actions logs before you start. Do not describe a run you have not opened.
-  - [44395770221](https://github.com/VivekTiwary-25/AetherStream/actions/runs/44395770221) (`ci-integration`): `EngineMatchesReferenceIT` logged 811 reference results, 811 engine results, 811 matched, and dead letters 25 and 25 equal.
-  - [44398295492](https://github.com/VivekTiwary-25/AetherStream/actions/runs/44398295492) (`ci-k8s`): step "Always dump pods and diagnostic logs" runs `kubectl get pods -A -o wide`.
-  - [44395471523](https://github.com/VivekTiwary-25/AetherStream/actions/runs/44395471523) (`ci-terraform`): the apply log prints the plan, then apply. There is no separate plan step in `.github/workflows/ci-terraform.yml`.
-- Workflow files on `main` include `ci-java`, `ci-web`, `ci-integration`, `ci-images`, `ci-compose`, `ci-e2e`, `ci-k8s`, `ci-terraform`, `bench`, `ci-ui-e2e`, `ci-mock`, and `cd`. `ci-ui-e2e` is `continue-on-error: true`. `bench` publishes reports; do not quote a benchmark number from memory. `benchmarks/README.md` says the repo publishes no fabricated metrics.
-- If an externally hosted demo has actually been deployed, open its real public URL in a second tab. Otherwise say: “This checkout has no configured public demo URL; I am showing the local Compose deployment.” Do not invent or expose a URL.
-- Have a clean, authorized demo execution and enough time for the simulator's clock. At `SIM_TIME_SCALE=10`, one simulated minute takes about six real seconds. A stuck-truck alert needs roughly 90 seconds from simulator start: five simulated minutes before truck-007 stops, then ten one-minute windows for the rule.
-- Explain that completion of a local command or the presence of a contract does not by itself prove a feature works.
+A production page must not show **MOCK DATA**. That badge is only rendered when `VITE_USE_MOCK=1`.
 
-## Timed presentation
+## 30 minutes before
 
-### 0:00–1:00 — 0. Pre-flight and scope
+1. From the repo root, if the stack is not already the live demo: `docker compose up -d --build`. Then `docker compose --profile monitoring up -d`. Do not run `docker compose down -v`.
+2. `docker compose ps`. Application services should be healthy. `kafka-init` and `minio-init` should be exited, not running.
+3. Open `http://localhost:8088`. Confirm **AETHER CITY**, trucks moving, a non-zero `events/s` readout, and no **MOCK DATA** badge. If a panel is a chip, click it (**Expand Speed windows**, and the same pattern for the other panel titles).
+4. If the banner says **No execution**, click **Start demo pipeline**. Leave it running so **Alerts** can show the stuck-truck line before you start. At `SIM_TIME_SCALE=10`, truck-007 stops after 5 simulated minutes (30 real seconds) and the rule needs 10 one-minute windows (another 60 real seconds).
+5. `curl -fsS http://localhost:18080/api/ready` and `curl -fsS http://localhost:18080/api/version`. Write down `commit`. The footer shows the first 7 characters of that value, labelled **Deployed version:**. It is the running image, not this task branch.
+6. Open Grafana `http://localhost:13000`, dashboard **AetherStream engine**. Anonymous access is read-only. Prometheus, if asked, is `http://localhost:19090`.
+7. Open these runs in tabs. They were green when this script was written. If a newer green run is on the Actions page, use that and read it.
+   - CD, publish + deploy + smoke: [44438884629](https://github.com/VivekTiwary-25/AetherStream/actions/runs/44438884629) (`d1714e34e04fa1ed5feba43dfb959342be8d92a6`, runner `vivek-pc-deploy`, log line `PASS: health is UP and deployed commit is d1714e34e04fa1ed5feba43dfb959342be8d92a6`).
+   - Compose e2e: [44410772993](https://github.com/VivekTiwary-25/AetherStream/actions/runs/44410772993) (`71 / 71 results match`; steps 9-11 skipped).
+   - Testcontainers: [44395770221](https://github.com/VivekTiwary-25/AetherStream/actions/runs/44395770221) (`EngineMatchesReferenceIT`, `"matched":811`).
+   - kind: [44398295492](https://github.com/VivekTiwary-25/AetherStream/actions/runs/44398295492).
+   - Terraform: [44395471523](https://github.com/VivekTiwary-25/AetherStream/actions/runs/44395471523).
+   - Unit tests: [44439772370](https://github.com/VivekTiwary-25/AetherStream/actions/runs/44439772370) (`./gradlew build`).
+8. Keep `docs/ux/screenshots/` open. Use a file only if the live step fails.
 
-**Click / say:** In the terminal run `docker compose ps`; point to healthy application services and successful init jobs. Show the Actions tab. Say: “This is a local Compose deployment. The workflows on main cover Java, web, integration tests, images, Compose smoke, a full-system demo, kind, Terraform, a benchmark task, and a self-hosted Compose deploy. I will open the logs I have, not a file name.”
+## 12-minute script
 
-**Audience sees:** Running container status and the repository's actual workflow list/logs.
+### 0:00-0:45 — Stack is up
 
-**Proves:** Docker Compose, service health checks, and honest CI/CD evidence. CDD: container orchestration and continuous integration. It does not prove every workflow's latest run is green.
+**Click / run:** `docker compose ps`. Point at `coordinator`, `worker-1`, `worker-2`, `worker-3`, `simulator`, `control-api`, `web`.
 
-### 1:00–1:45 — 1. The city is the data source
+**Audience sees:** Healthy app containers. Init containers exited.
 
-**Click / say:** Open `http://localhost:8088`. Point at the animated truck city and the connected/live status if shown. Say: “The simulator generates truck-position and delivery events; Kafka transports them to the engine. The city is the event source made visible, not the processing engine.”
+**Say:** "This is the Compose stack the examiner is looking at: Kafka, Postgres, MinIO, three workers, and the web UI on port 8088."
 
-**Audience sees:** Truck scene, depot/routes, and the dashboard shell. If the city or live connection is unavailable, say so and use `/api/health` as the process-health check; do not substitute a mock view without labeling it.
+**Fallback:** [ci-compose 44439772374](https://github.com/VivekTiwary-25/AetherStream/actions/runs/44439772374), step **Smoke** (`bash infra/scripts/smoke.sh`). No container screenshot is checked in.
 
-**Proves:** Event-driven system framing and the logistics simulator. CDD: user-facing visualization and service integration.
+### 0:45-2:00 — City, stream, engine panels
 
-### 1:45–3:00 — 2. Pipeline editor and validation **(in progress as a click)**
+**Click / run:** Stay on `http://localhost:8088`. Point at **AETHER CITY**, the moving trucks, the `events/s` figure, and the particle stream into the engine core. Hover one truck: **Speed**, **Route**, **Partition**. Point at **Speed windows**, **Deliveries / min**, **Alerts**, **Workers**.
 
-**Click / say:** The editor component is `web/src/app/editor/PipelineEditor.tsx`. It is not mounted in the shell, so do not claim these clicks. The example library is live: `curl -fsS http://localhost:18080/api/pipelines/examples`. The ids on main are `logistics-demo`, `speeding-alerts`, `fleet-activity`, and `broken-for-demo`. Say: “The compiler explains a bad graph in plain English. The click-through is not on this page. `broken-for-demo` is the teaching graph; I will not pretend the shell loaded it.”
+**Audience sees:** Legend **Driving**, **Unloading**, **Stopped**, **Rejected**, **Late**. Speed rows like `32.4 km/h`. Deliveries caption **Latest completed simulation minute**. Workers show **Running**, **Source queue**, **Sink queue**, capacity 1000. If the pipeline has been up long enough, **Alerts** contains `truck-007 has not moved for 10 min`.
 
-**Audience sees:** The examples JSON, or the validation contract at `docs/contracts/02-pipeline-and-semantics.md` if the API is down. The current dashboard's **Start demo pipeline** button starts the predefined pipeline when there is no current execution. It is not a graph editor.
+**Say:** "The trucks are the data source. The glowing stream is those events entering the engine through Kafka, six partitions, keyed by truck. Every number in these panels is a window or alert the engine wrote, not a drawing."
 
-**Proves:** The example API and the intended compiler check. CDD: fail-fast validation. This is not live editor evidence.
+**Fallback:** `docs/ux/screenshots/desktop-01-app-viewport-60s.png`, `desktop-02-app-fullpage-60s.png`, `desktop-03-city-zoomed.png`, `desktop-panel-speed-windows.png`, `desktop-panel-deliveries-min.png`, `desktop-panel-alerts.png`, `desktop-panel-workers.png`. If the socket dot is not connected, say **Live connection lost — reconnecting…** and open `curl -fsS http://localhost:18080/api/ready`.
 
-### 3:00–4:15 — 3. Live results and stuck-truck rule
+### 2:00-3:30 — Pipeline editor: examples, Validate, Run
 
-**Click / say:** On the dashboard, click **Start demo pipeline** if no execution is running. Point to **Speed windows**, **Deliveries / min**, **Alerts**, **Dead letters**, and **Workers**. Say: “Speed is grouped by truck into one-minute event-time windows; deliveries are shown per completed simulation minute. The stuck rule should alert after truck-007 has been stopped long enough.”
+**Click / run:** Click **Pipeline**. In **Examples**, choose **Broken logistics demo**. Read **This pipeline has 3 mistakes - press Validate**. Click **Validate**. Click one **Show me**. Then choose **Truck city: speed, deliveries, stuck trucks**, click **Validate**, then **Run** only after the audience has seen the success line. **Run** stops the current execution and starts a new one. If you need the stuck-truck alert to stay on screen, close with **Close pipeline editor** and say **Run** is enabled but you are not restarting.
 
-**Audience sees:** The live panels populate only if the API, simulator, execution, and WebSocket are all connected. Allow at least about 90 seconds from simulator start for the contract's truck-007 scenario. If data or the alert is missing, state that plainly; do not describe empty panels as successful processing.
+**Audience sees:** Dialog **Pipeline editor**. Palette **Operators**: **Source**, **Filter**, **Map**, **Key-by**, **Window**, **Rule**, **Sink**. After Validate on the broken example, region **Validation errors** with three rows and three **Show me** buttons. The messages are:
 
-**Proves:** Event-time aggregation, results/alerts, and operations visibility when populated. CDD: observability and domain rules.
+- `TYPE_MISMATCH` — Window `speed1m` needs a Key-by before it.
+- `DANGLING_NODE` — Filter `del` has no output connection.
+- `TYPE_MISMATCH` — Sink `alertSink` needs a Window before it.
 
-### 4:15–5:15 — 4. Late events and bounded backpressure **(in progress as a click)**
+**Run** stays disabled until validation succeeds. The good example prints `Valid - 11 operators, 6 partitions`, then **Plan order:**.
 
-**Click / say:** `web/src/app/chaos/ChaosPanel.tsx` has **Send late events** and **Slow output**. It is not mounted. Do not claim those clicks. `infra/scripts/demo-e2e.sh`, run by `.github/workflows/ci-e2e.yml`, posts `/api/chaos/late-events` and `/api/chaos/slow-sink`. Say: “The queues have a fixed capacity of 1,000 items; a full downstream queue blocks its upstream stage. The shell does not expose the buttons. The Compose demo script does call the API.”
+**Say:** "The compiler collects every mistake and says how to fix it. The same operators run in the engine and in the reference executor. **Run** saves this graph and starts it; a second start stops the previous execution."
 
-**Audience sees:** The chaos contract in `docs/contracts/02-pipeline-and-semantics.md` and `docs/contracts/03-coordinator-worker-protocol.md`, or a real `ci-e2e` log if you have opened one. Do not invent a pass time.
-
-**Proves:** Intended late-data policy and bounded buffering. CDD: controlled failure/load demonstration. Current page evidence is not a completed click-through.
-
-### 5:15–6:45 — 5. Kill worker, kind pods, and recover
-
-**Click / say:** The kill button is not mounted. Do not fake it. Open [run 44398295492](https://github.com/VivekTiwary-25/AetherStream/actions/runs/44398295492). Point at the step "Always dump pods and diagnostic logs" and the command `kubectl get pods -A -o wide`. The same job logged `Recovered from checkpoint >= 1 with generation > 1 within 60s` before that dump. That sentence is the script's deadline text, not a stopwatch reading. Say: “kind deleted pod `worker-1` and required the execution to come back RUNNING at a newer generation, restored from at least the recorded checkpoint. The pod table is the cluster evidence. Compose recovery is a different path: `infra/scripts/demo-e2e.sh` runs `docker compose kill` on a live worker service.”
-
-**Audience sees:** The kind log, including `kubectl get pods -A -o wide`, and the dashboard's execution banner if a local execution is actually recovering. Worker pod names in kind are `worker-0`, `worker-1`, and `worker-2`. Compose services are `worker-1`, `worker-2`, and `worker-3`.
-
-**Proves:** Checkpoint recovery in the kind CI log, and the intended generation fence. CDD: fault tolerance. Do not claim exactly-once behavior outside the documented PostgreSQL sink path.
-
-### 6:45–7:45 — 6. Compare with the reference executor
-
-**Click / say:** `web/src/app/chaos/ComparePanel.tsx` is not mounted. The API is `curl -fsS -X POST http://localhost:18080/api/compare -H 'content-type: application/json' -d '{}'`. Read the JSON it returns. Do not announce a match count you did not just read. For a cited run, open [44395770221](https://github.com/VivekTiwary-25/AetherStream/actions/runs/44395770221) and point at `EngineMatchesReferenceIT`: 811 reference results, 811 engine results, 811 matched, dead letters 25 and 25 equal. Say: “That number is that log. A live call can return a different count. The reference executor uses the same operator semantics and replays records through the latest completed checkpoint.”
-
-**Audience sees:** Either the live JSON or that integration log. The checkpoint timeline component is `web/src/app/timeline/CheckpointTimeline.tsx`. It is not mounted, so do not point at a timeline on the page.
-
-**Proves:** A real comparison log, and a live comparison only if the call succeeds. CDD: testable correctness.
-
-### 7:45–8:45 — 7. Terraform plan/apply log and the other workflows
-
-**Click / say:** Open [run 44395471523](https://github.com/VivekTiwary-25/AetherStream/actions/runs/44395471523). In the apply step, point at `Plan: 24 to add, 0 to change, 0 to destroy.` and `Apply complete! Resources: 24 added, 0 changed, 0 destroyed.` In the destroy step, point at `Plan: 0 to add, 0 to change, 24 to destroy.` and `Destroy complete! Resources: 24 destroyed.` Say: “CI apply prints the plan. There is no step named plan. This Terraform configuration uses the Docker provider. It is not a cloud account. Compose on the self-hosted runner is still the deploy path in `cd.yml`.”
-
-**Audience sees:** That apply/destroy log. Also name `ci-e2e` (`bash infra/scripts/demo-e2e.sh`) and `bench` (`./gradlew :tests:benchmarkTest`) if asked. Do not quote a benchmark figure. Do not call `ci-ui-e2e` green from the workflow conclusion alone; that job is `continue-on-error: true`.
-
-**Proves:** Infrastructure-as-code apply and destroy for this demo, from one cited log. CDD: IaC and CI. It does not prove a cloud deployment.
-
-### 8:45–9:30 — 8. Grafana and scenario buttons
-
-**Click / say:** If the monitoring profile is up, open [http://localhost:13000](http://localhost:13000) and the **AetherStream engine** dashboard. Otherwise run `docker compose --profile monitoring up -d` only if Docker is healthy and you have the minute. Say: “Prometheus scrapes coordinator metrics. The dashboard is provisioned from `infra/monitoring/grafana/dashboards/aetherstream.json`. Empty panels mean the metrics are not there yet.”
-
-Then show scenario buttons as an API, not as a click on this page. `web/src/app/scenarios/ScenarioPanel.tsx` has four buttons: Rush hour, Breakdown, Surge, and Reset. The shell does not mount that panel. Run:
+**Fallback:** If **Examples** is missing, the editor shows **Load demo** only (`GET /api/pipelines/examples` returned 404). Click **Load demo**, then **Validate**. No editor screenshot is in `docs/ux/screenshots/`. API fallback:
 
 ```sh
-curl -fsS http://localhost:18080/api/scenarios
-curl -fsS -X POST http://localhost:18080/api/simulator/scenario \
-  -H 'content-type: application/json' \
-  -d '{"name":"rush-hour"}'
+curl -fsS http://localhost:18080/api/pipelines/examples
+curl -fsS http://localhost:18080/api/pipelines/examples/broken-for-demo -o broken.json
+curl -fsS -X POST http://localhost:18080/api/pipelines/validate -H 'content-type: application/json' --data-binary @broken.json
 ```
 
-Say: “Those four names are what `GET /api/scenarios` returns. Breakdown accepts an optional `truckId`. I will not claim the buttons are on the dashboard.”
+### 3:30-5:15 — Late events, slow output, kill, recover
 
-**Audience sees:** The Grafana dashboard if the profile started, and the scenario JSON. If Grafana is down, say so.
+**Click / run:** In **Chaos controls**, click **Send late events**. Open **Dead letters**, tab **LATE**. Then set **Slow down output** to **200 ms per record**. Point at the hint and at any **Backpressured** pill (amber, `#fbbf24`). Set it back to **Off** before the kill if the queues are already in the way. Click **Kill worker**, leave **Busiest worker**, click **Confirm kill**. Watch the banner and **Checkpoint & recovery timeline**.
 
-**Proves:** The optional metrics profile and the scenario API. CDD: observability and a controllable simulator. Not a mounted button click.
+**Audience sees:** Status **20 late events sent**. Late rows in **Dead letters** (**Rejected N · Late N**). Hint: **Output slowed: queues fill up (bounded at 1,000) and the engine pushes back.** A full queue blocks the upstream stage. Backpressure is a worker queue at or above 90% of 1000; the pill text is **Backpressured**. After confirm: **Worker ID killed.**, that row **Dead** (red, `#f87171`), banner **Recovering from checkpoint #N**, then **Recovered**. Timeline text: **Recovering from checkpoint #N (generation G → G+1)** and **Recovered in X.X s**. City status uses the same recovery sentence.
 
-### 9:30–10:30 — 9. Savepoint, restore, and rescale
+**Say:** "Late means the window already closed on that partition's watermark; the event is a dead letter, not a silent drop. Killing a worker is a real halt. The coordinator restores the last completed checkpoint, bumps the generation, and fences the old worker off the Postgres sink."
 
-**Click / say:** These are API calls. There is no savepoint button on the page. After **Start demo pipeline**, read the execution id, then:
+**Fallback:** Do not wait out the minute if amber has not appeared. Open [ci-e2e 44410772993](https://github.com/VivekTiwary-25/AetherStream/actions/runs/44410772993): `4 PASS Late events reached the dead-letter sink`, `7 PASS Slow sink caused backpressure; clearing delay drained it`, `5 PASS worker-3 killed; recovered in 6s from checkpoint >= 2, generation > 1`. Screenshots: `desktop-panel-dead-letters.png`, `desktop-panel-workers-after-kill.png`, `desktop-04-recovering-viewport.png`, `desktop-05-recovering-fullpage.png`, `desktop-recovered-banner.png`, `desktop-06-after-recovery-fullpage.png`. Command equivalent, from `infra/scripts/demo-e2e.sh`:
 
 ```sh
+curl -fsS -X POST http://localhost:18080/api/chaos/late-events -H 'content-type: application/json' -d '{"count":20,"lateByMs":180000}'
+curl -fsS -X POST http://localhost:18080/api/chaos/slow-sink -H 'content-type: application/json' -d '{"delayMs":200}'
+curl -fsS -X POST http://localhost:18080/api/chaos/slow-sink -H 'content-type: application/json' -d '{"delayMs":0}'
+```
+
+The script kills with `docker compose kill` on the Compose service `worker-1`, `worker-2`, or `worker-3`. The button uses `POST /api/chaos/kill-worker`. Either is a real crash. Kind is a different path: [44398295492](https://github.com/VivekTiwary-25/AetherStream/actions/runs/44398295492) logs `Recovered from checkpoint >= 1 with generation > 1 within 60s` and then `kubectl get pods -A -o wide`. Kind pods are `worker-0`, `worker-1`, `worker-2`.
+
+### 5:15-6:15 — Compare with reference
+
+**Click / run:** In **Reference comparison**, click **Compare with reference**. Wait for **Comparing…** to finish.
+
+**Audience sees:** Heading **N / N results match** when `match` is true, plus **Checked up to checkpoint #N - replayed … events in … ms**. A mismatch shows **N mismatches** and columns **Type**, **Sink**, **Key**, **Window start**, **Detail**. Read the N on the page. Do not reuse 71 or 811 for this click.
+
+**Say:** "The reference is a single-process executor running the same operators on the Kafka records up to the latest completed checkpoint. A match is that range, not a proof of every future failure."
+
+**Fallback:**
+
+```sh
+curl -fsS -X POST http://localhost:18080/api/compare -H 'content-type: application/json' -d '{}'
+```
+
+Cited logs, not substitutes for a live click: e2e [44410772993](https://github.com/VivekTiwary-25/AetherStream/actions/runs/44410772993) printed `6 PASS 71 / 71 results match`. Integration [44395770221](https://github.com/VivekTiwary-25/AetherStream/actions/runs/44395770221) printed `"referenceResults":811,"engineResults":811,"matched":811,"match":true`. No compare screenshot is checked in.
+
+### 6:15-7:15 — Savepoint, restore, rescale
+
+**Click / run:** There is no **Operations** panel in the shell. Do not look for **Take savepoint**. Run:
+
+```sh
+curl -fsS http://localhost:18080/api/executions/current
 curl -fsS -X POST "http://localhost:18080/api/executions/$ID/savepoints"
 curl -fsS http://localhost:18080/api/savepoints
-curl -fsS -X POST "http://localhost:18080/api/executions/$ID/restore" \
-  -H 'content-type: application/json' \
-  -d "{\"savepointId\":\"$SP\",\"idempotencyKey\":\"demo-restore-1\"}"
-```
-
-Say: “A savepoint waits for an aligned checkpoint and keeps that manifest. Restore stops this execution and starts a new one from that savepoint. An incompatible pipeline, protocol, partition count, topic, or operator set is rejected. The same idempotency key returns the execution already created.”
-
-For rescale:
-
-```sh
+curl -fsS -X POST "http://localhost:18080/api/executions/$ID/restore" -H 'content-type: application/json' -d "{\"savepointId\":\"$SP\",\"idempotencyKey\":\"demo-restore-1\"}"
 curl -fsS -X POST "http://localhost:18080/api/executions/$ID/rescale"
 ```
 
-Say: “Rescale is a controlled pause at a checkpoint, then reassignment. It is not online migration. On a balanced three-worker demo this call is expected to return HTTP 409, because nothing is unbalanced. That refusal is the feature, not a missing route. It runs when a live worker owns no partitions, or the busiest and quietest live workers differ by at least two partitions, and not again within 30 seconds.”
+If the panel is on the page, the buttons are **Take savepoint**, **Restore**, **Rescale**. **Restore** asks **Restart the pipeline from this savepoint?** The rescale sentence on the panel is **Pauses at the next checkpoint, moves partitions, resumes - a controlled pause, not live migration.**
 
-**Audience sees:** The JSON from those calls, including a 409 body if the assignment is balanced. Do not describe a 409 as success, and do not describe it as an absent endpoint.
+**Audience sees:** A `savepointId` and checkpoint number. Restore should return a new execution id. The same idempotency key returns that same execution. Rescale on a balanced three-worker assignment returns HTTP 409, body code `CONFLICT`, message `execution ID does not need a rebalance`. That refusal is the feature. It runs when a live worker owns no partitions, or the busiest and quietest differ by at least two, and not again within 30 seconds.
 
-**Proves:** Savepoint, restore, and the rescale pause rule. CDD: controlled restart and an honest scaling limit.
+**Say:** "A savepoint keeps a completed checkpoint. Restore starts a new execution from it. Rescale is a pause at the next checkpoint, not live migration. CI does not currently prove restore: `ci-e2e` sets `E2E_EXTENDED=0` and prints `9-11 SKIP extended steps`."
 
-### 10:30–11:15 — 10. Docker images and revision identity
+**Fallback:** Open [44410772993](https://github.com/VivekTiwary-25/AetherStream/actions/runs/44410772993) and point at that skip line. No ops screenshot is in `docs/ux/screenshots/`. An incompatible savepoint is a 409 `INCOMPATIBLE_SAVEPOINT`, not a timeout.
 
-**Click / say:** In the terminal run:
+### 7:15-8:00 — Scenarios
+
+**Click / run:** **City scenarios** is not in the shell. Run:
+
+```sh
+curl -fsS http://localhost:18080/api/scenarios
+curl -fsS -X POST http://localhost:18080/api/simulator/scenario -H 'content-type: application/json' -d '{"name":"rush-hour"}'
+curl -fsS http://localhost:18080/api/simulator/state
+curl -fsS -X POST http://localhost:18080/api/simulator/scenario -H 'content-type: application/json' -d '{"name":"reset"}'
+```
+
+If the panel is mounted, it renders the `label` values from `GET /api/scenarios`: **Rush hour**, **Breakdown**, **Surge**, **Reset**. **Breakdown** also has **Breakdown truck**. The built-in fallback label **Surge (+6 trucks)** appears only when that GET returns 404.
+
+**Audience sees:** Four scenario objects, then simulator state `scenario` `rush-hour`, then `none` after reset. On the city, truck count or speed changes. Do not claim a change you cannot see.
+
+**Say:** "These are simulator inputs, not engine operators. Breakdown stops one truck so the stuck rule has something to see. Reset returns the scenario to none."
+
+**Fallback:** Same curls. No scenario screenshot is checked in. If the simulator is down, the API returns `UPSTREAM_DOWN` / `simulator is not reachable`.
+
+### 8:00-8:45 — Presenter tour and version footer
+
+**Click / run:** There is no **Next** button on the page. `TourOverlay` is not mounted. Walk the eight steps yourself, in order, pointing at the real targets. Then point at the footer **Deployed version:** and compare it with `curl -fsS http://localhost:18080/api/version`.
+
+**Audience sees:** You, pointing. The step titles, if the overlay is ever mounted, are **The city**, **The stream into the engine**, **Live panels**, **Pipeline editor**, **Chaos**, **Kill a worker**, **Compare with reference**, **DevOps**, with **Back**, **Next**, **Close**, **Finish**, and **Step N of 8**. The intro card, also unmounted, says **a fault-tolerant stream engine** and **Skip**. The footer is seven characters of `commit`, or **unknown** if `/api/version` failed.
+
+**Say:** "The tour is eight sentences over this same page. The footer commit is the GIT_SHA of the image that is running, which is what the deploy smoke checks."
+
+**Fallback:** Read `web/src/app/tour/tourSteps.ts`. No tour screenshot is checked in.
+
+### 8:45-10:00 — A push through Actions, GHCR, vivek-pc, smoke
+
+**Click / run:** Do not push. Open [cd run 44438884629](https://github.com/VivekTiwary-25/AetherStream/actions/runs/44438884629). Show jobs **publish** and **deploy**. In **publish**, point at `ghcr.io/vivektiwary-25/aetherstream-engine`, `aetherstream-simulator`, `aetherstream-control-api`, and `aetherstream-web`, tagged with the full SHA and `main`. In **deploy**, point at runner name `vivek-pc-deploy`, step **Deploy requested image SHA** (`bash infra/deploy/deploy.sh`), and step **Smoke-test deployment** (`bash infra/deploy/smoke-deploy.sh`).
+
+**Audience sees:** `PASS: health is UP and deployed commit is d1714e34e04fa1ed5feba43dfb959342be8d92a6`. That run is one push to `main`. It is not today's footer unless `curl` just printed that SHA.
+
+**Say:** "Publish pushes four images to GHCR. Deploy runs only on the self-hosted runner labelled `aether-deploy`, which this log names `vivek-pc-deploy`. Smoke fails unless `/api/health` is UP and `/api/version` commit equals that SHA."
+
+**Fallback:** `gh run list --workflow cd.yml --branch main --limit 5` and open the newest success that has jobs `publish` and `deploy`. A task-branch `cd` run only lints; it does not publish. Workflow list for the other CI jobs: `ci-java`, `ci-web`, `ci-integration`, `ci-images`, `ci-compose`, `ci-e2e`, `ci-k8s`, `ci-terraform`, `ci-mock`, `ci-ui-e2e`, `bench`. `ci-ui-e2e` is `continue-on-error: true`. A green tick there is not a passed browser job.
+
+### 10:00-10:45 — Containers and Grafana
+
+**Click / run:**
 
 ```sh
 docker compose ps
-docker images | grep aether
-docker inspect --format='{{index .Config.Labels "org.opencontainers.image.revision"}}' aether/engine:local
-docker compose logs --tail=30 coordinator worker-1
+docker compose images
+docker inspect --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}' "$(docker compose ps -q control-api)"
 ```
 
-Say: “The custom application images are built from this checkout. The revision label identifies the source revision when the build supplied one; `dev` is the Compose default.”
+Then open Grafana, dashboard **AetherStream engine**.
 
-**Audience sees:** Current container status, locally built image tags, label output if present, and recent service logs. The `ci-images` workflow separately checks revision labels on its CI-tagged images; a local `:local` image may have a different label or no commit SHA.
+**Audience sees:** Compose image names and a revision label if the build set one. Local images are `aether/engine:local` and the other `:local` tags. Grafana panels for alive workers, checkpoint duration, queue size, and backpressure. Empty panels mean the metric is not there yet.
 
-**Proves:** Docker images, image metadata, and container logs. CDD: container build and runtime inspection.
+**Say:** "Compose is what you are watching. The GHCR tags are what CD pulled. Grafana is the monitoring profile, not part of a plain `docker compose up`."
 
-### 11:15–12:00 — 11. Tests and their limits
+**Fallback:** [ci-compose 44439772374](https://github.com/VivekTiwary-25/AetherStream/actions/runs/44439772374). `ci-images` builds `aether/engine:ci` and the other `:ci` tags and does not push. No Grafana screenshot is checked in.
 
-**Click / say:** Show the `ci-java`, `ci-web`, and `ci-integration` Actions logs and their exact commands. Say: “`./gradlew :tests:integrationTest` uses Testcontainers. `WorkerAdaptersIT` checks the Kafka source and the Postgres sink, including generation fencing. The 811/811 line is run 44395770221 only.”
+### 10:45-12:00 — Tests
 
-**Audience sees:** Real CI logs, plus the integration task definition. Run `./gradlew :tests:integrationTest` live only if time and Docker are available; do not imply CI ran it if it was run locally.
+**Click / run:** Open these logs. Do not start kind or Terraform on the demo machine.
 
-**Proves:** Unit/build checks, web tests, and one cited integration log. CDD: automated verification.
+**Audience sees:**
 
-### 12:00–13:00 — 12. Questions
+- Unit: [44439772370](https://github.com/VivekTiwary-25/AetherStream/actions/runs/44439772370), step **Build and unit-test every module**, command `./gradlew build`.
+- Web, if asked: `npm ci`, `npm run lint`, `npm run test`, `npm run build` in `web/`. Workflow `ci-web`.
+- Testcontainers: [44395770221](https://github.com/VivekTiwary-25/AetherStream/actions/runs/44395770221), `./gradlew :tests:integrationTest`, `EngineMatchesReferenceIT` 811/811.
+- e2e: [44410772993](https://github.com/VivekTiwary-25/AetherStream/actions/runs/44410772993), `bash infra/scripts/demo-e2e.sh`.
+- kind: [44398295492](https://github.com/VivekTiwary-25/AetherStream/actions/runs/44398295492), `kubectl get pods -A -o wide`.
+- Terraform: [44395471523](https://github.com/VivekTiwary-25/AetherStream/actions/runs/44395471523). Apply step prints `Plan: 24 to add, 0 to change, 0 to destroy.` and `Apply complete! Resources: 24 added, 0 changed, 0 destroyed.` Destroy prints `Plan: 0 to add, 0 to change, 24 to destroy.` There is no step named plan. This is the Docker provider, not a cloud account.
 
-Use the short answers below. If asked to demonstrate a control that is not on the page, use the API or the cited log and say the shell does not mount it.
+**Say:** "Unit tests and Testcontainers run in CI. The e2e script drives this same API. kind and Terraform are extra deployment proofs, not the stack on this laptop."
 
-## Q&A cheat sheet
+**Fallback:** `gh run list --limit 20`. A missing log is not a pass. `bench` is `./gradlew :tests:benchmarkTest`. Do not quote a benchmark number.
 
-1. **Is this exactly once?** Input can be replayed after failure. The contract claims exactly-once operator state from a consistent checkpoint and effectively exactly-once deterministic upserts for PostgreSQL result tables only. Other sinks are not covered.
-2. **What if the coordinator dies?** The specified baseline is one active coordinator. On restart it reloads execution state, waits for workers to re-register, then reconciles/reassigns. High availability with multiple active coordinators is not claimed. kind and Terraform do not add a second coordinator.
-3. **Why per-partition watermarks?** Records are processed in each Kafka partition's offset order; per-partition watermarks make window firing independent of partition interleaving and worker ownership. An idle partition does not advance its watermark, so its open windows can remain open.
-4. **How is backpressure bounded?** Each worker stage queue has capacity 1,000. A full downstream queue blocks the upstream stage; the queue cannot grow without bound.
-5. **What happens to a late event?** Each window checks its partition watermark. An event for a closed window is sent to a `LATE` dead-letter stream and is not added to that window.
-6. **How are duplicates handled?** The event ID is counted at most once within a keyed window. A repeat after its window has fired follows the late-event policy.
-7. **How is a stale worker prevented from writing?** Assignment generations act as fencing tokens. Sink transactions check the current generation while holding a database row lock; an old generation aborts.
-8. **What does checkpoint alignment mean here?** A barrier follows already queued records through source, operator, and sink stages. The sink flushes prior output before the worker uploads state/offsets; the coordinator completes a checkpoint only after all partition acknowledgements and manifest upload.
-9. **Why compare against a reference executor?** Both paths use the same operator implementation. Replaying the checkpointed input range against a deterministic single-process executor provides an independent run of the distributed results. The cited integration log is 811/811 with dead letters 25/25 equal, in run 44395770221. A live `POST /api/compare` is a different count until you read it.
-10. **Is this a production replacement for Flink?** No. It is an educational, deliberately scoped engine project. The contracts describe its intended semantics; the live implementation, tests, and operational guarantees must be judged by the evidence shown, not by a claim of feature parity.
-11. **What is a savepoint?** A retained completed checkpoint, with a compatibility check on restore. It is not a branch of checkpoint history. The routes are `POST /api/executions/{id}/savepoints`, `GET /api/savepoints`, and `POST /api/executions/{id}/restore`.
-12. **Does rescale scale without stopping?** No. It pauses at a completed checkpoint, bumps the generation, and reassigns the same six partitions. A balanced assignment is refused. Online migration is not implemented.
-13. **Where are the scenario buttons?** In `web/src/app/scenarios/ScenarioPanel.tsx`: Rush hour, Breakdown, Surge, Reset. They are not on the dashboard shell. `GET /api/scenarios` and `POST /api/simulator/scenario` are the live path.
+## 3-minute short version
 
-## If something goes wrong during the demo
+| Clock | Click / run | Audience sees | Say |
+|---|---|---|---|
+| 0:00 | `http://localhost:8088`, **AETHER CITY**, **Speed windows** | Trucks, stream, engine km/h | "Trucks are the source. Panels are engine output." |
+| 0:30 | **Pipeline** → **Broken logistics demo** → **Validate** → good example → **Validate** | Three errors, then `Valid - 11 operators, 6 partitions` | "The compiler names the fix. **Run** starts it and stops the previous execution." Skip **Run** if you cannot afford a restart. |
+| 1:10 | **Kill worker** → **Confirm kill** | **Dead**, then **Recovering from checkpoint #N**, then **Recovered** | "Real crash, restore last completed checkpoint, new generation." |
+| 1:50 | **Compare with reference** | The **N / N results match** line on screen | "Same operators, one checkpoint range. This N is this click." |
+| 2:20 | Footer **Deployed version:** and [cd run 44438884629](https://github.com/VivekTiwary-25/AetherStream/actions/runs/44438884629) | `vivek-pc-deploy`, GHCR tags, smoke `PASS` | "That push published images and deployed them here. I am not pushing now." |
+| 2:45 | [44398295492](https://github.com/VivekTiwary-25/AetherStream/actions/runs/44398295492) or [44395770221](https://github.com/VivekTiwary-25/AetherStream/actions/runs/44395770221) | kind recovery line, or 811/811 | "kind and Testcontainers are the other proofs." |
 
-- **A Compose service is unhealthy:** run `docker compose ps -a` and `docker compose logs --tail=100 <service>`. For a local disposable demo stack, restart only that service with `docker compose restart <service>`, then re-check `docker compose ps`. If its dependency or initialization state is broken, preserve useful logs before deciding whether to rebuild/recreate the stack.
-- **The page loads but has no live data:** check `http://localhost:18080/api/ready`, then inspect `control-api`, `coordinator`, `simulator`, and worker logs. A process health response alone does not prove all dependencies are ready.
-- **The execution or data looks stale:** do not silently claim success. Check execution/worker state and WebSocket connectivity, then use **Start demo pipeline** only when no execution is running. A new run may stop the prior one; avoid repeated clicks.
-- **Reference comparison is not on the page:** call `POST /api/compare` or open run 44395770221. Do not invent `N / N results match` for the live call.
-- **A worker kill or late/slow-sink button is not on the page:** use the kind log, or explain `infra/scripts/demo-e2e.sh`. Do not edit page state to simulate a click.
-- **Rescale returns 409:** on a balanced three-worker assignment that is the expected refusal. Read the error body. Do not keep retrying as if the route were down.
-- **Savepoint or restore fails:** read the JSON error. An incompatible savepoint is a rejection, not a timeout to hide. Do not reuse an idempotency key if you wanted a second restore.
-- **Grafana is empty or absent:** the monitoring profile is optional. Say it was not started, or that metrics are not exposed yet. Do not invent a graph.
-- **A GitHub Actions run is red or missing:** open its actual logs. If there is no applicable run, explain the workflow trigger/path filter. Never describe a missing log as green. `ci-ui-e2e` can look green while the browser job failed.
-- **The local stack cannot be restored quickly:** switch to the three cited Actions logs and the contract documents, label them as CI/specification evidence, and finish without claiming a live recovery.
+If a click fails, use the fallback in the matching 12-minute step. Ops, scenarios, and the tour are not on the page; one sentence is enough unless they ask.
+
+## Likely examiner questions
+
+1. **Is this exactly once?** Input replay after failure is at-least-once. Operator state is restored with the offsets from one completed checkpoint. Postgres window, alert, and dead-letter tables are upserts, so those tables are effectively exactly-once. No other sink has that claim. Contract 03 section 5.
+2. **What if the coordinator dies?** One active coordinator. On restart it reloads `RUNNING` or `RECOVERING`, waits one heartbeat timeout for workers to register, then recovers. There is no second active coordinator.
+3. **Why per-partition watermarks?** Records are processed in offset order inside a partition. An idle partition does not advance its watermark, so its open windows stay open. Contract 02 section 4.
+4. **How is backpressure bounded?** Each worker has a source queue and a sink queue, capacity 1000. A full queue blocks the upstream stage. The UI marks **Backpressured** at 90% full.
+5. **What is a late event?** If the window has already closed on that partition's watermark, the record is a `LATE` dead letter and is not added. A duplicate `eventId` inside an open key-window is ignored, not a dead letter.
+6. **How is a dead worker fenced?** Assignment generation is the token. The sink transaction reads `generation` with a row lock and aborts if it differs. A command for an older generation is ignored.
+7. **What is an aligned checkpoint?** The source places a barrier behind records already queued. The sink flushes outputs that came before the barrier, then uploads state and offsets. The coordinator marks the checkpoint `COMPLETED` only after every partition has acked and the manifest upload succeeded. Restore uses the latest `COMPLETED` checkpoint only.
+8. **Why a reference executor?** It runs the same operator code in one process over the checkpointed offset range. The button's N is that call. The 71/71 line is e2e run 44410772993. The 811/811 line is integration run 44395770221. They are not the same execution.
+9. **Is this Flink?** No. It is a scoped teaching engine: tumbling windows, two key fields, Postgres sinks, one coordinator.
+10. **Savepoint versus checkpoint?** A savepoint is a retained completed checkpoint with a compatibility check on restore. The routes are `POST /api/executions/{id}/savepoints`, `GET /api/savepoints`, and `POST /api/executions/{id}/restore`. Contract 04 does not list them; the controller and `infra/scripts/demo-e2e.sh` do. Current e2e skips those steps.
+11. **Does rescale move partitions live?** No. It pauses at the next checkpoint, bumps generation, and reassigns the six partitions. A balanced assignment is HTTP 409 `does not need a rebalance`.
+12. **Where are the scenario buttons and the tour?** Not mounted in `AppShell`. Scenario names are `rush-hour`, `breakdown`, `surge`, `reset`. Tour steps are in `web/src/app/tour/tourSteps.ts`.
+13. **Does the footer match git?** It matches `GET /api/version`, which is the image `GIT_SHA`. Compare it to the CD smoke line, not to an unpushed task branch.
+14. **Is a green `ci-ui-e2e` a passed browser test?** No. That job is `continue-on-error: true`. Open the log.
+
+## If a step fails
+
+- Unhealthy container: `docker compose ps -a` and `docker compose logs --tail=100 coordinator` (or the service that failed). Do not volume-down the live demo.
+- Page up, no data: `curl -fsS http://localhost:18080/api/ready`. Then logs for `control-api`, `coordinator`, `simulator`, `worker-1`.
+- **Start demo pipeline** missing: an execution is already current. Use **Pipeline** then **Run**, or `GET /api/executions/current`.
+- Compare errors: wait until the banner shows a completed checkpoint, then click again. Otherwise open run 44410772993 or 44395770221.
+- Kill shows nothing in 20 seconds: show `desktop-04-recovering-viewport.png` and the e2e or kind log. Do not click **Confirm kill** twice.
+- Rescale 409: expected when the assignment is balanced. Read the message.
+- Restore fails: read the JSON. Point at `9-11 SKIP extended steps (E2E_EXTENDED=0)` in run 44410772993. Do not call the skip a pass.
+- Grafana empty: say the profile is up but the series is absent. Do not draw a graph.
+- Actions run red or missing: open the log. A workflow file is not a green run.
