@@ -1,6 +1,6 @@
 # T155: Full expo rehearsal of DEMO.md against the LIVE deployed app  [expo safety, Claude]
 
-You are rehearsing the expo demo for 21 Nov exactly as the presenter will do it. Live app: the public link in boss/STATE.md
+You are rehearsing the expo demo for 21 Nov exactly as the presenter will do it. Live app: http://localhost:8088 (UI) and http://localhost:18080 (API) if you are on vivek-pc (do NOT start or stop containers), otherwise the public link in boss/STATE.md
 ("Public link", a trycloudflare.com URL; read the latest from boss/NEEDS_VIVEK.md if they differ). Check /api/version first and
 note the deployed commit.
 1. Follow DEMO.md step by step, in order, with a timer. Drive the browser with Playwright (headed Chromium if you can, else
