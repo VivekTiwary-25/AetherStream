@@ -1,0 +1,8712 @@
+{
+  "version": 8,
+  "name": "Mysuru — warm offline light",
+  "metadata": {
+    "aetherstream:source": "protomaps-themes-base@4.5.0 light, BSD-3-Clause",
+    "aetherstream:bbox": [
+      76.55,
+      12.23,
+      76.75,
+      12.42
+    ],
+    "aetherstream:glyphs": "Noto Sans Regular, complete upstream BMP ranges, SIL OFL 1.1"
+  },
+  "glyphs": "/glorious/map/fonts/{fontstack}/{range}.pbf",
+  "sources": {
+    "protomaps": {
+      "type": "vector",
+      "url": "pmtiles:///glorious/map/mysuru.pmtiles",
+      "attribution": "<a href=\"https://protomaps.com\">Protomaps</a> © <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap contributors</a> · <a href=\"https://esa-worldcover.org/en/data-access\">ESA WorldCover</a>"
+    }
+  },
+  "layers": [
+    {
+      "id": "background",
+      "type": "background",
+      "paint": {
+        "background-color": "#f5f1e6"
+      }
+    },
+    {
+      "id": "earth",
+      "type": "fill",
+      "filter": [
+        "==",
+        "$type",
+        "Polygon"
+      ],
+      "source": "protomaps",
+      "source-layer": "earth",
+      "paint": {
+        "fill-color": "#f5f1e6"
+      }
+    },
+    {
+      "id": "landcover",
+      "type": "fill",
+      "source": "protomaps",
+      "source-layer": "landcover",
+      "paint": {
+        "fill-color": [
+          "match",
+          [
+            "get",
+            "kind"
+          ],
+          "grassland",
+          "#e0eacf",
+          "barren",
+          "#f0e7d0",
+          "urban_area",
+          "#f2eddf",
+          "farmland",
+          "#e3e9d1",
+          "glacier",
+          "#f7f7ef",
+          "scrub",
+          "#e0e8cf",
+          "#cddfbd"
+        ],
+        "fill-opacity": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          5,
+          1,
+          7,
+          0
+        ]
+      }
+    },
+    {
+      "id": "landuse_park",
+      "type": "fill",
+      "source": "protomaps",
+      "source-layer": "landuse",
+      "filter": [
+        "in",
+        "kind",
+        "national_park",
+        "park",
+        "cemetery",
+        "protected_area",
+        "nature_reserve",
+        "forest",
+        "golf_course",
+        "wood",
+        "nature_reserve",
+        "forest",
+        "scrub",
+        "grassland",
+        "grass",
+        "military",
+        "naval_base",
+        "airfield"
+      ],
+      "paint": {
+        "fill-opacity": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          6,
+          0,
+          11,
+          1
+        ],
+        "fill-color": [
+          "case",
+          [
+            "in",
+            [
+              "get",
+              "kind"
+            ],
+            [
+              "literal",
+              [
+                "national_park",
+                "park",
+                "cemetery",
+                "protected_area",
+                "nature_reserve",
+                "forest",
+                "golf_course"
+              ]
+            ]
+          ],
+          "#c6deb6",
+          [
+            "in",
+            [
+              "get",
+              "kind"
+            ],
+            [
+              "literal",
+              [
+                "wood",
+                "nature_reserve",
+                "forest"
+              ]
+            ]
+          ],
+          "#b9d5a6",
+          [
+            "in",
+            [
+              "get",
+              "kind"
+            ],
+            [
+              "literal",
+              [
+                "scrub",
+                "grassland",
+                "grass"
+              ]
+            ]
+          ],
+          "#cdddb8",
+          [
+            "in",
+            [
+              "get",
+              "kind"
+            ],
+            [
+              "literal",
+              [
+                "glacier"
+              ]
+            ]
+          ],
+          "#e7e7e7",
+          [
+            "in",
+            [
+              "get",
+              "kind"
+            ],
+            [
+              "literal",
+              [
+                "sand"
+              ]
+            ]
+          ],
+          "#f0e7cb",
+          [
+            "in",
+            [
+              "get",
+              "kind"
+            ],
+            [
+              "literal",
+              [
+                "military",
+                "naval_base",
+                "airfield"
+              ]
+            ]
+          ],
+          "#dae7cf",
+          "#f5f1e6"
+        ]
+      }
+    },
+    {
+      "id": "landuse_urban_green",
+      "type": "fill",
+      "source": "protomaps",
+      "source-layer": "landuse",
+      "filter": [
+        "in",
+        "kind",
+        "allotments",
+        "village_green",
+        "playground"
+      ],
+      "paint": {
+        "fill-color": "#c6deb6",
+        "fill-opacity": 0.7
+      }
+    },
+    {
+      "id": "landuse_hospital",
+      "type": "fill",
+      "source": "protomaps",
+      "source-layer": "landuse",
+      "filter": [
+        "==",
+        "kind",
+        "hospital"
+      ],
+      "paint": {
+        "fill-color": "#eee0d9"
+      }
+    },
+    {
+      "id": "landuse_industrial",
+      "type": "fill",
+      "source": "protomaps",
+      "source-layer": "landuse",
+      "filter": [
+        "==",
+        "kind",
+        "industrial"
+      ],
+      "paint": {
+        "fill-color": "#e8e5dd"
+      }
+    },
+    {
+      "id": "landuse_school",
+      "type": "fill",
+      "source": "protomaps",
+      "source-layer": "landuse",
+      "filter": [
+        "in",
+        "kind",
+        "school",
+        "university",
+        "college"
+      ],
+      "paint": {
+        "fill-color": "#ede4d3"
+      }
+    },
+    {
+      "id": "landuse_beach",
+      "type": "fill",
+      "source": "protomaps",
+      "source-layer": "landuse",
+      "filter": [
+        "in",
+        "kind",
+        "beach"
+      ],
+      "paint": {
+        "fill-color": "#f2e6c5"
+      }
+    },
+    {
+      "id": "landuse_zoo",
+      "type": "fill",
+      "source": "protomaps",
+      "source-layer": "landuse",
+      "filter": [
+        "in",
+        "kind",
+        "zoo"
+      ],
+      "paint": {
+        "fill-color": "#dae7cf"
+      }
+    },
+    {
+      "id": "landuse_aerodrome",
+      "type": "fill",
+      "source": "protomaps",
+      "source-layer": "landuse",
+      "filter": [
+        "in",
+        "kind",
+        "aerodrome"
+      ],
+      "paint": {
+        "fill-color": "#dadbdf"
+      }
+    },
+    {
+      "id": "roads_runway",
+      "type": "line",
+      "source": "protomaps",
+      "source-layer": "roads",
+      "filter": [
+        "==",
+        "kind_detail",
+        "runway"
+      ],
+      "paint": {
+        "line-color": "#e9e9ed",
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.6
+          ],
+          [
+            "zoom"
+          ],
+          10,
+          0,
+          12,
+          4,
+          18,
+          30
+        ]
+      }
+    },
+    {
+      "id": "roads_taxiway",
+      "type": "line",
+      "source": "protomaps",
+      "source-layer": "roads",
+      "minzoom": 13,
+      "filter": [
+        "==",
+        "kind_detail",
+        "taxiway"
+      ],
+      "paint": {
+        "line-color": "#e9e9ed",
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.6
+          ],
+          [
+            "zoom"
+          ],
+          13,
+          0,
+          13.5,
+          1,
+          15,
+          6
+        ]
+      }
+    },
+    {
+      "id": "landuse_runway",
+      "type": "fill",
+      "source": "protomaps",
+      "source-layer": "landuse",
+      "filter": [
+        "any",
+        [
+          "in",
+          "kind",
+          "runway",
+          "taxiway"
+        ]
+      ],
+      "paint": {
+        "fill-color": "#e9e9ed"
+      }
+    },
+    {
+      "id": "water",
+      "type": "fill",
+      "filter": [
+        "==",
+        "$type",
+        "Polygon"
+      ],
+      "source": "protomaps",
+      "source-layer": "water",
+      "paint": {
+        "fill-color": "#afd3e1"
+      }
+    },
+    {
+      "id": "water_stream",
+      "type": "line",
+      "source": "protomaps",
+      "source-layer": "water",
+      "minzoom": 14,
+      "filter": [
+        "in",
+        "kind",
+        "stream"
+      ],
+      "paint": {
+        "line-color": "#afd3e1",
+        "line-width": 0.5
+      }
+    },
+    {
+      "id": "water_river",
+      "type": "line",
+      "source": "protomaps",
+      "source-layer": "water",
+      "minzoom": 9,
+      "filter": [
+        "in",
+        "kind",
+        "river"
+      ],
+      "paint": {
+        "line-color": "#afd3e1",
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.6
+          ],
+          [
+            "zoom"
+          ],
+          9,
+          0,
+          9.5,
+          1,
+          18,
+          12
+        ]
+      }
+    },
+    {
+      "id": "landuse_pedestrian",
+      "type": "fill",
+      "source": "protomaps",
+      "source-layer": "landuse",
+      "filter": [
+        "==",
+        "kind",
+        "pedestrian"
+      ],
+      "paint": {
+        "fill-color": "#ede8da"
+      }
+    },
+    {
+      "id": "landuse_pier",
+      "type": "fill",
+      "source": "protomaps",
+      "source-layer": "landuse",
+      "filter": [
+        "==",
+        "kind",
+        "pier"
+      ],
+      "paint": {
+        "fill-color": "#e0e0e0"
+      }
+    },
+    {
+      "id": "roads_tunnels_other_casing",
+      "type": "line",
+      "source": "protomaps",
+      "source-layer": "roads",
+      "filter": [
+        "all",
+        [
+          "has",
+          "is_tunnel"
+        ],
+        [
+          "in",
+          "kind",
+          "other",
+          "path"
+        ]
+      ],
+      "paint": {
+        "line-color": "#e0e0e0",
+        "line-gap-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.6
+          ],
+          [
+            "zoom"
+          ],
+          14,
+          0,
+          20,
+          7
+        ]
+      }
+    },
+    {
+      "id": "roads_tunnels_minor_casing",
+      "type": "line",
+      "source": "protomaps",
+      "source-layer": "roads",
+      "filter": [
+        "all",
+        [
+          "has",
+          "is_tunnel"
+        ],
+        [
+          "==",
+          "kind",
+          "minor_road"
+        ]
+      ],
+      "paint": {
+        "line-color": "#e0e0e0",
+        "line-dasharray": [
+          3,
+          2
+        ],
+        "line-gap-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.6
+          ],
+          [
+            "zoom"
+          ],
+          11,
+          0,
+          12.5,
+          0.5,
+          15,
+          2,
+          18,
+          11
+        ],
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.6
+          ],
+          [
+            "zoom"
+          ],
+          12,
+          0,
+          12.5,
+          1
+        ]
+      }
+    },
+    {
+      "id": "roads_tunnels_link_casing",
+      "type": "line",
+      "source": "protomaps",
+      "source-layer": "roads",
+      "filter": [
+        "all",
+        [
+          "has",
+          "is_tunnel"
+        ],
+        [
+          "has",
+          "is_link"
+        ]
+      ],
+      "paint": {
+        "line-color": "#e0e0e0",
+        "line-dasharray": [
+          3,
+          2
+        ],
+        "line-gap-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.6
+          ],
+          [
+            "zoom"
+          ],
+          13,
+          0,
+          13.5,
+          1,
+          18,
+          11
+        ],
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.6
+          ],
+          [
+            "zoom"
+          ],
+          12,
+          0,
+          12.5,
+          1
+        ]
+      }
+    },
+    {
+      "id": "roads_tunnels_major_casing",
+      "type": "line",
+      "source": "protomaps",
+      "source-layer": "roads",
+      "filter": [
+        "all",
+        [
+          "!has",
+          "is_tunnel"
+        ],
+        [
+          "!has",
+          "is_bridge"
+        ],
+        [
+          "==",
+          "kind",
+          "major_road"
+        ]
+      ],
+      "paint": {
+        "line-color": "#e0e0e0",
+        "line-dasharray": [
+          3,
+          2
+        ],
+        "line-gap-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.6
+          ],
+          [
+            "zoom"
+          ],
+          7,
+          0,
+          7.5,
+          0.5,
+          18,
+          13
+        ],
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.6
+          ],
+          [
+            "zoom"
+          ],
+          9,
+          0,
+          9.5,
+          1
+        ]
+      }
+    },
+    {
+      "id": "roads_tunnels_highway_casing",
+      "type": "line",
+      "source": "protomaps",
+      "source-layer": "roads",
+      "filter": [
+        "all",
+        [
+          "!has",
+          "is_tunnel"
+        ],
+        [
+          "!has",
+          "is_bridge"
+        ],
+        [
+          "==",
+          "kind",
+          "highway"
+        ],
+        [
+          "!has",
+          "is_link"
+        ]
+      ],
+      "paint": {
+        "line-color": "#e0e0e0",
+        "line-dasharray": [
+          6,
+          0.5
+        ],
+        "line-gap-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.6
+          ],
+          [
+            "zoom"
+          ],
+          3,
+          0,
+          3.5,
+          0.5,
+          18,
+          15
+        ],
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.6
+          ],
+          [
+            "zoom"
+          ],
+          7,
+          0,
+          7.5,
+          1,
+          20,
+          15
+        ]
+      }
+    },
+    {
+      "id": "roads_tunnels_other",
+      "type": "line",
+      "source": "protomaps",
+      "source-layer": "roads",
+      "filter": [
+        "all",
+        [
+          "has",
+          "is_tunnel"
+        ],
+        [
+          "in",
+          "kind",
+          "other",
+          "path"
+        ]
+      ],
+      "paint": {
+        "line-color": "#d5d5d5",
+        "line-dasharray": [
+          4.5,
+          0.5
+        ],
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.6
+          ],
+          [
+            "zoom"
+          ],
+          14,
+          0,
+          20,
+          7
+        ]
+      }
+    },
+    {
+      "id": "roads_tunnels_minor",
+      "type": "line",
+      "source": "protomaps",
+      "source-layer": "roads",
+      "filter": [
+        "all",
+        [
+          "has",
+          "is_tunnel"
+        ],
+        [
+          "==",
+          "kind",
+          "minor_road"
+        ]
+      ],
+      "paint": {
+        "line-color": "#d5d5d5",
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.6
+          ],
+          [
+            "zoom"
+          ],
+          11,
+          0,
+          12.5,
+          0.5,
+          15,
+          2,
+          18,
+          11
+        ]
+      }
+    },
+    {
+      "id": "roads_tunnels_link",
+      "type": "line",
+      "source": "protomaps",
+      "source-layer": "roads",
+      "filter": [
+        "all",
+        [
+          "has",
+          "is_tunnel"
+        ],
+        [
+          "has",
+          "is_link"
+        ]
+      ],
+      "paint": {
+        "line-color": "#d5d5d5",
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.6
+          ],
+          [
+            "zoom"
+          ],
+          13,
+          0,
+          13.5,
+          1,
+          18,
+          11
+        ]
+      }
+    },
+    {
+      "id": "roads_tunnels_major",
+      "type": "line",
+      "source": "protomaps",
+      "source-layer": "roads",
+      "filter": [
+        "all",
+        [
+          "has",
+          "is_tunnel"
+        ],
+        [
+          "==",
+          "kind",
+          "major_road"
+        ]
+      ],
+      "paint": {
+        "line-color": "#d5d5d5",
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.6
+          ],
+          [
+            "zoom"
+          ],
+          6,
+          0,
+          12,
+          1.6,
+          15,
+          3,
+          18,
+          13
+        ]
+      }
+    },
+    {
+      "id": "roads_tunnels_highway",
+      "type": "line",
+      "source": "protomaps",
+      "source-layer": "roads",
+      "filter": [
+        "all",
+        [
+          "has",
+          "is_tunnel"
+        ],
+        [
+          "==",
+          [
+            "get",
+            "kind"
+          ],
+          "highway"
+        ],
+        [
+          "!",
+          [
+            "has",
+            "is_link"
+          ]
+        ]
+      ],
+      "paint": {
+        "line-color": "#d5d5d5",
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.6
+          ],
+          [
+            "zoom"
+          ],
+          3,
+          0,
+          6,
+          1.1,
+          12,
+          1.6,
+          15,
+          5,
+          18,
+          15
+        ]
+      }
+    },
+    {
+      "id": "buildings",
+      "type": "fill",
+      "source": "protomaps",
+      "source-layer": "buildings",
+      "filter": [
+        "in",
+        "kind",
+        "building",
+        "building_part"
+      ],
+      "paint": {
+        "fill-color": "#e7e0d3",
+        "fill-opacity": 0.5
+      }
+    },
+    {
+      "id": "roads_pier",
+      "type": "line",
+      "source": "protomaps",
+      "source-layer": "roads",
+      "filter": [
+        "==",
+        "kind_detail",
+        "pier"
+      ],
+      "paint": {
+        "line-color": "#e0e0e0",
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.6
+          ],
+          [
+            "zoom"
+          ],
+          12,
+          0,
+          12.5,
+          0.5,
+          20,
+          16
+        ]
+      }
+    },
+    {
+      "id": "roads_minor_service_casing",
+      "type": "line",
+      "source": "protomaps",
+      "source-layer": "roads",
+      "minzoom": 13,
+      "filter": [
+        "all",
+        [
+          "!has",
+          "is_tunnel"
+        ],
+        [
+          "!has",
+          "is_bridge"
+        ],
+        [
+          "==",
+          "kind",
+          "minor_road"
+        ],
+        [
+          "==",
+          "kind_detail",
+          "service"
+        ]
+      ],
+      "paint": {
+        "line-color": "#e6dfd1",
+        "line-gap-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.6
+          ],
+          [
+            "zoom"
+          ],
+          13,
+          0,
+          18,
+          8
+        ],
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.6
+          ],
+          [
+            "zoom"
+          ],
+          13,
+          0,
+          13.5,
+          0.8
+        ]
+      }
+    },
+    {
+      "id": "roads_minor_casing",
+      "type": "line",
+      "source": "protomaps",
+      "source-layer": "roads",
+      "filter": [
+        "all",
+        [
+          "!has",
+          "is_tunnel"
+        ],
+        [
+          "!has",
+          "is_bridge"
+        ],
+        [
+          "==",
+          "kind",
+          "minor_road"
+        ],
+        [
+          "!=",
+          "kind_detail",
+          "service"
+        ]
+      ],
+      "paint": {
+        "line-color": "#ded8ca",
+        "line-gap-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.6
+          ],
+          [
+            "zoom"
+          ],
+          11,
+          0,
+          12.5,
+          0.5,
+          15,
+          2,
+          18,
+          11
+        ],
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.6
+          ],
+          [
+            "zoom"
+          ],
+          12,
+          0,
+          12.5,
+          1
+        ]
+      }
+    },
+    {
+      "id": "roads_link_casing",
+      "type": "line",
+      "source": "protomaps",
+      "source-layer": "roads",
+      "minzoom": 13,
+      "filter": [
+        "has",
+        "is_link"
+      ],
+      "paint": {
+        "line-color": "#ded8ca",
+        "line-gap-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.6
+          ],
+          [
+            "zoom"
+          ],
+          13,
+          0,
+          13.5,
+          1,
+          18,
+          11
+        ],
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.6
+          ],
+          [
+            "zoom"
+          ],
+          13,
+          0,
+          13.5,
+          1.5
+        ]
+      }
+    },
+    {
+      "id": "roads_major_casing_late",
+      "type": "line",
+      "source": "protomaps",
+      "source-layer": "roads",
+      "minzoom": 12,
+      "filter": [
+        "all",
+        [
+          "!has",
+          "is_tunnel"
+        ],
+        [
+          "!has",
+          "is_bridge"
+        ],
+        [
+          "==",
+          "kind",
+          "major_road"
+        ]
+      ],
+      "paint": {
+        "line-color": "#d8c99f",
+        "line-gap-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.6
+          ],
+          [
+            "zoom"
+          ],
+          6,
+          0,
+          12,
+          1.6,
+          15,
+          3,
+          18,
+          13
+        ],
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.6
+          ],
+          [
+            "zoom"
+          ],
+          9,
+          0,
+          9.5,
+          1
+        ]
+      }
+    },
+    {
+      "id": "roads_highway_casing_late",
+      "type": "line",
+      "source": "protomaps",
+      "source-layer": "roads",
+      "minzoom": 12,
+      "filter": [
+        "all",
+        [
+          "!has",
+          "is_tunnel"
+        ],
+        [
+          "!has",
+          "is_bridge"
+        ],
+        [
+          "==",
+          "kind",
+          "highway"
+        ],
+        [
+          "!has",
+          "is_link"
+        ]
+      ],
+      "paint": {
+        "line-color": "#d2bd88",
+        "line-gap-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.6
+          ],
+          [
+            "zoom"
+          ],
+          3,
+          0,
+          3.5,
+          0.5,
+          18,
+          15
+        ],
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.6
+          ],
+          [
+            "zoom"
+          ],
+          7,
+          0,
+          7.5,
+          1,
+          20,
+          15
+        ]
+      }
+    },
+    {
+      "id": "roads_other",
+      "type": "line",
+      "source": "protomaps",
+      "source-layer": "roads",
+      "filter": [
+        "all",
+        [
+          "!has",
+          "is_tunnel"
+        ],
+        [
+          "!has",
+          "is_bridge"
+        ],
+        [
+          "in",
+          "kind",
+          "other",
+          "path"
+        ],
+        [
+          "!=",
+          "kind_detail",
+          "pier"
+        ]
+      ],
+      "paint": {
+        "line-color": "#f9f7f0",
+        "line-dasharray": [
+          3,
+          1
+        ],
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.6
+          ],
+          [
+            "zoom"
+          ],
+          14,
+          0,
+          20,
+          7
+        ]
+      }
+    },
+    {
+      "id": "roads_link",
+      "type": "line",
+      "source": "protomaps",
+      "source-layer": "roads",
+      "filter": [
+        "has",
+        "is_link"
+      ],
+      "paint": {
+        "line-color": "#f5dfa1",
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.6
+          ],
+          [
+            "zoom"
+          ],
+          13,
+          0,
+          13.5,
+          1,
+          18,
+          11
+        ]
+      }
+    },
+    {
+      "id": "roads_minor_service",
+      "type": "line",
+      "source": "protomaps",
+      "source-layer": "roads",
+      "filter": [
+        "all",
+        [
+          "!has",
+          "is_tunnel"
+        ],
+        [
+          "!has",
+          "is_bridge"
+        ],
+        [
+          "==",
+          "kind",
+          "minor_road"
+        ],
+        [
+          "==",
+          "kind_detail",
+          "service"
+        ]
+      ],
+      "paint": {
+        "line-color": "#fffefb",
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.6
+          ],
+          [
+            "zoom"
+          ],
+          13,
+          0,
+          18,
+          8
+        ]
+      }
+    },
+    {
+      "id": "roads_minor",
+      "type": "line",
+      "source": "protomaps",
+      "source-layer": "roads",
+      "filter": [
+        "all",
+        [
+          "!has",
+          "is_tunnel"
+        ],
+        [
+          "!has",
+          "is_bridge"
+        ],
+        [
+          "==",
+          "kind",
+          "minor_road"
+        ],
+        [
+          "!=",
+          "kind_detail",
+          "service"
+        ]
+      ],
+      "paint": {
+        "line-color": [
+          "interpolate",
+          [
+            "exponential",
+            1.6
+          ],
+          [
+            "zoom"
+          ],
+          11,
+          "#fffefb",
+          16,
+          "#ffffff"
+        ],
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.6
+          ],
+          [
+            "zoom"
+          ],
+          11,
+          0,
+          12.5,
+          0.5,
+          15,
+          2,
+          18,
+          11
+        ]
+      }
+    },
+    {
+      "id": "roads_major_casing_early",
+      "type": "line",
+      "source": "protomaps",
+      "source-layer": "roads",
+      "maxzoom": 12,
+      "filter": [
+        "all",
+        [
+          "!has",
+          "is_tunnel"
+        ],
+        [
+          "!has",
+          "is_bridge"
+        ],
+        [
+          "==",
+          "kind",
+          "major_road"
+        ]
+      ],
+      "paint": {
+        "line-color": "#d8c99f",
+        "line-gap-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.6
+          ],
+          [
+            "zoom"
+          ],
+          7,
+          0,
+          7.5,
+          0.5,
+          18,
+          13
+        ],
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.6
+          ],
+          [
+            "zoom"
+          ],
+          9,
+          0,
+          9.5,
+          1
+        ]
+      }
+    },
+    {
+      "id": "roads_major",
+      "type": "line",
+      "source": "protomaps",
+      "source-layer": "roads",
+      "filter": [
+        "all",
+        [
+          "!has",
+          "is_tunnel"
+        ],
+        [
+          "!has",
+          "is_bridge"
+        ],
+        [
+          "==",
+          "kind",
+          "major_road"
+        ]
+      ],
+      "paint": {
+        "line-color": "#f3d686",
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.6
+          ],
+          [
+            "zoom"
+          ],
+          6,
+          0,
+          12,
+          1.6,
+          15,
+          3,
+          18,
+          13
+        ]
+      }
+    },
+    {
+      "id": "roads_highway_casing_early",
+      "type": "line",
+      "source": "protomaps",
+      "source-layer": "roads",
+      "maxzoom": 12,
+      "filter": [
+        "all",
+        [
+          "!has",
+          "is_tunnel"
+        ],
+        [
+          "!has",
+          "is_bridge"
+        ],
+        [
+          "==",
+          "kind",
+          "highway"
+        ],
+        [
+          "!has",
+          "is_link"
+        ]
+      ],
+      "paint": {
+        "line-color": "#d2bd88",
+        "line-gap-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.6
+          ],
+          [
+            "zoom"
+          ],
+          3,
+          0,
+          3.5,
+          0.5,
+          18,
+          15
+        ],
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.6
+          ],
+          [
+            "zoom"
+          ],
+          7,
+          0,
+          7.5,
+          1
+        ]
+      }
+    },
+    {
+      "id": "roads_highway",
+      "type": "line",
+      "source": "protomaps",
+      "source-layer": "roads",
+      "filter": [
+        "all",
+        [
+          "!has",
+          "is_tunnel"
+        ],
+        [
+          "!has",
+          "is_bridge"
+        ],
+        [
+          "==",
+          "kind",
+          "highway"
+        ],
+        [
+          "!has",
+          "is_link"
+        ]
+      ],
+      "paint": {
+        "line-color": "#edcc72",
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.6
+          ],
+          [
+            "zoom"
+          ],
+          3,
+          0,
+          6,
+          1.1,
+          12,
+          1.6,
+          15,
+          5,
+          18,
+          15
+        ]
+      }
+    },
+    {
+      "id": "roads_rail",
+      "type": "line",
+      "source": "protomaps",
+      "source-layer": "roads",
+      "filter": [
+        "==",
+        "kind",
+        "rail"
+      ],
+      "paint": {
+        "line-dasharray": [
+          0.3,
+          0.75
+        ],
+        "line-opacity": 0.5,
+        "line-color": "#b8b1a5",
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.6
+          ],
+          [
+            "zoom"
+          ],
+          3,
+          0,
+          6,
+          0.15,
+          18,
+          9
+        ]
+      }
+    },
+    {
+      "id": "boundaries_country",
+      "type": "line",
+      "source": "protomaps",
+      "source-layer": "boundaries",
+      "filter": [
+        "<=",
+        "kind_detail",
+        2
+      ],
+      "paint": {
+        "line-color": "#b7b0a5",
+        "line-width": 0.7,
+        "line-dasharray": [
+          "step",
+          [
+            "zoom"
+          ],
+          [
+            "literal",
+            [
+              2
+            ]
+          ],
+          4,
+          [
+            "literal",
+            [
+              2,
+              1
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "id": "boundaries",
+      "type": "line",
+      "source": "protomaps",
+      "source-layer": "boundaries",
+      "filter": [
+        ">",
+        "kind_detail",
+        2
+      ],
+      "paint": {
+        "line-color": "#b7b0a5",
+        "line-width": 0.4,
+        "line-dasharray": [
+          "step",
+          [
+            "zoom"
+          ],
+          [
+            "literal",
+            [
+              2
+            ]
+          ],
+          4,
+          [
+            "literal",
+            [
+              2,
+              1
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "id": "roads_bridges_other_casing",
+      "type": "line",
+      "source": "protomaps",
+      "source-layer": "roads",
+      "minzoom": 12,
+      "filter": [
+        "all",
+        [
+          "has",
+          "is_bridge"
+        ],
+        [
+          "in",
+          "kind",
+          "other",
+          "path"
+        ]
+      ],
+      "paint": {
+        "line-color": "#e0e0e0",
+        "line-gap-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.6
+          ],
+          [
+            "zoom"
+          ],
+          14,
+          0,
+          20,
+          7
+        ]
+      }
+    },
+    {
+      "id": "roads_bridges_link_casing",
+      "type": "line",
+      "source": "protomaps",
+      "source-layer": "roads",
+      "minzoom": 12,
+      "filter": [
+        "all",
+        [
+          "has",
+          "is_bridge"
+        ],
+        [
+          "has",
+          "is_link"
+        ]
+      ],
+      "paint": {
+        "line-color": "#e0e0e0",
+        "line-gap-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.6
+          ],
+          [
+            "zoom"
+          ],
+          13,
+          0,
+          13.5,
+          1,
+          18,
+          11
+        ],
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.6
+          ],
+          [
+            "zoom"
+          ],
+          12,
+          0,
+          12.5,
+          1.5
+        ]
+      }
+    },
+    {
+      "id": "roads_bridges_minor_casing",
+      "type": "line",
+      "source": "protomaps",
+      "source-layer": "roads",
+      "minzoom": 12,
+      "filter": [
+        "all",
+        [
+          "has",
+          "is_bridge"
+        ],
+        [
+          "==",
+          "kind",
+          "minor_road"
+        ]
+      ],
+      "paint": {
+        "line-color": "#e0e0e0",
+        "line-gap-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.6
+          ],
+          [
+            "zoom"
+          ],
+          11,
+          0,
+          12.5,
+          0.5,
+          15,
+          2,
+          18,
+          11
+        ],
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.6
+          ],
+          [
+            "zoom"
+          ],
+          13,
+          0,
+          13.5,
+          0.8
+        ]
+      }
+    },
+    {
+      "id": "roads_bridges_major_casing",
+      "type": "line",
+      "source": "protomaps",
+      "source-layer": "roads",
+      "minzoom": 12,
+      "filter": [
+        "all",
+        [
+          "has",
+          "is_bridge"
+        ],
+        [
+          "==",
+          "kind",
+          "major_road"
+        ]
+      ],
+      "paint": {
+        "line-color": "#e0e0e0",
+        "line-gap-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.6
+          ],
+          [
+            "zoom"
+          ],
+          7,
+          0,
+          7.5,
+          0.5,
+          18,
+          10
+        ],
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.6
+          ],
+          [
+            "zoom"
+          ],
+          9,
+          0,
+          9.5,
+          1.5
+        ]
+      }
+    },
+    {
+      "id": "roads_bridges_other",
+      "type": "line",
+      "source": "protomaps",
+      "source-layer": "roads",
+      "minzoom": 12,
+      "filter": [
+        "all",
+        [
+          "has",
+          "is_bridge"
+        ],
+        [
+          "in",
+          "kind",
+          "other",
+          "path"
+        ]
+      ],
+      "paint": {
+        "line-color": "#f9f7f0",
+        "line-dasharray": [
+          2,
+          1
+        ],
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.6
+          ],
+          [
+            "zoom"
+          ],
+          14,
+          0,
+          20,
+          7
+        ]
+      }
+    },
+    {
+      "id": "roads_bridges_minor",
+      "type": "line",
+      "source": "protomaps",
+      "source-layer": "roads",
+      "minzoom": 12,
+      "filter": [
+        "all",
+        [
+          "has",
+          "is_bridge"
+        ],
+        [
+          "==",
+          "kind",
+          "minor_road"
+        ]
+      ],
+      "paint": {
+        "line-color": "#ffffff",
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.6
+          ],
+          [
+            "zoom"
+          ],
+          11,
+          0,
+          12.5,
+          0.5,
+          15,
+          2,
+          18,
+          11
+        ]
+      }
+    },
+    {
+      "id": "roads_bridges_link",
+      "type": "line",
+      "source": "protomaps",
+      "source-layer": "roads",
+      "minzoom": 12,
+      "filter": [
+        "all",
+        [
+          "has",
+          "is_bridge"
+        ],
+        [
+          "has",
+          "is_link"
+        ]
+      ],
+      "paint": {
+        "line-color": "#ffffff",
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.6
+          ],
+          [
+            "zoom"
+          ],
+          13,
+          0,
+          13.5,
+          1,
+          18,
+          11
+        ]
+      }
+    },
+    {
+      "id": "roads_bridges_major",
+      "type": "line",
+      "source": "protomaps",
+      "source-layer": "roads",
+      "minzoom": 12,
+      "filter": [
+        "all",
+        [
+          "has",
+          "is_bridge"
+        ],
+        [
+          "==",
+          "kind",
+          "major_road"
+        ]
+      ],
+      "paint": {
+        "line-color": "#f3d686",
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.6
+          ],
+          [
+            "zoom"
+          ],
+          6,
+          0,
+          12,
+          1.6,
+          15,
+          3,
+          18,
+          13
+        ]
+      }
+    },
+    {
+      "id": "roads_bridges_highway_casing",
+      "type": "line",
+      "source": "protomaps",
+      "source-layer": "roads",
+      "minzoom": 12,
+      "filter": [
+        "all",
+        [
+          "has",
+          "is_bridge"
+        ],
+        [
+          "==",
+          "kind",
+          "highway"
+        ],
+        [
+          "!has",
+          "is_link"
+        ]
+      ],
+      "paint": {
+        "line-color": "#e0e0e0",
+        "line-gap-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.6
+          ],
+          [
+            "zoom"
+          ],
+          3,
+          0,
+          3.5,
+          0.5,
+          18,
+          15
+        ],
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.6
+          ],
+          [
+            "zoom"
+          ],
+          7,
+          0,
+          7.5,
+          1,
+          20,
+          15
+        ]
+      }
+    },
+    {
+      "id": "roads_bridges_highway",
+      "type": "line",
+      "source": "protomaps",
+      "source-layer": "roads",
+      "filter": [
+        "all",
+        [
+          "has",
+          "is_bridge"
+        ],
+        [
+          "==",
+          "kind",
+          "highway"
+        ],
+        [
+          "!has",
+          "is_link"
+        ]
+      ],
+      "paint": {
+        "line-color": "#edcc72",
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.6
+          ],
+          [
+            "zoom"
+          ],
+          3,
+          0,
+          6,
+          1.1,
+          12,
+          1.6,
+          15,
+          5,
+          18,
+          15
+        ]
+      }
+    },
+    {
+      "id": "address_label",
+      "type": "symbol",
+      "source": "protomaps",
+      "source-layer": "buildings",
+      "minzoom": 18,
+      "filter": [
+        "==",
+        "kind",
+        "address"
+      ],
+      "layout": {
+        "symbol-placement": "point",
+        "text-font": [
+          "Noto Sans Regular"
+        ],
+        "text-field": [
+          "get",
+          "addr_housenumber"
+        ],
+        "text-size": 12
+      },
+      "paint": {
+        "text-color": "#69665f",
+        "text-halo-color": "#fffdf6",
+        "text-halo-width": 1
+      }
+    },
+    {
+      "id": "water_waterway_label",
+      "type": "symbol",
+      "source": "protomaps",
+      "source-layer": "water",
+      "minzoom": 13,
+      "filter": [
+        "in",
+        "kind",
+        "river",
+        "stream"
+      ],
+      "layout": {
+        "symbol-placement": "line",
+        "text-font": [
+          "Noto Sans Regular"
+        ],
+        "text-field": [
+          "case",
+          [
+            "all",
+            [
+              "any",
+              [
+                "has",
+                "name"
+              ],
+              [
+                "has",
+                "pgf:name"
+              ]
+            ],
+            [
+              "!",
+              [
+                "any",
+                [
+                  "has",
+                  "name2"
+                ],
+                [
+                  "has",
+                  "pgf:name2"
+                ]
+              ]
+            ],
+            [
+              "!",
+              [
+                "any",
+                [
+                  "has",
+                  "name3"
+                ],
+                [
+                  "has",
+                  "pgf:name3"
+                ]
+              ]
+            ]
+          ],
+          [
+            "case",
+            [
+              "has",
+              "script"
+            ],
+            [
+              "case",
+              [
+                "any",
+                [
+                  "is-supported-script",
+                  [
+                    "get",
+                    "name"
+                  ]
+                ],
+                [
+                  "has",
+                  "pgf:name"
+                ]
+              ],
+              [
+                "format",
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "name:en"
+                  ],
+                  [
+                    "get",
+                    "name:en"
+                  ]
+                ],
+                {},
+                "\n",
+                {},
+                [
+                  "case",
+                  [
+                    "all",
+                    [
+                      "!",
+                      [
+                        "has",
+                        "name:en"
+                      ]
+                    ],
+                    [
+                      "has",
+                      "name:en"
+                    ],
+                    [
+                      "!",
+                      [
+                        "has",
+                        "script"
+                      ]
+                    ]
+                  ],
+                  "",
+                  [
+                    "coalesce",
+                    [
+                      "get",
+                      "pgf:name"
+                    ],
+                    [
+                      "get",
+                      "name"
+                    ]
+                  ]
+                ],
+                {
+                  "text-font": [
+                    "literal",
+                    [
+                      "Noto Sans Regular"
+                    ]
+                  ]
+                }
+              ],
+              [
+                "get",
+                "name:en"
+              ]
+            ],
+            [
+              "format",
+              [
+                "coalesce",
+                [
+                  "get",
+                  "name:en"
+                ],
+                [
+                  "get",
+                  "pgf:name"
+                ],
+                [
+                  "get",
+                  "name"
+                ]
+              ],
+              {}
+            ]
+          ],
+          [
+            "all",
+            [
+              "any",
+              [
+                "has",
+                "name"
+              ],
+              [
+                "has",
+                "pgf:name"
+              ]
+            ],
+            [
+              "any",
+              [
+                "has",
+                "name2"
+              ],
+              [
+                "has",
+                "pgf:name2"
+              ]
+            ],
+            [
+              "!",
+              [
+                "any",
+                [
+                  "has",
+                  "name3"
+                ],
+                [
+                  "has",
+                  "pgf:name3"
+                ]
+              ]
+            ]
+          ],
+          [
+            "case",
+            [
+              "all",
+              [
+                "has",
+                "script"
+              ],
+              [
+                "has",
+                "script2"
+              ]
+            ],
+            [
+              "format",
+              [
+                "get",
+                "name:en"
+              ],
+              {},
+              "\n",
+              {},
+              [
+                "coalesce",
+                [
+                  "get",
+                  "pgf:name"
+                ],
+                [
+                  "get",
+                  "name"
+                ]
+              ],
+              {
+                "text-font": [
+                  "literal",
+                  [
+                    "Noto Sans Regular"
+                  ]
+                ]
+              },
+              "\n",
+              {},
+              [
+                "coalesce",
+                [
+                  "get",
+                  "pgf:name2"
+                ],
+                [
+                  "get",
+                  "name2"
+                ]
+              ],
+              {
+                "text-font": [
+                  "literal",
+                  [
+                    "Noto Sans Regular"
+                  ]
+                ]
+              }
+            ],
+            [
+              "case",
+              [
+                "has",
+                "script2"
+              ],
+              [
+                "format",
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "name:en"
+                  ],
+                  [
+                    "get",
+                    "pgf:name"
+                  ],
+                  [
+                    "get",
+                    "name"
+                  ]
+                ],
+                {},
+                "\n",
+                {},
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "pgf:name2"
+                  ],
+                  [
+                    "get",
+                    "name2"
+                  ]
+                ],
+                {
+                  "text-font": [
+                    "literal",
+                    [
+                      "Noto Sans Regular"
+                    ]
+                  ]
+                }
+              ],
+              [
+                "format",
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "name:en"
+                  ],
+                  [
+                    "get",
+                    "pgf:name2"
+                  ],
+                  [
+                    "get",
+                    "name2"
+                  ]
+                ],
+                {},
+                "\n",
+                {},
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "pgf:name"
+                  ],
+                  [
+                    "get",
+                    "name"
+                  ]
+                ],
+                {
+                  "text-font": [
+                    "literal",
+                    [
+                      "Noto Sans Regular"
+                    ]
+                  ]
+                }
+              ]
+            ]
+          ],
+          [
+            "case",
+            [
+              "all",
+              [
+                "has",
+                "script"
+              ],
+              [
+                "has",
+                "script2"
+              ],
+              [
+                "has",
+                "script3"
+              ]
+            ],
+            [
+              "format",
+              [
+                "get",
+                "name:en"
+              ],
+              {},
+              "\n",
+              {},
+              [
+                "coalesce",
+                [
+                  "get",
+                  "pgf:name"
+                ],
+                [
+                  "get",
+                  "name"
+                ]
+              ],
+              {
+                "text-font": [
+                  "literal",
+                  [
+                    "Noto Sans Regular"
+                  ]
+                ]
+              },
+              "\n",
+              {},
+              [
+                "coalesce",
+                [
+                  "get",
+                  "pgf:name2"
+                ],
+                [
+                  "get",
+                  "name2"
+                ]
+              ],
+              {
+                "text-font": [
+                  "literal",
+                  [
+                    "Noto Sans Regular"
+                  ]
+                ]
+              },
+              "\n",
+              {},
+              [
+                "coalesce",
+                [
+                  "get",
+                  "pgf:name3"
+                ],
+                [
+                  "get",
+                  "name3"
+                ]
+              ],
+              {
+                "text-font": [
+                  "literal",
+                  [
+                    "Noto Sans Regular"
+                  ]
+                ]
+              }
+            ],
+            [
+              "case",
+              [
+                "!",
+                [
+                  "has",
+                  "script"
+                ]
+              ],
+              [
+                "format",
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "name:en"
+                  ],
+                  [
+                    "get",
+                    "pgf:name"
+                  ],
+                  [
+                    "get",
+                    "name"
+                  ]
+                ],
+                {},
+                "\n",
+                {},
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "pgf:name2"
+                  ],
+                  [
+                    "get",
+                    "name2"
+                  ]
+                ],
+                {
+                  "text-font": [
+                    "literal",
+                    [
+                      "Noto Sans Regular"
+                    ]
+                  ]
+                },
+                "\n",
+                {},
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "pgf:name3"
+                  ],
+                  [
+                    "get",
+                    "name3"
+                  ]
+                ],
+                {
+                  "text-font": [
+                    "literal",
+                    [
+                      "Noto Sans Regular"
+                    ]
+                  ]
+                }
+              ],
+              [
+                "!",
+                [
+                  "has",
+                  "script2"
+                ]
+              ],
+              [
+                "format",
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "name:en"
+                  ],
+                  [
+                    "get",
+                    "pgf:name2"
+                  ],
+                  [
+                    "get",
+                    "name2"
+                  ]
+                ],
+                {},
+                "\n",
+                {},
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "pgf:name"
+                  ],
+                  [
+                    "get",
+                    "name"
+                  ]
+                ],
+                {
+                  "text-font": [
+                    "literal",
+                    [
+                      "Noto Sans Regular"
+                    ]
+                  ]
+                },
+                "\n",
+                {},
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "pgf:name3"
+                  ],
+                  [
+                    "get",
+                    "name3"
+                  ]
+                ],
+                {
+                  "text-font": [
+                    "literal",
+                    [
+                      "Noto Sans Regular"
+                    ]
+                  ]
+                }
+              ],
+              [
+                "format",
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "name:en"
+                  ],
+                  [
+                    "get",
+                    "pgf:name3"
+                  ],
+                  [
+                    "get",
+                    "name3"
+                  ]
+                ],
+                {},
+                "\n",
+                {},
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "pgf:name"
+                  ],
+                  [
+                    "get",
+                    "name"
+                  ]
+                ],
+                {
+                  "text-font": [
+                    "literal",
+                    [
+                      "Noto Sans Regular"
+                    ]
+                  ]
+                },
+                "\n",
+                {},
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "pgf:name2"
+                  ],
+                  [
+                    "get",
+                    "name2"
+                  ]
+                ],
+                {
+                  "text-font": [
+                    "literal",
+                    [
+                      "Noto Sans Regular"
+                    ]
+                  ]
+                }
+              ]
+            ]
+          ]
+        ],
+        "text-size": 12,
+        "text-letter-spacing": 0.2
+      },
+      "paint": {
+        "text-color": "#477282",
+        "text-halo-color": "#afd3e1",
+        "text-halo-width": 1
+      }
+    },
+    {
+      "id": "roads_labels_minor",
+      "type": "symbol",
+      "source": "protomaps",
+      "source-layer": "roads",
+      "minzoom": 15,
+      "filter": [
+        "in",
+        "kind",
+        "minor_road",
+        "other",
+        "path"
+      ],
+      "layout": {
+        "symbol-sort-key": [
+          "get",
+          "min_zoom"
+        ],
+        "symbol-placement": "line",
+        "text-font": [
+          "Noto Sans Regular"
+        ],
+        "text-field": [
+          "case",
+          [
+            "all",
+            [
+              "any",
+              [
+                "has",
+                "name"
+              ],
+              [
+                "has",
+                "pgf:name"
+              ]
+            ],
+            [
+              "!",
+              [
+                "any",
+                [
+                  "has",
+                  "name2"
+                ],
+                [
+                  "has",
+                  "pgf:name2"
+                ]
+              ]
+            ],
+            [
+              "!",
+              [
+                "any",
+                [
+                  "has",
+                  "name3"
+                ],
+                [
+                  "has",
+                  "pgf:name3"
+                ]
+              ]
+            ]
+          ],
+          [
+            "case",
+            [
+              "has",
+              "script"
+            ],
+            [
+              "case",
+              [
+                "any",
+                [
+                  "is-supported-script",
+                  [
+                    "get",
+                    "name"
+                  ]
+                ],
+                [
+                  "has",
+                  "pgf:name"
+                ]
+              ],
+              [
+                "format",
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "name:en"
+                  ],
+                  [
+                    "get",
+                    "name:en"
+                  ]
+                ],
+                {},
+                "\n",
+                {},
+                [
+                  "case",
+                  [
+                    "all",
+                    [
+                      "!",
+                      [
+                        "has",
+                        "name:en"
+                      ]
+                    ],
+                    [
+                      "has",
+                      "name:en"
+                    ],
+                    [
+                      "!",
+                      [
+                        "has",
+                        "script"
+                      ]
+                    ]
+                  ],
+                  "",
+                  [
+                    "coalesce",
+                    [
+                      "get",
+                      "pgf:name"
+                    ],
+                    [
+                      "get",
+                      "name"
+                    ]
+                  ]
+                ],
+                {
+                  "text-font": [
+                    "literal",
+                    [
+                      "Noto Sans Regular"
+                    ]
+                  ]
+                }
+              ],
+              [
+                "get",
+                "name:en"
+              ]
+            ],
+            [
+              "format",
+              [
+                "coalesce",
+                [
+                  "get",
+                  "name:en"
+                ],
+                [
+                  "get",
+                  "pgf:name"
+                ],
+                [
+                  "get",
+                  "name"
+                ]
+              ],
+              {}
+            ]
+          ],
+          [
+            "all",
+            [
+              "any",
+              [
+                "has",
+                "name"
+              ],
+              [
+                "has",
+                "pgf:name"
+              ]
+            ],
+            [
+              "any",
+              [
+                "has",
+                "name2"
+              ],
+              [
+                "has",
+                "pgf:name2"
+              ]
+            ],
+            [
+              "!",
+              [
+                "any",
+                [
+                  "has",
+                  "name3"
+                ],
+                [
+                  "has",
+                  "pgf:name3"
+                ]
+              ]
+            ]
+          ],
+          [
+            "case",
+            [
+              "all",
+              [
+                "has",
+                "script"
+              ],
+              [
+                "has",
+                "script2"
+              ]
+            ],
+            [
+              "format",
+              [
+                "get",
+                "name:en"
+              ],
+              {},
+              "\n",
+              {},
+              [
+                "coalesce",
+                [
+                  "get",
+                  "pgf:name"
+                ],
+                [
+                  "get",
+                  "name"
+                ]
+              ],
+              {
+                "text-font": [
+                  "literal",
+                  [
+                    "Noto Sans Regular"
+                  ]
+                ]
+              },
+              "\n",
+              {},
+              [
+                "coalesce",
+                [
+                  "get",
+                  "pgf:name2"
+                ],
+                [
+                  "get",
+                  "name2"
+                ]
+              ],
+              {
+                "text-font": [
+                  "literal",
+                  [
+                    "Noto Sans Regular"
+                  ]
+                ]
+              }
+            ],
+            [
+              "case",
+              [
+                "has",
+                "script2"
+              ],
+              [
+                "format",
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "name:en"
+                  ],
+                  [
+                    "get",
+                    "pgf:name"
+                  ],
+                  [
+                    "get",
+                    "name"
+                  ]
+                ],
+                {},
+                "\n",
+                {},
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "pgf:name2"
+                  ],
+                  [
+                    "get",
+                    "name2"
+                  ]
+                ],
+                {
+                  "text-font": [
+                    "literal",
+                    [
+                      "Noto Sans Regular"
+                    ]
+                  ]
+                }
+              ],
+              [
+                "format",
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "name:en"
+                  ],
+                  [
+                    "get",
+                    "pgf:name2"
+                  ],
+                  [
+                    "get",
+                    "name2"
+                  ]
+                ],
+                {},
+                "\n",
+                {},
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "pgf:name"
+                  ],
+                  [
+                    "get",
+                    "name"
+                  ]
+                ],
+                {
+                  "text-font": [
+                    "literal",
+                    [
+                      "Noto Sans Regular"
+                    ]
+                  ]
+                }
+              ]
+            ]
+          ],
+          [
+            "case",
+            [
+              "all",
+              [
+                "has",
+                "script"
+              ],
+              [
+                "has",
+                "script2"
+              ],
+              [
+                "has",
+                "script3"
+              ]
+            ],
+            [
+              "format",
+              [
+                "get",
+                "name:en"
+              ],
+              {},
+              "\n",
+              {},
+              [
+                "coalesce",
+                [
+                  "get",
+                  "pgf:name"
+                ],
+                [
+                  "get",
+                  "name"
+                ]
+              ],
+              {
+                "text-font": [
+                  "literal",
+                  [
+                    "Noto Sans Regular"
+                  ]
+                ]
+              },
+              "\n",
+              {},
+              [
+                "coalesce",
+                [
+                  "get",
+                  "pgf:name2"
+                ],
+                [
+                  "get",
+                  "name2"
+                ]
+              ],
+              {
+                "text-font": [
+                  "literal",
+                  [
+                    "Noto Sans Regular"
+                  ]
+                ]
+              },
+              "\n",
+              {},
+              [
+                "coalesce",
+                [
+                  "get",
+                  "pgf:name3"
+                ],
+                [
+                  "get",
+                  "name3"
+                ]
+              ],
+              {
+                "text-font": [
+                  "literal",
+                  [
+                    "Noto Sans Regular"
+                  ]
+                ]
+              }
+            ],
+            [
+              "case",
+              [
+                "!",
+                [
+                  "has",
+                  "script"
+                ]
+              ],
+              [
+                "format",
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "name:en"
+                  ],
+                  [
+                    "get",
+                    "pgf:name"
+                  ],
+                  [
+                    "get",
+                    "name"
+                  ]
+                ],
+                {},
+                "\n",
+                {},
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "pgf:name2"
+                  ],
+                  [
+                    "get",
+                    "name2"
+                  ]
+                ],
+                {
+                  "text-font": [
+                    "literal",
+                    [
+                      "Noto Sans Regular"
+                    ]
+                  ]
+                },
+                "\n",
+                {},
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "pgf:name3"
+                  ],
+                  [
+                    "get",
+                    "name3"
+                  ]
+                ],
+                {
+                  "text-font": [
+                    "literal",
+                    [
+                      "Noto Sans Regular"
+                    ]
+                  ]
+                }
+              ],
+              [
+                "!",
+                [
+                  "has",
+                  "script2"
+                ]
+              ],
+              [
+                "format",
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "name:en"
+                  ],
+                  [
+                    "get",
+                    "pgf:name2"
+                  ],
+                  [
+                    "get",
+                    "name2"
+                  ]
+                ],
+                {},
+                "\n",
+                {},
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "pgf:name"
+                  ],
+                  [
+                    "get",
+                    "name"
+                  ]
+                ],
+                {
+                  "text-font": [
+                    "literal",
+                    [
+                      "Noto Sans Regular"
+                    ]
+                  ]
+                },
+                "\n",
+                {},
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "pgf:name3"
+                  ],
+                  [
+                    "get",
+                    "name3"
+                  ]
+                ],
+                {
+                  "text-font": [
+                    "literal",
+                    [
+                      "Noto Sans Regular"
+                    ]
+                  ]
+                }
+              ],
+              [
+                "format",
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "name:en"
+                  ],
+                  [
+                    "get",
+                    "pgf:name3"
+                  ],
+                  [
+                    "get",
+                    "name3"
+                  ]
+                ],
+                {},
+                "\n",
+                {},
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "pgf:name"
+                  ],
+                  [
+                    "get",
+                    "name"
+                  ]
+                ],
+                {
+                  "text-font": [
+                    "literal",
+                    [
+                      "Noto Sans Regular"
+                    ]
+                  ]
+                },
+                "\n",
+                {},
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "pgf:name2"
+                  ],
+                  [
+                    "get",
+                    "name2"
+                  ]
+                ],
+                {
+                  "text-font": [
+                    "literal",
+                    [
+                      "Noto Sans Regular"
+                    ]
+                  ]
+                }
+              ]
+            ]
+          ]
+        ],
+        "text-size": 12
+      },
+      "paint": {
+        "text-color": "#5d5a53",
+        "text-halo-color": "#fffdf6",
+        "text-halo-width": 1
+      }
+    },
+    {
+      "id": "water_label_ocean",
+      "type": "symbol",
+      "source": "protomaps",
+      "source-layer": "water",
+      "filter": [
+        "in",
+        "kind",
+        "sea",
+        "ocean",
+        "bay",
+        "strait",
+        "fjord"
+      ],
+      "layout": {
+        "text-font": [
+          "Noto Sans Regular"
+        ],
+        "text-field": [
+          "case",
+          [
+            "all",
+            [
+              "any",
+              [
+                "has",
+                "name"
+              ],
+              [
+                "has",
+                "pgf:name"
+              ]
+            ],
+            [
+              "!",
+              [
+                "any",
+                [
+                  "has",
+                  "name2"
+                ],
+                [
+                  "has",
+                  "pgf:name2"
+                ]
+              ]
+            ],
+            [
+              "!",
+              [
+                "any",
+                [
+                  "has",
+                  "name3"
+                ],
+                [
+                  "has",
+                  "pgf:name3"
+                ]
+              ]
+            ]
+          ],
+          [
+            "case",
+            [
+              "has",
+              "script"
+            ],
+            [
+              "case",
+              [
+                "any",
+                [
+                  "is-supported-script",
+                  [
+                    "get",
+                    "name"
+                  ]
+                ],
+                [
+                  "has",
+                  "pgf:name"
+                ]
+              ],
+              [
+                "format",
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "name:en"
+                  ],
+                  [
+                    "get",
+                    "name:en"
+                  ]
+                ],
+                {},
+                "\n",
+                {},
+                [
+                  "case",
+                  [
+                    "all",
+                    [
+                      "!",
+                      [
+                        "has",
+                        "name:en"
+                      ]
+                    ],
+                    [
+                      "has",
+                      "name:en"
+                    ],
+                    [
+                      "!",
+                      [
+                        "has",
+                        "script"
+                      ]
+                    ]
+                  ],
+                  "",
+                  [
+                    "coalesce",
+                    [
+                      "get",
+                      "pgf:name"
+                    ],
+                    [
+                      "get",
+                      "name"
+                    ]
+                  ]
+                ],
+                {
+                  "text-font": [
+                    "literal",
+                    [
+                      "Noto Sans Regular"
+                    ]
+                  ]
+                }
+              ],
+              [
+                "get",
+                "name:en"
+              ]
+            ],
+            [
+              "format",
+              [
+                "coalesce",
+                [
+                  "get",
+                  "name:en"
+                ],
+                [
+                  "get",
+                  "pgf:name"
+                ],
+                [
+                  "get",
+                  "name"
+                ]
+              ],
+              {}
+            ]
+          ],
+          [
+            "all",
+            [
+              "any",
+              [
+                "has",
+                "name"
+              ],
+              [
+                "has",
+                "pgf:name"
+              ]
+            ],
+            [
+              "any",
+              [
+                "has",
+                "name2"
+              ],
+              [
+                "has",
+                "pgf:name2"
+              ]
+            ],
+            [
+              "!",
+              [
+                "any",
+                [
+                  "has",
+                  "name3"
+                ],
+                [
+                  "has",
+                  "pgf:name3"
+                ]
+              ]
+            ]
+          ],
+          [
+            "case",
+            [
+              "all",
+              [
+                "has",
+                "script"
+              ],
+              [
+                "has",
+                "script2"
+              ]
+            ],
+            [
+              "format",
+              [
+                "get",
+                "name:en"
+              ],
+              {},
+              "\n",
+              {},
+              [
+                "coalesce",
+                [
+                  "get",
+                  "pgf:name"
+                ],
+                [
+                  "get",
+                  "name"
+                ]
+              ],
+              {
+                "text-font": [
+                  "literal",
+                  [
+                    "Noto Sans Regular"
+                  ]
+                ]
+              },
+              "\n",
+              {},
+              [
+                "coalesce",
+                [
+                  "get",
+                  "pgf:name2"
+                ],
+                [
+                  "get",
+                  "name2"
+                ]
+              ],
+              {
+                "text-font": [
+                  "literal",
+                  [
+                    "Noto Sans Regular"
+                  ]
+                ]
+              }
+            ],
+            [
+              "case",
+              [
+                "has",
+                "script2"
+              ],
+              [
+                "format",
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "name:en"
+                  ],
+                  [
+                    "get",
+                    "pgf:name"
+                  ],
+                  [
+                    "get",
+                    "name"
+                  ]
+                ],
+                {},
+                "\n",
+                {},
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "pgf:name2"
+                  ],
+                  [
+                    "get",
+                    "name2"
+                  ]
+                ],
+                {
+                  "text-font": [
+                    "literal",
+                    [
+                      "Noto Sans Regular"
+                    ]
+                  ]
+                }
+              ],
+              [
+                "format",
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "name:en"
+                  ],
+                  [
+                    "get",
+                    "pgf:name2"
+                  ],
+                  [
+                    "get",
+                    "name2"
+                  ]
+                ],
+                {},
+                "\n",
+                {},
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "pgf:name"
+                  ],
+                  [
+                    "get",
+                    "name"
+                  ]
+                ],
+                {
+                  "text-font": [
+                    "literal",
+                    [
+                      "Noto Sans Regular"
+                    ]
+                  ]
+                }
+              ]
+            ]
+          ],
+          [
+            "case",
+            [
+              "all",
+              [
+                "has",
+                "script"
+              ],
+              [
+                "has",
+                "script2"
+              ],
+              [
+                "has",
+                "script3"
+              ]
+            ],
+            [
+              "format",
+              [
+                "get",
+                "name:en"
+              ],
+              {},
+              "\n",
+              {},
+              [
+                "coalesce",
+                [
+                  "get",
+                  "pgf:name"
+                ],
+                [
+                  "get",
+                  "name"
+                ]
+              ],
+              {
+                "text-font": [
+                  "literal",
+                  [
+                    "Noto Sans Regular"
+                  ]
+                ]
+              },
+              "\n",
+              {},
+              [
+                "coalesce",
+                [
+                  "get",
+                  "pgf:name2"
+                ],
+                [
+                  "get",
+                  "name2"
+                ]
+              ],
+              {
+                "text-font": [
+                  "literal",
+                  [
+                    "Noto Sans Regular"
+                  ]
+                ]
+              },
+              "\n",
+              {},
+              [
+                "coalesce",
+                [
+                  "get",
+                  "pgf:name3"
+                ],
+                [
+                  "get",
+                  "name3"
+                ]
+              ],
+              {
+                "text-font": [
+                  "literal",
+                  [
+                    "Noto Sans Regular"
+                  ]
+                ]
+              }
+            ],
+            [
+              "case",
+              [
+                "!",
+                [
+                  "has",
+                  "script"
+                ]
+              ],
+              [
+                "format",
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "name:en"
+                  ],
+                  [
+                    "get",
+                    "pgf:name"
+                  ],
+                  [
+                    "get",
+                    "name"
+                  ]
+                ],
+                {},
+                "\n",
+                {},
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "pgf:name2"
+                  ],
+                  [
+                    "get",
+                    "name2"
+                  ]
+                ],
+                {
+                  "text-font": [
+                    "literal",
+                    [
+                      "Noto Sans Regular"
+                    ]
+                  ]
+                },
+                "\n",
+                {},
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "pgf:name3"
+                  ],
+                  [
+                    "get",
+                    "name3"
+                  ]
+                ],
+                {
+                  "text-font": [
+                    "literal",
+                    [
+                      "Noto Sans Regular"
+                    ]
+                  ]
+                }
+              ],
+              [
+                "!",
+                [
+                  "has",
+                  "script2"
+                ]
+              ],
+              [
+                "format",
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "name:en"
+                  ],
+                  [
+                    "get",
+                    "pgf:name2"
+                  ],
+                  [
+                    "get",
+                    "name2"
+                  ]
+                ],
+                {},
+                "\n",
+                {},
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "pgf:name"
+                  ],
+                  [
+                    "get",
+                    "name"
+                  ]
+                ],
+                {
+                  "text-font": [
+                    "literal",
+                    [
+                      "Noto Sans Regular"
+                    ]
+                  ]
+                },
+                "\n",
+                {},
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "pgf:name3"
+                  ],
+                  [
+                    "get",
+                    "name3"
+                  ]
+                ],
+                {
+                  "text-font": [
+                    "literal",
+                    [
+                      "Noto Sans Regular"
+                    ]
+                  ]
+                }
+              ],
+              [
+                "format",
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "name:en"
+                  ],
+                  [
+                    "get",
+                    "pgf:name3"
+                  ],
+                  [
+                    "get",
+                    "name3"
+                  ]
+                ],
+                {},
+                "\n",
+                {},
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "pgf:name"
+                  ],
+                  [
+                    "get",
+                    "name"
+                  ]
+                ],
+                {
+                  "text-font": [
+                    "literal",
+                    [
+                      "Noto Sans Regular"
+                    ]
+                  ]
+                },
+                "\n",
+                {},
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "pgf:name2"
+                  ],
+                  [
+                    "get",
+                    "name2"
+                  ]
+                ],
+                {
+                  "text-font": [
+                    "literal",
+                    [
+                      "Noto Sans Regular"
+                    ]
+                  ]
+                }
+              ]
+            ]
+          ]
+        ],
+        "text-size": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          3,
+          10,
+          10,
+          12
+        ],
+        "text-letter-spacing": 0.1,
+        "text-max-width": 9,
+        "text-transform": "uppercase"
+      },
+      "paint": {
+        "text-color": "#477282",
+        "text-halo-width": 1,
+        "text-halo-color": "#afd3e1"
+      }
+    },
+    {
+      "id": "water_label_lakes",
+      "type": "symbol",
+      "source": "protomaps",
+      "source-layer": "water",
+      "filter": [
+        "in",
+        "kind",
+        "lake",
+        "water"
+      ],
+      "layout": {
+        "text-font": [
+          "Noto Sans Regular"
+        ],
+        "text-field": [
+          "case",
+          [
+            "all",
+            [
+              "any",
+              [
+                "has",
+                "name"
+              ],
+              [
+                "has",
+                "pgf:name"
+              ]
+            ],
+            [
+              "!",
+              [
+                "any",
+                [
+                  "has",
+                  "name2"
+                ],
+                [
+                  "has",
+                  "pgf:name2"
+                ]
+              ]
+            ],
+            [
+              "!",
+              [
+                "any",
+                [
+                  "has",
+                  "name3"
+                ],
+                [
+                  "has",
+                  "pgf:name3"
+                ]
+              ]
+            ]
+          ],
+          [
+            "case",
+            [
+              "has",
+              "script"
+            ],
+            [
+              "case",
+              [
+                "any",
+                [
+                  "is-supported-script",
+                  [
+                    "get",
+                    "name"
+                  ]
+                ],
+                [
+                  "has",
+                  "pgf:name"
+                ]
+              ],
+              [
+                "format",
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "name:en"
+                  ],
+                  [
+                    "get",
+                    "name:en"
+                  ]
+                ],
+                {},
+                "\n",
+                {},
+                [
+                  "case",
+                  [
+                    "all",
+                    [
+                      "!",
+                      [
+                        "has",
+                        "name:en"
+                      ]
+                    ],
+                    [
+                      "has",
+                      "name:en"
+                    ],
+                    [
+                      "!",
+                      [
+                        "has",
+                        "script"
+                      ]
+                    ]
+                  ],
+                  "",
+                  [
+                    "coalesce",
+                    [
+                      "get",
+                      "pgf:name"
+                    ],
+                    [
+                      "get",
+                      "name"
+                    ]
+                  ]
+                ],
+                {
+                  "text-font": [
+                    "literal",
+                    [
+                      "Noto Sans Regular"
+                    ]
+                  ]
+                }
+              ],
+              [
+                "get",
+                "name:en"
+              ]
+            ],
+            [
+              "format",
+              [
+                "coalesce",
+                [
+                  "get",
+                  "name:en"
+                ],
+                [
+                  "get",
+                  "pgf:name"
+                ],
+                [
+                  "get",
+                  "name"
+                ]
+              ],
+              {}
+            ]
+          ],
+          [
+            "all",
+            [
+              "any",
+              [
+                "has",
+                "name"
+              ],
+              [
+                "has",
+                "pgf:name"
+              ]
+            ],
+            [
+              "any",
+              [
+                "has",
+                "name2"
+              ],
+              [
+                "has",
+                "pgf:name2"
+              ]
+            ],
+            [
+              "!",
+              [
+                "any",
+                [
+                  "has",
+                  "name3"
+                ],
+                [
+                  "has",
+                  "pgf:name3"
+                ]
+              ]
+            ]
+          ],
+          [
+            "case",
+            [
+              "all",
+              [
+                "has",
+                "script"
+              ],
+              [
+                "has",
+                "script2"
+              ]
+            ],
+            [
+              "format",
+              [
+                "get",
+                "name:en"
+              ],
+              {},
+              "\n",
+              {},
+              [
+                "coalesce",
+                [
+                  "get",
+                  "pgf:name"
+                ],
+                [
+                  "get",
+                  "name"
+                ]
+              ],
+              {
+                "text-font": [
+                  "literal",
+                  [
+                    "Noto Sans Regular"
+                  ]
+                ]
+              },
+              "\n",
+              {},
+              [
+                "coalesce",
+                [
+                  "get",
+                  "pgf:name2"
+                ],
+                [
+                  "get",
+                  "name2"
+                ]
+              ],
+              {
+                "text-font": [
+                  "literal",
+                  [
+                    "Noto Sans Regular"
+                  ]
+                ]
+              }
+            ],
+            [
+              "case",
+              [
+                "has",
+                "script2"
+              ],
+              [
+                "format",
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "name:en"
+                  ],
+                  [
+                    "get",
+                    "pgf:name"
+                  ],
+                  [
+                    "get",
+                    "name"
+                  ]
+                ],
+                {},
+                "\n",
+                {},
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "pgf:name2"
+                  ],
+                  [
+                    "get",
+                    "name2"
+                  ]
+                ],
+                {
+                  "text-font": [
+                    "literal",
+                    [
+                      "Noto Sans Regular"
+                    ]
+                  ]
+                }
+              ],
+              [
+                "format",
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "name:en"
+                  ],
+                  [
+                    "get",
+                    "pgf:name2"
+                  ],
+                  [
+                    "get",
+                    "name2"
+                  ]
+                ],
+                {},
+                "\n",
+                {},
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "pgf:name"
+                  ],
+                  [
+                    "get",
+                    "name"
+                  ]
+                ],
+                {
+                  "text-font": [
+                    "literal",
+                    [
+                      "Noto Sans Regular"
+                    ]
+                  ]
+                }
+              ]
+            ]
+          ],
+          [
+            "case",
+            [
+              "all",
+              [
+                "has",
+                "script"
+              ],
+              [
+                "has",
+                "script2"
+              ],
+              [
+                "has",
+                "script3"
+              ]
+            ],
+            [
+              "format",
+              [
+                "get",
+                "name:en"
+              ],
+              {},
+              "\n",
+              {},
+              [
+                "coalesce",
+                [
+                  "get",
+                  "pgf:name"
+                ],
+                [
+                  "get",
+                  "name"
+                ]
+              ],
+              {
+                "text-font": [
+                  "literal",
+                  [
+                    "Noto Sans Regular"
+                  ]
+                ]
+              },
+              "\n",
+              {},
+              [
+                "coalesce",
+                [
+                  "get",
+                  "pgf:name2"
+                ],
+                [
+                  "get",
+                  "name2"
+                ]
+              ],
+              {
+                "text-font": [
+                  "literal",
+                  [
+                    "Noto Sans Regular"
+                  ]
+                ]
+              },
+              "\n",
+              {},
+              [
+                "coalesce",
+                [
+                  "get",
+                  "pgf:name3"
+                ],
+                [
+                  "get",
+                  "name3"
+                ]
+              ],
+              {
+                "text-font": [
+                  "literal",
+                  [
+                    "Noto Sans Regular"
+                  ]
+                ]
+              }
+            ],
+            [
+              "case",
+              [
+                "!",
+                [
+                  "has",
+                  "script"
+                ]
+              ],
+              [
+                "format",
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "name:en"
+                  ],
+                  [
+                    "get",
+                    "pgf:name"
+                  ],
+                  [
+                    "get",
+                    "name"
+                  ]
+                ],
+                {},
+                "\n",
+                {},
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "pgf:name2"
+                  ],
+                  [
+                    "get",
+                    "name2"
+                  ]
+                ],
+                {
+                  "text-font": [
+                    "literal",
+                    [
+                      "Noto Sans Regular"
+                    ]
+                  ]
+                },
+                "\n",
+                {},
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "pgf:name3"
+                  ],
+                  [
+                    "get",
+                    "name3"
+                  ]
+                ],
+                {
+                  "text-font": [
+                    "literal",
+                    [
+                      "Noto Sans Regular"
+                    ]
+                  ]
+                }
+              ],
+              [
+                "!",
+                [
+                  "has",
+                  "script2"
+                ]
+              ],
+              [
+                "format",
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "name:en"
+                  ],
+                  [
+                    "get",
+                    "pgf:name2"
+                  ],
+                  [
+                    "get",
+                    "name2"
+                  ]
+                ],
+                {},
+                "\n",
+                {},
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "pgf:name"
+                  ],
+                  [
+                    "get",
+                    "name"
+                  ]
+                ],
+                {
+                  "text-font": [
+                    "literal",
+                    [
+                      "Noto Sans Regular"
+                    ]
+                  ]
+                },
+                "\n",
+                {},
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "pgf:name3"
+                  ],
+                  [
+                    "get",
+                    "name3"
+                  ]
+                ],
+                {
+                  "text-font": [
+                    "literal",
+                    [
+                      "Noto Sans Regular"
+                    ]
+                  ]
+                }
+              ],
+              [
+                "format",
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "name:en"
+                  ],
+                  [
+                    "get",
+                    "pgf:name3"
+                  ],
+                  [
+                    "get",
+                    "name3"
+                  ]
+                ],
+                {},
+                "\n",
+                {},
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "pgf:name"
+                  ],
+                  [
+                    "get",
+                    "name"
+                  ]
+                ],
+                {
+                  "text-font": [
+                    "literal",
+                    [
+                      "Noto Sans Regular"
+                    ]
+                  ]
+                },
+                "\n",
+                {},
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "pgf:name2"
+                  ],
+                  [
+                    "get",
+                    "name2"
+                  ]
+                ],
+                {
+                  "text-font": [
+                    "literal",
+                    [
+                      "Noto Sans Regular"
+                    ]
+                  ]
+                }
+              ]
+            ]
+          ]
+        ],
+        "text-size": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          3,
+          10,
+          6,
+          12,
+          10,
+          12
+        ],
+        "text-letter-spacing": 0.1,
+        "text-max-width": 9
+      },
+      "paint": {
+        "text-color": "#477282",
+        "text-halo-color": "#afd3e1",
+        "text-halo-width": 1
+      }
+    },
+    {
+      "id": "roads_labels_major",
+      "type": "symbol",
+      "source": "protomaps",
+      "source-layer": "roads",
+      "minzoom": 11,
+      "filter": [
+        "in",
+        "kind",
+        "highway",
+        "major_road"
+      ],
+      "layout": {
+        "symbol-sort-key": [
+          "get",
+          "min_zoom"
+        ],
+        "symbol-placement": "line",
+        "text-font": [
+          "Noto Sans Regular"
+        ],
+        "text-field": [
+          "case",
+          [
+            "all",
+            [
+              "any",
+              [
+                "has",
+                "name"
+              ],
+              [
+                "has",
+                "pgf:name"
+              ]
+            ],
+            [
+              "!",
+              [
+                "any",
+                [
+                  "has",
+                  "name2"
+                ],
+                [
+                  "has",
+                  "pgf:name2"
+                ]
+              ]
+            ],
+            [
+              "!",
+              [
+                "any",
+                [
+                  "has",
+                  "name3"
+                ],
+                [
+                  "has",
+                  "pgf:name3"
+                ]
+              ]
+            ]
+          ],
+          [
+            "case",
+            [
+              "has",
+              "script"
+            ],
+            [
+              "case",
+              [
+                "any",
+                [
+                  "is-supported-script",
+                  [
+                    "get",
+                    "name"
+                  ]
+                ],
+                [
+                  "has",
+                  "pgf:name"
+                ]
+              ],
+              [
+                "format",
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "name:en"
+                  ],
+                  [
+                    "get",
+                    "name:en"
+                  ]
+                ],
+                {},
+                "\n",
+                {},
+                [
+                  "case",
+                  [
+                    "all",
+                    [
+                      "!",
+                      [
+                        "has",
+                        "name:en"
+                      ]
+                    ],
+                    [
+                      "has",
+                      "name:en"
+                    ],
+                    [
+                      "!",
+                      [
+                        "has",
+                        "script"
+                      ]
+                    ]
+                  ],
+                  "",
+                  [
+                    "coalesce",
+                    [
+                      "get",
+                      "pgf:name"
+                    ],
+                    [
+                      "get",
+                      "name"
+                    ]
+                  ]
+                ],
+                {
+                  "text-font": [
+                    "literal",
+                    [
+                      "Noto Sans Regular"
+                    ]
+                  ]
+                }
+              ],
+              [
+                "get",
+                "name:en"
+              ]
+            ],
+            [
+              "format",
+              [
+                "coalesce",
+                [
+                  "get",
+                  "name:en"
+                ],
+                [
+                  "get",
+                  "pgf:name"
+                ],
+                [
+                  "get",
+                  "name"
+                ]
+              ],
+              {}
+            ]
+          ],
+          [
+            "all",
+            [
+              "any",
+              [
+                "has",
+                "name"
+              ],
+              [
+                "has",
+                "pgf:name"
+              ]
+            ],
+            [
+              "any",
+              [
+                "has",
+                "name2"
+              ],
+              [
+                "has",
+                "pgf:name2"
+              ]
+            ],
+            [
+              "!",
+              [
+                "any",
+                [
+                  "has",
+                  "name3"
+                ],
+                [
+                  "has",
+                  "pgf:name3"
+                ]
+              ]
+            ]
+          ],
+          [
+            "case",
+            [
+              "all",
+              [
+                "has",
+                "script"
+              ],
+              [
+                "has",
+                "script2"
+              ]
+            ],
+            [
+              "format",
+              [
+                "get",
+                "name:en"
+              ],
+              {},
+              "\n",
+              {},
+              [
+                "coalesce",
+                [
+                  "get",
+                  "pgf:name"
+                ],
+                [
+                  "get",
+                  "name"
+                ]
+              ],
+              {
+                "text-font": [
+                  "literal",
+                  [
+                    "Noto Sans Regular"
+                  ]
+                ]
+              },
+              "\n",
+              {},
+              [
+                "coalesce",
+                [
+                  "get",
+                  "pgf:name2"
+                ],
+                [
+                  "get",
+                  "name2"
+                ]
+              ],
+              {
+                "text-font": [
+                  "literal",
+                  [
+                    "Noto Sans Regular"
+                  ]
+                ]
+              }
+            ],
+            [
+              "case",
+              [
+                "has",
+                "script2"
+              ],
+              [
+                "format",
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "name:en"
+                  ],
+                  [
+                    "get",
+                    "pgf:name"
+                  ],
+                  [
+                    "get",
+                    "name"
+                  ]
+                ],
+                {},
+                "\n",
+                {},
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "pgf:name2"
+                  ],
+                  [
+                    "get",
+                    "name2"
+                  ]
+                ],
+                {
+                  "text-font": [
+                    "literal",
+                    [
+                      "Noto Sans Regular"
+                    ]
+                  ]
+                }
+              ],
+              [
+                "format",
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "name:en"
+                  ],
+                  [
+                    "get",
+                    "pgf:name2"
+                  ],
+                  [
+                    "get",
+                    "name2"
+                  ]
+                ],
+                {},
+                "\n",
+                {},
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "pgf:name"
+                  ],
+                  [
+                    "get",
+                    "name"
+                  ]
+                ],
+                {
+                  "text-font": [
+                    "literal",
+                    [
+                      "Noto Sans Regular"
+                    ]
+                  ]
+                }
+              ]
+            ]
+          ],
+          [
+            "case",
+            [
+              "all",
+              [
+                "has",
+                "script"
+              ],
+              [
+                "has",
+                "script2"
+              ],
+              [
+                "has",
+                "script3"
+              ]
+            ],
+            [
+              "format",
+              [
+                "get",
+                "name:en"
+              ],
+              {},
+              "\n",
+              {},
+              [
+                "coalesce",
+                [
+                  "get",
+                  "pgf:name"
+                ],
+                [
+                  "get",
+                  "name"
+                ]
+              ],
+              {
+                "text-font": [
+                  "literal",
+                  [
+                    "Noto Sans Regular"
+                  ]
+                ]
+              },
+              "\n",
+              {},
+              [
+                "coalesce",
+                [
+                  "get",
+                  "pgf:name2"
+                ],
+                [
+                  "get",
+                  "name2"
+                ]
+              ],
+              {
+                "text-font": [
+                  "literal",
+                  [
+                    "Noto Sans Regular"
+                  ]
+                ]
+              },
+              "\n",
+              {},
+              [
+                "coalesce",
+                [
+                  "get",
+                  "pgf:name3"
+                ],
+                [
+                  "get",
+                  "name3"
+                ]
+              ],
+              {
+                "text-font": [
+                  "literal",
+                  [
+                    "Noto Sans Regular"
+                  ]
+                ]
+              }
+            ],
+            [
+              "case",
+              [
+                "!",
+                [
+                  "has",
+                  "script"
+                ]
+              ],
+              [
+                "format",
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "name:en"
+                  ],
+                  [
+                    "get",
+                    "pgf:name"
+                  ],
+                  [
+                    "get",
+                    "name"
+                  ]
+                ],
+                {},
+                "\n",
+                {},
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "pgf:name2"
+                  ],
+                  [
+                    "get",
+                    "name2"
+                  ]
+                ],
+                {
+                  "text-font": [
+                    "literal",
+                    [
+                      "Noto Sans Regular"
+                    ]
+                  ]
+                },
+                "\n",
+                {},
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "pgf:name3"
+                  ],
+                  [
+                    "get",
+                    "name3"
+                  ]
+                ],
+                {
+                  "text-font": [
+                    "literal",
+                    [
+                      "Noto Sans Regular"
+                    ]
+                  ]
+                }
+              ],
+              [
+                "!",
+                [
+                  "has",
+                  "script2"
+                ]
+              ],
+              [
+                "format",
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "name:en"
+                  ],
+                  [
+                    "get",
+                    "pgf:name2"
+                  ],
+                  [
+                    "get",
+                    "name2"
+                  ]
+                ],
+                {},
+                "\n",
+                {},
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "pgf:name"
+                  ],
+                  [
+                    "get",
+                    "name"
+                  ]
+                ],
+                {
+                  "text-font": [
+                    "literal",
+                    [
+                      "Noto Sans Regular"
+                    ]
+                  ]
+                },
+                "\n",
+                {},
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "pgf:name3"
+                  ],
+                  [
+                    "get",
+                    "name3"
+                  ]
+                ],
+                {
+                  "text-font": [
+                    "literal",
+                    [
+                      "Noto Sans Regular"
+                    ]
+                  ]
+                }
+              ],
+              [
+                "format",
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "name:en"
+                  ],
+                  [
+                    "get",
+                    "pgf:name3"
+                  ],
+                  [
+                    "get",
+                    "name3"
+                  ]
+                ],
+                {},
+                "\n",
+                {},
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "pgf:name"
+                  ],
+                  [
+                    "get",
+                    "name"
+                  ]
+                ],
+                {
+                  "text-font": [
+                    "literal",
+                    [
+                      "Noto Sans Regular"
+                    ]
+                  ]
+                },
+                "\n",
+                {},
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "pgf:name2"
+                  ],
+                  [
+                    "get",
+                    "name2"
+                  ]
+                ],
+                {
+                  "text-font": [
+                    "literal",
+                    [
+                      "Noto Sans Regular"
+                    ]
+                  ]
+                }
+              ]
+            ]
+          ]
+        ],
+        "text-size": 12
+      },
+      "paint": {
+        "text-color": "#53524b",
+        "text-halo-color": "#fffdf6",
+        "text-halo-width": 1
+      }
+    },
+    {
+      "id": "pois",
+      "type": "symbol",
+      "source": "protomaps",
+      "source-layer": "pois",
+      "filter": [
+        "all",
+        [
+          "in",
+          [
+            "get",
+            "kind"
+          ],
+          [
+            "literal",
+            [
+              "beach",
+              "forest",
+              "marina",
+              "park",
+              "peak",
+              "zoo",
+              "garden",
+              "bench",
+              "aerodrome",
+              "station",
+              "bus_stop",
+              "ferry_terminal",
+              "stadium",
+              "university",
+              "library",
+              "school",
+              "animal",
+              "toilets",
+              "drinking_water"
+            ]
+          ]
+        ],
+        [
+          ">=",
+          [
+            "zoom"
+          ],
+          [
+            "+",
+            [
+              "get",
+              "min_zoom"
+            ],
+            0
+          ]
+        ]
+      ],
+      "layout": {
+        "text-font": [
+          "Noto Sans Regular"
+        ],
+        "text-justify": "auto",
+        "text-field": [
+          "case",
+          [
+            "all",
+            [
+              "any",
+              [
+                "has",
+                "name"
+              ],
+              [
+                "has",
+                "pgf:name"
+              ]
+            ],
+            [
+              "!",
+              [
+                "any",
+                [
+                  "has",
+                  "name2"
+                ],
+                [
+                  "has",
+                  "pgf:name2"
+                ]
+              ]
+            ],
+            [
+              "!",
+              [
+                "any",
+                [
+                  "has",
+                  "name3"
+                ],
+                [
+                  "has",
+                  "pgf:name3"
+                ]
+              ]
+            ]
+          ],
+          [
+            "case",
+            [
+              "has",
+              "script"
+            ],
+            [
+              "case",
+              [
+                "any",
+                [
+                  "is-supported-script",
+                  [
+                    "get",
+                    "name"
+                  ]
+                ],
+                [
+                  "has",
+                  "pgf:name"
+                ]
+              ],
+              [
+                "format",
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "name:en"
+                  ],
+                  [
+                    "get",
+                    "name:en"
+                  ]
+                ],
+                {},
+                "\n",
+                {},
+                [
+                  "case",
+                  [
+                    "all",
+                    [
+                      "!",
+                      [
+                        "has",
+                        "name:en"
+                      ]
+                    ],
+                    [
+                      "has",
+                      "name:en"
+                    ],
+                    [
+                      "!",
+                      [
+                        "has",
+                        "script"
+                      ]
+                    ]
+                  ],
+                  "",
+                  [
+                    "coalesce",
+                    [
+                      "get",
+                      "pgf:name"
+                    ],
+                    [
+                      "get",
+                      "name"
+                    ]
+                  ]
+                ],
+                {
+                  "text-font": [
+                    "literal",
+                    [
+                      "Noto Sans Regular"
+                    ]
+                  ]
+                }
+              ],
+              [
+                "get",
+                "name:en"
+              ]
+            ],
+            [
+              "format",
+              [
+                "coalesce",
+                [
+                  "get",
+                  "name:en"
+                ],
+                [
+                  "get",
+                  "pgf:name"
+                ],
+                [
+                  "get",
+                  "name"
+                ]
+              ],
+              {}
+            ]
+          ],
+          [
+            "all",
+            [
+              "any",
+              [
+                "has",
+                "name"
+              ],
+              [
+                "has",
+                "pgf:name"
+              ]
+            ],
+            [
+              "any",
+              [
+                "has",
+                "name2"
+              ],
+              [
+                "has",
+                "pgf:name2"
+              ]
+            ],
+            [
+              "!",
+              [
+                "any",
+                [
+                  "has",
+                  "name3"
+                ],
+                [
+                  "has",
+                  "pgf:name3"
+                ]
+              ]
+            ]
+          ],
+          [
+            "case",
+            [
+              "all",
+              [
+                "has",
+                "script"
+              ],
+              [
+                "has",
+                "script2"
+              ]
+            ],
+            [
+              "format",
+              [
+                "get",
+                "name:en"
+              ],
+              {},
+              "\n",
+              {},
+              [
+                "coalesce",
+                [
+                  "get",
+                  "pgf:name"
+                ],
+                [
+                  "get",
+                  "name"
+                ]
+              ],
+              {
+                "text-font": [
+                  "literal",
+                  [
+                    "Noto Sans Regular"
+                  ]
+                ]
+              },
+              "\n",
+              {},
+              [
+                "coalesce",
+                [
+                  "get",
+                  "pgf:name2"
+                ],
+                [
+                  "get",
+                  "name2"
+                ]
+              ],
+              {
+                "text-font": [
+                  "literal",
+                  [
+                    "Noto Sans Regular"
+                  ]
+                ]
+              }
+            ],
+            [
+              "case",
+              [
+                "has",
+                "script2"
+              ],
+              [
+                "format",
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "name:en"
+                  ],
+                  [
+                    "get",
+                    "pgf:name"
+                  ],
+                  [
+                    "get",
+                    "name"
+                  ]
+                ],
+                {},
+                "\n",
+                {},
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "pgf:name2"
+                  ],
+                  [
+                    "get",
+                    "name2"
+                  ]
+                ],
+                {
+                  "text-font": [
+                    "literal",
+                    [
+                      "Noto Sans Regular"
+                    ]
+                  ]
+                }
+              ],
+              [
+                "format",
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "name:en"
+                  ],
+                  [
+                    "get",
+                    "pgf:name2"
+                  ],
+                  [
+                    "get",
+                    "name2"
+                  ]
+                ],
+                {},
+                "\n",
+                {},
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "pgf:name"
+                  ],
+                  [
+                    "get",
+                    "name"
+                  ]
+                ],
+                {
+                  "text-font": [
+                    "literal",
+                    [
+                      "Noto Sans Regular"
+                    ]
+                  ]
+                }
+              ]
+            ]
+          ],
+          [
+            "case",
+            [
+              "all",
+              [
+                "has",
+                "script"
+              ],
+              [
+                "has",
+                "script2"
+              ],
+              [
+                "has",
+                "script3"
+              ]
+            ],
+            [
+              "format",
+              [
+                "get",
+                "name:en"
+              ],
+              {},
+              "\n",
+              {},
+              [
+                "coalesce",
+                [
+                  "get",
+                  "pgf:name"
+                ],
+                [
+                  "get",
+                  "name"
+                ]
+              ],
+              {
+                "text-font": [
+                  "literal",
+                  [
+                    "Noto Sans Regular"
+                  ]
+                ]
+              },
+              "\n",
+              {},
+              [
+                "coalesce",
+                [
+                  "get",
+                  "pgf:name2"
+                ],
+                [
+                  "get",
+                  "name2"
+                ]
+              ],
+              {
+                "text-font": [
+                  "literal",
+                  [
+                    "Noto Sans Regular"
+                  ]
+                ]
+              },
+              "\n",
+              {},
+              [
+                "coalesce",
+                [
+                  "get",
+                  "pgf:name3"
+                ],
+                [
+                  "get",
+                  "name3"
+                ]
+              ],
+              {
+                "text-font": [
+                  "literal",
+                  [
+                    "Noto Sans Regular"
+                  ]
+                ]
+              }
+            ],
+            [
+              "case",
+              [
+                "!",
+                [
+                  "has",
+                  "script"
+                ]
+              ],
+              [
+                "format",
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "name:en"
+                  ],
+                  [
+                    "get",
+                    "pgf:name"
+                  ],
+                  [
+                    "get",
+                    "name"
+                  ]
+                ],
+                {},
+                "\n",
+                {},
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "pgf:name2"
+                  ],
+                  [
+                    "get",
+                    "name2"
+                  ]
+                ],
+                {
+                  "text-font": [
+                    "literal",
+                    [
+                      "Noto Sans Regular"
+                    ]
+                  ]
+                },
+                "\n",
+                {},
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "pgf:name3"
+                  ],
+                  [
+                    "get",
+                    "name3"
+                  ]
+                ],
+                {
+                  "text-font": [
+                    "literal",
+                    [
+                      "Noto Sans Regular"
+                    ]
+                  ]
+                }
+              ],
+              [
+                "!",
+                [
+                  "has",
+                  "script2"
+                ]
+              ],
+              [
+                "format",
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "name:en"
+                  ],
+                  [
+                    "get",
+                    "pgf:name2"
+                  ],
+                  [
+                    "get",
+                    "name2"
+                  ]
+                ],
+                {},
+                "\n",
+                {},
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "pgf:name"
+                  ],
+                  [
+                    "get",
+                    "name"
+                  ]
+                ],
+                {
+                  "text-font": [
+                    "literal",
+                    [
+                      "Noto Sans Regular"
+                    ]
+                  ]
+                },
+                "\n",
+                {},
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "pgf:name3"
+                  ],
+                  [
+                    "get",
+                    "name3"
+                  ]
+                ],
+                {
+                  "text-font": [
+                    "literal",
+                    [
+                      "Noto Sans Regular"
+                    ]
+                  ]
+                }
+              ],
+              [
+                "format",
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "name:en"
+                  ],
+                  [
+                    "get",
+                    "pgf:name3"
+                  ],
+                  [
+                    "get",
+                    "name3"
+                  ]
+                ],
+                {},
+                "\n",
+                {},
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "pgf:name"
+                  ],
+                  [
+                    "get",
+                    "name"
+                  ]
+                ],
+                {
+                  "text-font": [
+                    "literal",
+                    [
+                      "Noto Sans Regular"
+                    ]
+                  ]
+                },
+                "\n",
+                {},
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "pgf:name2"
+                  ],
+                  [
+                    "get",
+                    "name2"
+                  ]
+                ],
+                {
+                  "text-font": [
+                    "literal",
+                    [
+                      "Noto Sans Regular"
+                    ]
+                  ]
+                }
+              ]
+            ]
+          ]
+        ],
+        "text-size": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          17,
+          10,
+          19,
+          16
+        ],
+        "text-max-width": 8,
+        "text-offset": [
+          0,
+          0
+        ],
+        "text-variable-anchor": [
+          "center",
+          "top",
+          "bottom"
+        ]
+      },
+      "paint": {
+        "text-color": [
+          "case",
+          [
+            "in",
+            [
+              "get",
+              "kind"
+            ],
+            [
+              "literal",
+              [
+                "beach",
+                "forest",
+                "marina",
+                "park",
+                "peak",
+                "zoo",
+                "garden",
+                "bench"
+              ]
+            ]
+          ],
+          "#50654a",
+          [
+            "in",
+            [
+              "get",
+              "kind"
+            ],
+            [
+              "literal",
+              [
+                "aerodrome",
+                "station",
+                "bus_stop",
+                "ferry_terminal"
+              ]
+            ]
+          ],
+          "#555e5b",
+          [
+            "in",
+            [
+              "get",
+              "kind"
+            ],
+            [
+              "literal",
+              [
+                "stadium",
+                "university",
+                "library",
+                "school",
+                "animal",
+                "toilets",
+                "drinking_water"
+              ]
+            ]
+          ],
+          "#5e6258",
+          "#f5f1e6"
+        ],
+        "text-halo-color": "#f5f1e6",
+        "text-halo-width": 1
+      }
+    },
+    {
+      "id": "places_subplace",
+      "type": "symbol",
+      "source": "protomaps",
+      "source-layer": "places",
+      "filter": [
+        "==",
+        "kind",
+        "neighbourhood"
+      ],
+      "layout": {
+        "symbol-sort-key": [
+          "get",
+          "min_zoom"
+        ],
+        "text-field": [
+          "case",
+          [
+            "all",
+            [
+              "any",
+              [
+                "has",
+                "name"
+              ],
+              [
+                "has",
+                "pgf:name"
+              ]
+            ],
+            [
+              "!",
+              [
+                "any",
+                [
+                  "has",
+                  "name2"
+                ],
+                [
+                  "has",
+                  "pgf:name2"
+                ]
+              ]
+            ],
+            [
+              "!",
+              [
+                "any",
+                [
+                  "has",
+                  "name3"
+                ],
+                [
+                  "has",
+                  "pgf:name3"
+                ]
+              ]
+            ]
+          ],
+          [
+            "case",
+            [
+              "has",
+              "script"
+            ],
+            [
+              "case",
+              [
+                "any",
+                [
+                  "is-supported-script",
+                  [
+                    "get",
+                    "name"
+                  ]
+                ],
+                [
+                  "has",
+                  "pgf:name"
+                ]
+              ],
+              [
+                "format",
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "name:en"
+                  ],
+                  [
+                    "get",
+                    "name:en"
+                  ]
+                ],
+                {},
+                "\n",
+                {},
+                [
+                  "case",
+                  [
+                    "all",
+                    [
+                      "!",
+                      [
+                        "has",
+                        "name:en"
+                      ]
+                    ],
+                    [
+                      "has",
+                      "name:en"
+                    ],
+                    [
+                      "!",
+                      [
+                        "has",
+                        "script"
+                      ]
+                    ]
+                  ],
+                  "",
+                  [
+                    "coalesce",
+                    [
+                      "get",
+                      "pgf:name"
+                    ],
+                    [
+                      "get",
+                      "name"
+                    ]
+                  ]
+                ],
+                {
+                  "text-font": [
+                    "literal",
+                    [
+                      "Noto Sans Regular"
+                    ]
+                  ]
+                }
+              ],
+              [
+                "get",
+                "name:en"
+              ]
+            ],
+            [
+              "format",
+              [
+                "coalesce",
+                [
+                  "get",
+                  "name:en"
+                ],
+                [
+                  "get",
+                  "pgf:name"
+                ],
+                [
+                  "get",
+                  "name"
+                ]
+              ],
+              {}
+            ]
+          ],
+          [
+            "all",
+            [
+              "any",
+              [
+                "has",
+                "name"
+              ],
+              [
+                "has",
+                "pgf:name"
+              ]
+            ],
+            [
+              "any",
+              [
+                "has",
+                "name2"
+              ],
+              [
+                "has",
+                "pgf:name2"
+              ]
+            ],
+            [
+              "!",
+              [
+                "any",
+                [
+                  "has",
+                  "name3"
+                ],
+                [
+                  "has",
+                  "pgf:name3"
+                ]
+              ]
+            ]
+          ],
+          [
+            "case",
+            [
+              "all",
+              [
+                "has",
+                "script"
+              ],
+              [
+                "has",
+                "script2"
+              ]
+            ],
+            [
+              "format",
+              [
+                "get",
+                "name:en"
+              ],
+              {},
+              "\n",
+              {},
+              [
+                "coalesce",
+                [
+                  "get",
+                  "pgf:name"
+                ],
+                [
+                  "get",
+                  "name"
+                ]
+              ],
+              {
+                "text-font": [
+                  "literal",
+                  [
+                    "Noto Sans Regular"
+                  ]
+                ]
+              },
+              "\n",
+              {},
+              [
+                "coalesce",
+                [
+                  "get",
+                  "pgf:name2"
+                ],
+                [
+                  "get",
+                  "name2"
+                ]
+              ],
+              {
+                "text-font": [
+                  "literal",
+                  [
+                    "Noto Sans Regular"
+                  ]
+                ]
+              }
+            ],
+            [
+              "case",
+              [
+                "has",
+                "script2"
+              ],
+              [
+                "format",
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "name:en"
+                  ],
+                  [
+                    "get",
+                    "pgf:name"
+                  ],
+                  [
+                    "get",
+                    "name"
+                  ]
+                ],
+                {},
+                "\n",
+                {},
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "pgf:name2"
+                  ],
+                  [
+                    "get",
+                    "name2"
+                  ]
+                ],
+                {
+                  "text-font": [
+                    "literal",
+                    [
+                      "Noto Sans Regular"
+                    ]
+                  ]
+                }
+              ],
+              [
+                "format",
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "name:en"
+                  ],
+                  [
+                    "get",
+                    "pgf:name2"
+                  ],
+                  [
+                    "get",
+                    "name2"
+                  ]
+                ],
+                {},
+                "\n",
+                {},
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "pgf:name"
+                  ],
+                  [
+                    "get",
+                    "name"
+                  ]
+                ],
+                {
+                  "text-font": [
+                    "literal",
+                    [
+                      "Noto Sans Regular"
+                    ]
+                  ]
+                }
+              ]
+            ]
+          ],
+          [
+            "case",
+            [
+              "all",
+              [
+                "has",
+                "script"
+              ],
+              [
+                "has",
+                "script2"
+              ],
+              [
+                "has",
+                "script3"
+              ]
+            ],
+            [
+              "format",
+              [
+                "get",
+                "name:en"
+              ],
+              {},
+              "\n",
+              {},
+              [
+                "coalesce",
+                [
+                  "get",
+                  "pgf:name"
+                ],
+                [
+                  "get",
+                  "name"
+                ]
+              ],
+              {
+                "text-font": [
+                  "literal",
+                  [
+                    "Noto Sans Regular"
+                  ]
+                ]
+              },
+              "\n",
+              {},
+              [
+                "coalesce",
+                [
+                  "get",
+                  "pgf:name2"
+                ],
+                [
+                  "get",
+                  "name2"
+                ]
+              ],
+              {
+                "text-font": [
+                  "literal",
+                  [
+                    "Noto Sans Regular"
+                  ]
+                ]
+              },
+              "\n",
+              {},
+              [
+                "coalesce",
+                [
+                  "get",
+                  "pgf:name3"
+                ],
+                [
+                  "get",
+                  "name3"
+                ]
+              ],
+              {
+                "text-font": [
+                  "literal",
+                  [
+                    "Noto Sans Regular"
+                  ]
+                ]
+              }
+            ],
+            [
+              "case",
+              [
+                "!",
+                [
+                  "has",
+                  "script"
+                ]
+              ],
+              [
+                "format",
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "name:en"
+                  ],
+                  [
+                    "get",
+                    "pgf:name"
+                  ],
+                  [
+                    "get",
+                    "name"
+                  ]
+                ],
+                {},
+                "\n",
+                {},
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "pgf:name2"
+                  ],
+                  [
+                    "get",
+                    "name2"
+                  ]
+                ],
+                {
+                  "text-font": [
+                    "literal",
+                    [
+                      "Noto Sans Regular"
+                    ]
+                  ]
+                },
+                "\n",
+                {},
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "pgf:name3"
+                  ],
+                  [
+                    "get",
+                    "name3"
+                  ]
+                ],
+                {
+                  "text-font": [
+                    "literal",
+                    [
+                      "Noto Sans Regular"
+                    ]
+                  ]
+                }
+              ],
+              [
+                "!",
+                [
+                  "has",
+                  "script2"
+                ]
+              ],
+              [
+                "format",
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "name:en"
+                  ],
+                  [
+                    "get",
+                    "pgf:name2"
+                  ],
+                  [
+                    "get",
+                    "name2"
+                  ]
+                ],
+                {},
+                "\n",
+                {},
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "pgf:name"
+                  ],
+                  [
+                    "get",
+                    "name"
+                  ]
+                ],
+                {
+                  "text-font": [
+                    "literal",
+                    [
+                      "Noto Sans Regular"
+                    ]
+                  ]
+                },
+                "\n",
+                {},
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "pgf:name3"
+                  ],
+                  [
+                    "get",
+                    "name3"
+                  ]
+                ],
+                {
+                  "text-font": [
+                    "literal",
+                    [
+                      "Noto Sans Regular"
+                    ]
+                  ]
+                }
+              ],
+              [
+                "format",
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "name:en"
+                  ],
+                  [
+                    "get",
+                    "pgf:name3"
+                  ],
+                  [
+                    "get",
+                    "name3"
+                  ]
+                ],
+                {},
+                "\n",
+                {},
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "pgf:name"
+                  ],
+                  [
+                    "get",
+                    "name"
+                  ]
+                ],
+                {
+                  "text-font": [
+                    "literal",
+                    [
+                      "Noto Sans Regular"
+                    ]
+                  ]
+                },
+                "\n",
+                {},
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "pgf:name2"
+                  ],
+                  [
+                    "get",
+                    "name2"
+                  ]
+                ],
+                {
+                  "text-font": [
+                    "literal",
+                    [
+                      "Noto Sans Regular"
+                    ]
+                  ]
+                }
+              ]
+            ]
+          ]
+        ],
+        "text-font": [
+          "Noto Sans Regular"
+        ],
+        "text-max-width": 7,
+        "text-letter-spacing": 0.1,
+        "text-padding": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          5,
+          2,
+          8,
+          4,
+          12,
+          18,
+          15,
+          20
+        ],
+        "text-size": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          11,
+          8,
+          14,
+          14,
+          18,
+          24
+        ],
+        "text-transform": "uppercase"
+      },
+      "paint": {
+        "text-color": "#62655b",
+        "text-halo-color": "#f9f6ec",
+        "text-halo-width": 1
+      }
+    },
+    {
+      "id": "places_locality",
+      "type": "symbol",
+      "source": "protomaps",
+      "source-layer": "places",
+      "filter": [
+        "==",
+        "kind",
+        "locality"
+      ],
+      "layout": {
+        "text-field": [
+          "case",
+          [
+            "all",
+            [
+              "any",
+              [
+                "has",
+                "name"
+              ],
+              [
+                "has",
+                "pgf:name"
+              ]
+            ],
+            [
+              "!",
+              [
+                "any",
+                [
+                  "has",
+                  "name2"
+                ],
+                [
+                  "has",
+                  "pgf:name2"
+                ]
+              ]
+            ],
+            [
+              "!",
+              [
+                "any",
+                [
+                  "has",
+                  "name3"
+                ],
+                [
+                  "has",
+                  "pgf:name3"
+                ]
+              ]
+            ]
+          ],
+          [
+            "case",
+            [
+              "has",
+              "script"
+            ],
+            [
+              "case",
+              [
+                "any",
+                [
+                  "is-supported-script",
+                  [
+                    "get",
+                    "name"
+                  ]
+                ],
+                [
+                  "has",
+                  "pgf:name"
+                ]
+              ],
+              [
+                "format",
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "name:en"
+                  ],
+                  [
+                    "get",
+                    "name:en"
+                  ]
+                ],
+                {},
+                "\n",
+                {},
+                [
+                  "case",
+                  [
+                    "all",
+                    [
+                      "!",
+                      [
+                        "has",
+                        "name:en"
+                      ]
+                    ],
+                    [
+                      "has",
+                      "name:en"
+                    ],
+                    [
+                      "!",
+                      [
+                        "has",
+                        "script"
+                      ]
+                    ]
+                  ],
+                  "",
+                  [
+                    "coalesce",
+                    [
+                      "get",
+                      "pgf:name"
+                    ],
+                    [
+                      "get",
+                      "name"
+                    ]
+                  ]
+                ],
+                {
+                  "text-font": [
+                    "literal",
+                    [
+                      "Noto Sans Regular"
+                    ]
+                  ]
+                }
+              ],
+              [
+                "get",
+                "name:en"
+              ]
+            ],
+            [
+              "format",
+              [
+                "coalesce",
+                [
+                  "get",
+                  "name:en"
+                ],
+                [
+                  "get",
+                  "pgf:name"
+                ],
+                [
+                  "get",
+                  "name"
+                ]
+              ],
+              {}
+            ]
+          ],
+          [
+            "all",
+            [
+              "any",
+              [
+                "has",
+                "name"
+              ],
+              [
+                "has",
+                "pgf:name"
+              ]
+            ],
+            [
+              "any",
+              [
+                "has",
+                "name2"
+              ],
+              [
+                "has",
+                "pgf:name2"
+              ]
+            ],
+            [
+              "!",
+              [
+                "any",
+                [
+                  "has",
+                  "name3"
+                ],
+                [
+                  "has",
+                  "pgf:name3"
+                ]
+              ]
+            ]
+          ],
+          [
+            "case",
+            [
+              "all",
+              [
+                "has",
+                "script"
+              ],
+              [
+                "has",
+                "script2"
+              ]
+            ],
+            [
+              "format",
+              [
+                "get",
+                "name:en"
+              ],
+              {},
+              "\n",
+              {},
+              [
+                "coalesce",
+                [
+                  "get",
+                  "pgf:name"
+                ],
+                [
+                  "get",
+                  "name"
+                ]
+              ],
+              {
+                "text-font": [
+                  "literal",
+                  [
+                    "Noto Sans Regular"
+                  ]
+                ]
+              },
+              "\n",
+              {},
+              [
+                "coalesce",
+                [
+                  "get",
+                  "pgf:name2"
+                ],
+                [
+                  "get",
+                  "name2"
+                ]
+              ],
+              {
+                "text-font": [
+                  "literal",
+                  [
+                    "Noto Sans Regular"
+                  ]
+                ]
+              }
+            ],
+            [
+              "case",
+              [
+                "has",
+                "script2"
+              ],
+              [
+                "format",
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "name:en"
+                  ],
+                  [
+                    "get",
+                    "pgf:name"
+                  ],
+                  [
+                    "get",
+                    "name"
+                  ]
+                ],
+                {},
+                "\n",
+                {},
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "pgf:name2"
+                  ],
+                  [
+                    "get",
+                    "name2"
+                  ]
+                ],
+                {
+                  "text-font": [
+                    "literal",
+                    [
+                      "Noto Sans Regular"
+                    ]
+                  ]
+                }
+              ],
+              [
+                "format",
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "name:en"
+                  ],
+                  [
+                    "get",
+                    "pgf:name2"
+                  ],
+                  [
+                    "get",
+                    "name2"
+                  ]
+                ],
+                {},
+                "\n",
+                {},
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "pgf:name"
+                  ],
+                  [
+                    "get",
+                    "name"
+                  ]
+                ],
+                {
+                  "text-font": [
+                    "literal",
+                    [
+                      "Noto Sans Regular"
+                    ]
+                  ]
+                }
+              ]
+            ]
+          ],
+          [
+            "case",
+            [
+              "all",
+              [
+                "has",
+                "script"
+              ],
+              [
+                "has",
+                "script2"
+              ],
+              [
+                "has",
+                "script3"
+              ]
+            ],
+            [
+              "format",
+              [
+                "get",
+                "name:en"
+              ],
+              {},
+              "\n",
+              {},
+              [
+                "coalesce",
+                [
+                  "get",
+                  "pgf:name"
+                ],
+                [
+                  "get",
+                  "name"
+                ]
+              ],
+              {
+                "text-font": [
+                  "literal",
+                  [
+                    "Noto Sans Regular"
+                  ]
+                ]
+              },
+              "\n",
+              {},
+              [
+                "coalesce",
+                [
+                  "get",
+                  "pgf:name2"
+                ],
+                [
+                  "get",
+                  "name2"
+                ]
+              ],
+              {
+                "text-font": [
+                  "literal",
+                  [
+                    "Noto Sans Regular"
+                  ]
+                ]
+              },
+              "\n",
+              {},
+              [
+                "coalesce",
+                [
+                  "get",
+                  "pgf:name3"
+                ],
+                [
+                  "get",
+                  "name3"
+                ]
+              ],
+              {
+                "text-font": [
+                  "literal",
+                  [
+                    "Noto Sans Regular"
+                  ]
+                ]
+              }
+            ],
+            [
+              "case",
+              [
+                "!",
+                [
+                  "has",
+                  "script"
+                ]
+              ],
+              [
+                "format",
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "name:en"
+                  ],
+                  [
+                    "get",
+                    "pgf:name"
+                  ],
+                  [
+                    "get",
+                    "name"
+                  ]
+                ],
+                {},
+                "\n",
+                {},
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "pgf:name2"
+                  ],
+                  [
+                    "get",
+                    "name2"
+                  ]
+                ],
+                {
+                  "text-font": [
+                    "literal",
+                    [
+                      "Noto Sans Regular"
+                    ]
+                  ]
+                },
+                "\n",
+                {},
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "pgf:name3"
+                  ],
+                  [
+                    "get",
+                    "name3"
+                  ]
+                ],
+                {
+                  "text-font": [
+                    "literal",
+                    [
+                      "Noto Sans Regular"
+                    ]
+                  ]
+                }
+              ],
+              [
+                "!",
+                [
+                  "has",
+                  "script2"
+                ]
+              ],
+              [
+                "format",
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "name:en"
+                  ],
+                  [
+                    "get",
+                    "pgf:name2"
+                  ],
+                  [
+                    "get",
+                    "name2"
+                  ]
+                ],
+                {},
+                "\n",
+                {},
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "pgf:name"
+                  ],
+                  [
+                    "get",
+                    "name"
+                  ]
+                ],
+                {
+                  "text-font": [
+                    "literal",
+                    [
+                      "Noto Sans Regular"
+                    ]
+                  ]
+                },
+                "\n",
+                {},
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "pgf:name3"
+                  ],
+                  [
+                    "get",
+                    "name3"
+                  ]
+                ],
+                {
+                  "text-font": [
+                    "literal",
+                    [
+                      "Noto Sans Regular"
+                    ]
+                  ]
+                }
+              ],
+              [
+                "format",
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "name:en"
+                  ],
+                  [
+                    "get",
+                    "pgf:name3"
+                  ],
+                  [
+                    "get",
+                    "name3"
+                  ]
+                ],
+                {},
+                "\n",
+                {},
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "pgf:name"
+                  ],
+                  [
+                    "get",
+                    "name"
+                  ]
+                ],
+                {
+                  "text-font": [
+                    "literal",
+                    [
+                      "Noto Sans Regular"
+                    ]
+                  ]
+                },
+                "\n",
+                {},
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "pgf:name2"
+                  ],
+                  [
+                    "get",
+                    "name2"
+                  ]
+                ],
+                {
+                  "text-font": [
+                    "literal",
+                    [
+                      "Noto Sans Regular"
+                    ]
+                  ]
+                }
+              ]
+            ]
+          ]
+        ],
+        "text-font": [
+          "Noto Sans Regular"
+        ],
+        "text-padding": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          5,
+          3,
+          8,
+          7,
+          12,
+          11
+        ],
+        "text-size": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          2,
+          [
+            "case",
+            [
+              "<",
+              [
+                "get",
+                "population_rank"
+              ],
+              13
+            ],
+            8,
+            [
+              ">=",
+              [
+                "get",
+                "population_rank"
+              ],
+              13
+            ],
+            13,
+            0
+          ],
+          4,
+          [
+            "case",
+            [
+              "<",
+              [
+                "get",
+                "population_rank"
+              ],
+              13
+            ],
+            10,
+            [
+              ">=",
+              [
+                "get",
+                "population_rank"
+              ],
+              13
+            ],
+            15,
+            0
+          ],
+          6,
+          [
+            "case",
+            [
+              "<",
+              [
+                "get",
+                "population_rank"
+              ],
+              12
+            ],
+            11,
+            [
+              ">=",
+              [
+                "get",
+                "population_rank"
+              ],
+              12
+            ],
+            17,
+            0
+          ],
+          8,
+          [
+            "case",
+            [
+              "<",
+              [
+                "get",
+                "population_rank"
+              ],
+              11
+            ],
+            11,
+            [
+              ">=",
+              [
+                "get",
+                "population_rank"
+              ],
+              11
+            ],
+            18,
+            0
+          ],
+          10,
+          [
+            "case",
+            [
+              "<",
+              [
+                "get",
+                "population_rank"
+              ],
+              9
+            ],
+            12,
+            [
+              ">=",
+              [
+                "get",
+                "population_rank"
+              ],
+              9
+            ],
+            20,
+            0
+          ],
+          15,
+          [
+            "case",
+            [
+              "<",
+              [
+                "get",
+                "population_rank"
+              ],
+              8
+            ],
+            12,
+            [
+              ">=",
+              [
+                "get",
+                "population_rank"
+              ],
+              8
+            ],
+            22,
+            0
+          ]
+        ],
+        "text-justify": "auto",
+        "text-anchor": [
+          "step",
+          [
+            "zoom"
+          ],
+          "left",
+          8,
+          "center"
+        ],
+        "text-radial-offset": 0.4
+      },
+      "paint": {
+        "text-color": "#42463f",
+        "text-halo-color": "#f9f6ec",
+        "text-halo-width": 1
+      }
+    },
+    {
+      "id": "places_region",
+      "type": "symbol",
+      "source": "protomaps",
+      "source-layer": "places",
+      "filter": [
+        "==",
+        "kind",
+        "region"
+      ],
+      "layout": {
+        "symbol-sort-key": [
+          "get",
+          "min_zoom"
+        ],
+        "text-field": [
+          "step",
+          [
+            "zoom"
+          ],
+          [
+            "get",
+            "name:short"
+          ],
+          6,
+          [
+            "case",
+            [
+              "all",
+              [
+                "any",
+                [
+                  "has",
+                  "name"
+                ],
+                [
+                  "has",
+                  "pgf:name"
+                ]
+              ],
+              [
+                "!",
+                [
+                  "any",
+                  [
+                    "has",
+                    "name2"
+                  ],
+                  [
+                    "has",
+                    "pgf:name2"
+                  ]
+                ]
+              ],
+              [
+                "!",
+                [
+                  "any",
+                  [
+                    "has",
+                    "name3"
+                  ],
+                  [
+                    "has",
+                    "pgf:name3"
+                  ]
+                ]
+              ]
+            ],
+            [
+              "case",
+              [
+                "has",
+                "script"
+              ],
+              [
+                "case",
+                [
+                  "any",
+                  [
+                    "is-supported-script",
+                    [
+                      "get",
+                      "name"
+                    ]
+                  ],
+                  [
+                    "has",
+                    "pgf:name"
+                  ]
+                ],
+                [
+                  "format",
+                  [
+                    "coalesce",
+                    [
+                      "get",
+                      "name:en"
+                    ],
+                    [
+                      "get",
+                      "name:en"
+                    ]
+                  ],
+                  {},
+                  "\n",
+                  {},
+                  [
+                    "case",
+                    [
+                      "all",
+                      [
+                        "!",
+                        [
+                          "has",
+                          "name:en"
+                        ]
+                      ],
+                      [
+                        "has",
+                        "name:en"
+                      ],
+                      [
+                        "!",
+                        [
+                          "has",
+                          "script"
+                        ]
+                      ]
+                    ],
+                    "",
+                    [
+                      "coalesce",
+                      [
+                        "get",
+                        "pgf:name"
+                      ],
+                      [
+                        "get",
+                        "name"
+                      ]
+                    ]
+                  ],
+                  {
+                    "text-font": [
+                      "literal",
+                      [
+                        "Noto Sans Regular"
+                      ]
+                    ]
+                  }
+                ],
+                [
+                  "get",
+                  "name:en"
+                ]
+              ],
+              [
+                "format",
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "name:en"
+                  ],
+                  [
+                    "get",
+                    "pgf:name"
+                  ],
+                  [
+                    "get",
+                    "name"
+                  ]
+                ],
+                {}
+              ]
+            ],
+            [
+              "all",
+              [
+                "any",
+                [
+                  "has",
+                  "name"
+                ],
+                [
+                  "has",
+                  "pgf:name"
+                ]
+              ],
+              [
+                "any",
+                [
+                  "has",
+                  "name2"
+                ],
+                [
+                  "has",
+                  "pgf:name2"
+                ]
+              ],
+              [
+                "!",
+                [
+                  "any",
+                  [
+                    "has",
+                    "name3"
+                  ],
+                  [
+                    "has",
+                    "pgf:name3"
+                  ]
+                ]
+              ]
+            ],
+            [
+              "case",
+              [
+                "all",
+                [
+                  "has",
+                  "script"
+                ],
+                [
+                  "has",
+                  "script2"
+                ]
+              ],
+              [
+                "format",
+                [
+                  "get",
+                  "name:en"
+                ],
+                {},
+                "\n",
+                {},
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "pgf:name"
+                  ],
+                  [
+                    "get",
+                    "name"
+                  ]
+                ],
+                {
+                  "text-font": [
+                    "literal",
+                    [
+                      "Noto Sans Regular"
+                    ]
+                  ]
+                },
+                "\n",
+                {},
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "pgf:name2"
+                  ],
+                  [
+                    "get",
+                    "name2"
+                  ]
+                ],
+                {
+                  "text-font": [
+                    "literal",
+                    [
+                      "Noto Sans Regular"
+                    ]
+                  ]
+                }
+              ],
+              [
+                "case",
+                [
+                  "has",
+                  "script2"
+                ],
+                [
+                  "format",
+                  [
+                    "coalesce",
+                    [
+                      "get",
+                      "name:en"
+                    ],
+                    [
+                      "get",
+                      "pgf:name"
+                    ],
+                    [
+                      "get",
+                      "name"
+                    ]
+                  ],
+                  {},
+                  "\n",
+                  {},
+                  [
+                    "coalesce",
+                    [
+                      "get",
+                      "pgf:name2"
+                    ],
+                    [
+                      "get",
+                      "name2"
+                    ]
+                  ],
+                  {
+                    "text-font": [
+                      "literal",
+                      [
+                        "Noto Sans Regular"
+                      ]
+                    ]
+                  }
+                ],
+                [
+                  "format",
+                  [
+                    "coalesce",
+                    [
+                      "get",
+                      "name:en"
+                    ],
+                    [
+                      "get",
+                      "pgf:name2"
+                    ],
+                    [
+                      "get",
+                      "name2"
+                    ]
+                  ],
+                  {},
+                  "\n",
+                  {},
+                  [
+                    "coalesce",
+                    [
+                      "get",
+                      "pgf:name"
+                    ],
+                    [
+                      "get",
+                      "name"
+                    ]
+                  ],
+                  {
+                    "text-font": [
+                      "literal",
+                      [
+                        "Noto Sans Regular"
+                      ]
+                    ]
+                  }
+                ]
+              ]
+            ],
+            [
+              "case",
+              [
+                "all",
+                [
+                  "has",
+                  "script"
+                ],
+                [
+                  "has",
+                  "script2"
+                ],
+                [
+                  "has",
+                  "script3"
+                ]
+              ],
+              [
+                "format",
+                [
+                  "get",
+                  "name:en"
+                ],
+                {},
+                "\n",
+                {},
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "pgf:name"
+                  ],
+                  [
+                    "get",
+                    "name"
+                  ]
+                ],
+                {
+                  "text-font": [
+                    "literal",
+                    [
+                      "Noto Sans Regular"
+                    ]
+                  ]
+                },
+                "\n",
+                {},
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "pgf:name2"
+                  ],
+                  [
+                    "get",
+                    "name2"
+                  ]
+                ],
+                {
+                  "text-font": [
+                    "literal",
+                    [
+                      "Noto Sans Regular"
+                    ]
+                  ]
+                },
+                "\n",
+                {},
+                [
+                  "coalesce",
+                  [
+                    "get",
+                    "pgf:name3"
+                  ],
+                  [
+                    "get",
+                    "name3"
+                  ]
+                ],
+                {
+                  "text-font": [
+                    "literal",
+                    [
+                      "Noto Sans Regular"
+                    ]
+                  ]
+                }
+              ],
+              [
+                "case",
+                [
+                  "!",
+                  [
+                    "has",
+                    "script"
+                  ]
+                ],
+                [
+                  "format",
+                  [
+                    "coalesce",
+                    [
+                      "get",
+                      "name:en"
+                    ],
+                    [
+                      "get",
+                      "pgf:name"
+                    ],
+                    [
+                      "get",
+                      "name"
+                    ]
+                  ],
+                  {},
+                  "\n",
+                  {},
+                  [
+                    "coalesce",
+                    [
+                      "get",
+                      "pgf:name2"
+                    ],
+                    [
+                      "get",
+                      "name2"
+                    ]
+                  ],
+                  {
+                    "text-font": [
+                      "literal",
+                      [
+                        "Noto Sans Regular"
+                      ]
+                    ]
+                  },
+                  "\n",
+                  {},
+                  [
+                    "coalesce",
+                    [
+                      "get",
+                      "pgf:name3"
+                    ],
+                    [
+                      "get",
+                      "name3"
+                    ]
+                  ],
+                  {
+                    "text-font": [
+                      "literal",
+                      [
+                        "Noto Sans Regular"
+                      ]
+                    ]
+                  }
+                ],
+                [
+                  "!",
+                  [
+                    "has",
+                    "script2"
+                  ]
+                ],
+                [
+                  "format",
+                  [
+                    "coalesce",
+                    [
+                      "get",
+                      "name:en"
+                    ],
+                    [
+                      "get",
+                      "pgf:name2"
+                    ],
+                    [
+                      "get",
+                      "name2"
+                    ]
+                  ],
+                  {},
+                  "\n",
+                  {},
+                  [
+                    "coalesce",
+                    [
+                      "get",
+                      "pgf:name"
+                    ],
+                    [
+                      "get",
+                      "name"
+                    ]
+                  ],
+                  {
+                    "text-font": [
+                      "literal",
+                      [
+                        "Noto Sans Regular"
+                      ]
+                    ]
+                  },
+                  "\n",
+                  {},
+                  [
+                    "coalesce",
+                    [
+                      "get",
+                      "pgf:name3"
+                    ],
+                    [
+                      "get",
+                      "name3"
+                    ]
+                  ],
+                  {
+                    "text-font": [
+                      "literal",
+                      [
+                        "Noto Sans Regular"
+                      ]
+                    ]
+                  }
+                ],
+                [
+                  "format",
+                  [
+                    "coalesce",
+                    [
+                      "get",
+                      "name:en"
+                    ],
+                    [
+                      "get",
+                      "pgf:name3"
+                    ],
+                    [
+                      "get",
+                      "name3"
+                    ]
+                  ],
+                  {},
+                  "\n",
+                  {},
+                  [
+                    "coalesce",
+                    [
+                      "get",
+                      "pgf:name"
+                    ],
+                    [
+                      "get",
+                      "name"
+                    ]
+                  ],
+                  {
+                    "text-font": [
+                      "literal",
+                      [
+                        "Noto Sans Regular"
+                      ]
+                    ]
+                  },
+                  "\n",
+                  {},
+                  [
+                    "coalesce",
+                    [
+                      "get",
+                      "pgf:name2"
+                    ],
+                    [
+                      "get",
+                      "name2"
+                    ]
+                  ],
+                  {
+                    "text-font": [
+                      "literal",
+                      [
+                        "Noto Sans Regular"
+                      ]
+                    ]
+                  }
+                ]
+              ]
+            ]
+          ]
+        ],
+        "text-font": [
+          "Noto Sans Regular"
+        ],
+        "text-size": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          3,
+          11,
+          7,
+          16
+        ],
+        "text-radial-offset": 0.2,
+        "text-anchor": "center",
+        "text-transform": "uppercase"
+      },
+      "paint": {
+        "text-color": "#66695f",
+        "text-halo-color": "#f9f6ec",
+        "text-halo-width": 1
+      }
+    },
+    {
+      "id": "places_country",
+      "type": "symbol",
+      "source": "protomaps",
+      "source-layer": "places",
+      "filter": [
+        "==",
+        "kind",
+        "country"
+      ],
+      "layout": {
+        "symbol-sort-key": [
+          "get",
+          "min_zoom"
+        ],
+        "text-field": [
+          "format",
+          [
+            "coalesce",
+            [
+              "get",
+              "name:en"
+            ],
+            [
+              "get",
+              "name:en"
+            ]
+          ],
+          {}
+        ],
+        "text-font": [
+          "Noto Sans Regular"
+        ],
+        "text-size": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          2,
+          [
+            "case",
+            [
+              "<",
+              [
+                "get",
+                "population_rank"
+              ],
+              10
+            ],
+            8,
+            [
+              ">=",
+              [
+                "get",
+                "population_rank"
+              ],
+              10
+            ],
+            12,
+            0
+          ],
+          6,
+          [
+            "case",
+            [
+              "<",
+              [
+                "get",
+                "population_rank"
+              ],
+              8
+            ],
+            10,
+            [
+              ">=",
+              [
+                "get",
+                "population_rank"
+              ],
+              8
+            ],
+            18,
+            0
+          ],
+          8,
+          [
+            "case",
+            [
+              "<",
+              [
+                "get",
+                "population_rank"
+              ],
+              7
+            ],
+            11,
+            [
+              ">=",
+              [
+                "get",
+                "population_rank"
+              ],
+              7
+            ],
+            20,
+            0
+          ]
+        ],
+        "text-transform": "uppercase"
+      },
+      "paint": {
+        "text-color": "#55594f",
+        "text-halo-color": "#f5f1e6",
+        "text-halo-width": 1
+      }
+    }
+  ]
+}

@@ -1,0 +1,61 @@
+.gl-live-world { position: absolute; inset: 0; overflow: hidden; color: var(--gl-text, #292d25); background: #e4e7dd; }
+.gl-live-world__map { position: absolute; inset: 0; }
+.gl-live-world__heading { position: absolute; z-index: 2; left: calc(var(--gl-sidebar-width) + 44px); top: 30px; pointer-events: none; text-shadow: 0 1px 12px #fff, 0 1px 3px #fff; }
+.gl-live-world__heading h1 { margin: 0; font-size: clamp(24px, 3vw, 36px); font-weight: 650; letter-spacing: -1px; }
+.gl-live-world__heading p { margin: 6px 0 0; font-size: 13px; }
+.gl-live-world__search { position: absolute; z-index: 6; top: 88px; right: 24px; width: 300px; max-width: calc(100% - var(--gl-sidebar-width) - 56px); }
+.gl-live-world__search > .gl-surface { overflow: hidden; border-radius: 20px; }
+.gl-live-world__search input { box-sizing: border-box; border: 0; background: transparent; color: inherit; width: 100%; height: 48px; padding: 0 18px; font: inherit; font-size: 14px; }
+.gl-live-world button:focus-visible, .gl-live-world input:focus-visible { outline: 3px solid #8a6119; outline-offset: 3px; }
+.gl-live-world__search input:focus-visible { outline-offset: -4px; border-radius: 20px; }
+.gl-live-world__results { list-style: none; margin: 0; padding: 4px 8px 8px; max-height: 340px; overflow-y: auto; border-top: 1px solid #74796826; }
+.gl-live-world__results button { display: block; width: 100%; padding: 12px 10px; text-align: left; border: 0; border-radius: 12px; background: transparent; color: inherit; font: inherit; font-size: 14px; cursor: pointer; }
+.gl-live-world__results button:hover { background: #ffffff80; }
+.gl-live-world__results small { display: block; margin-top: 3px; color: #626758; font-size: 11px; }
+.gl-live-world__empty { padding: 12px; font-size: 13px; }
+.gl-live-world__controls { position: absolute; z-index: 4; right: 24px; bottom: 54px; }
+.gl-live-world__controls > .gl-surface { display: flex; flex-direction: column; padding: 5px; border-radius: 20px; }
+.gl-live-world__controls button { width: 44px; height: 44px; border: 0; border-radius: 13px; background: transparent; font-size: 26px; color: inherit; cursor: pointer; }
+.gl-live-world__controls button:hover { background: #ffffff8c; }
+.gl-live-world__markers { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.gl-map-truck { position: absolute; left: 0; top: 0; visibility: hidden; pointer-events: auto; width: 78px; height: 54px; padding: 0; border: 0; background: transparent; cursor: pointer; border-radius: 14px; touch-action: manipulation; --truck-facing: 1; --truck-color: #738270; }
+.gl-map-truck::before { content: ''; position: absolute; width: 46px; height: 20px; border-radius: 50%; left: 16px; bottom: 3px; background: var(--truck-color); opacity: .3; filter: blur(6px); }
+.gl-map-truck--green { --truck-color: #3a8050; }
+.gl-map-truck--amber { --truck-color: #bb861f; }
+.gl-map-truck--grey { --truck-color: #7a807d; }
+.gl-map-truck img { position: absolute; width: 78px; height: 54px; inset: 0; object-fit: contain; transform: scaleX(var(--truck-facing)); opacity: 0; pointer-events: none; filter: drop-shadow(0 3px 3px #2224); }
+.gl-map-truck__placeholder { position: absolute; width: 28px; height: 16px; left: 25px; top: 19px; border-radius: 5px; background: #d0d2ca; border: 2px solid #fff; }
+.gl-map-truck__label { position: absolute; top: 49px; left: 50%; transform: translateX(-50%); border-radius: 9px; padding: 3px 7px; background: #f9faf1ec; border: 1px solid #fff; border-left: 4px solid var(--truck-color); font-size: 10px; font-weight: 700; color: #34392f; white-space: nowrap; box-shadow: 0 2px 6px #1723141a; }
+.gl-live-world__card { position: absolute; z-index: 7; left: 0; top: 0; width: 288px; max-width: calc(100% - 24px); visibility: hidden; }
+.gl-live-world__card > .gl-surface { padding: 14px; max-height: calc(100dvh - 130px); overflow-y: auto; border-radius: 22px; }
+.gl-live-world__card-title { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 8px; }
+.gl-live-world__card-title h2 { margin: 0; font-size: 19px; }
+.gl-live-world__card-title button { min-width: 36px; min-height: 36px; border: 0; border-radius: 12px; color: inherit; font-size: 24px; background: #ffffff66; cursor: pointer; }
+.gl-live-world__photo { display: block; width: 100%; height: 102px; object-fit: cover; border-radius: 12px; margin-bottom: 12px; }
+.gl-live-world__photo[hidden] { display: none; }
+.gl-live-world__card dl { margin: 0; font-size: 12px; }
+.gl-live-world__card dl > div { display: grid; grid-template-columns: 76px 1fr; gap: 8px; margin: 7px 0; }
+.gl-live-world__card dt { color: #626758; }
+.gl-live-world__card dd { margin: 0; overflow-wrap: anywhere; }
+.gl-live-world__status { display: inline-block; padding: 4px 8px; border-radius: 10px; font-size: 11px; font-weight: 650; }
+.gl-live-world__status--moving { background: #dbebd4; color: #29412a; }
+.gl-live-world__status--stopped { background: #e1e3de; color: #3a4039; }
+.gl-live-world__mapping { margin: 12px 0 0; font-size: 10px; line-height: 1.5; color: #626758; }
+.gl-live-world__actions { border-top: 1px solid #74796830; padding-top: 12px; margin-top: 12px; }
+.gl-live-world__actions button { width: 100%; min-height: 44px; padding: 10px; border: 1px solid #fff; border-radius: 12px; background: #f2dfb3; color: #493714; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.gl-live-world__actions button:disabled { opacity: .5; cursor: not-allowed; }
+.gl-live-world__actions p, .gl-live-world__card [role='status'], .gl-live-world__error { font-size: 12px; line-height: 1.5; margin: 8px 0 0; }
+.gl-live-world__error { color: #983d26; }
+.gl-live-world__notice { position: absolute; z-index: 3; left: calc(var(--gl-sidebar-width) + 44px); top: 108px; max-width: min(360px, calc(100% - var(--gl-sidebar-width) - 70px)); pointer-events: none; }
+.gl-live-world__notice > .gl-surface { padding: 10px 14px; border-radius: 14px; font-size: 12px; }
+.gl-live-world .maplibregl-ctrl-bottom-left { left: calc(var(--gl-sidebar-width) + 24px); }
+.gl-live-world .maplibregl-ctrl-attrib { font-size: 10px; }
+@media (max-width: 800px) {
+  .gl-live-world__heading { left: calc(var(--gl-sidebar-width) + 24px); top: 28px; }
+  .gl-live-world__heading h1 { font-size: 24px; }
+  .gl-live-world__heading p { max-width: 135px; line-height: 1.5; }
+  .gl-live-world__search { top: 146px; right: 16px; width: 270px; }
+  .gl-live-world__notice { top: 204px; left: calc(var(--gl-sidebar-width) + 24px); }
+  .gl-live-world__controls { right: 16px; }
+}
+.gl-map-truck[data-loaded='true'] .gl-map-truck__placeholder { display: none; }

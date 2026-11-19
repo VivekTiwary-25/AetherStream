@@ -1,0 +1,57 @@
+import { describe, expect, it } from 'vitest'
+import { advanceDistance, facingLeft, prepareRoute, sampleRoute, truckLabel, type RouteFeature } from './mapLogic'
+
+// Isolated metric path for numerical assertions, not fleet/demo data.
+const feature: RouteFeature = {
+  type: 'Feature', properties: { routeIndex: 0, from: 'Start', to: 'Turn' },
+  geometry: { type: 'LineString', coordinates: [[76.6, 12.3], [76.601, 12.3], [76.6, 12.3]] },
+}
+
+describe('live road motion', () => {
+  it('integrates km/h over real elapsed time and the actual simulator clock scale', () => {
+    expect(advanceDistance(12, 36, 1000, 10, 'DRIVING', 1000)).toBe(112)
+    expect(advanceDistance(12, 36, 500, 2, 'DRIVING', 1000)).toBe(22)
+    expect(advanceDistance(990, 36, 2000, 1, 'DRIVING', 1000)).toBe(10)
+  })
+
+  it.each(['STOPPED', 'IDLE', 'UNLOADING', 'UNKNOWN'])('holds position in %s regardless of last reported speed', (status) => {
+    expect(advanceDistance(42, 60, 1000, 10, status, 1000)).toBe(42)
+  })
+
+  it('does not move when paused or when telemetry is invalid', () => {
+    expect(advanceDistance(42, 60, 1000, 0, 'DRIVING', 1000)).toBe(42)
+    expect(advanceDistance(42, NaN, 1000, 1, 'DRIVING', 1000)).toBe(42)
+    expect(advanceDistance(42, -5, 1000, 1, 'DRIVING', 1000)).toBe(42)
+  })
+
+  it('samples both directions continuously, flips only on leftward travel and wraps at the loop end', () => {
+    const route = prepareRoute(feature)
+    const sample = { lon: 0, lat: 0, dx: 0, dy: 0 }
+    expect(route.totalMeters).toBeGreaterThan(210)
+    expect(route.totalMeters).toBeLessThan(220)
+    sampleRoute(route, route.totalMeters / 4, sample)
+    expect(sample.lon).toBeCloseTo(76.6005, 6)
+    expect(sample.lat).toBe(12.3)
+    expect(facingLeft(sample.dx)).toBe(false)
+    sampleRoute(route, route.totalMeters * 3 / 4, sample)
+    expect(sample.lon).toBeCloseTo(76.6005, 6)
+    expect(facingLeft(sample.dx)).toBe(true)
+    sampleRoute(route, route.totalMeters, sample)
+    expect(sample.lon).toBe(76.6)
+    expect(facingLeft(0)).toBe(false)
+  })
+
+  it('skips duplicate road points without NaN and rejects a zero-length path', () => {
+    const route = prepareRoute({ ...feature, geometry: { type: 'LineString', coordinates: [[76.6, 12.3], [76.6, 12.3], [76.601, 12.3]] } })
+    const sample = { lon: 0, lat: 0, dx: 0, dy: 0 }
+    sampleRoute(route, 0, sample)
+    expect(sample.lon).toBe(76.6)
+    expect(sample.dx).toBeGreaterThan(0)
+    expect(() => prepareRoute({ ...feature, geometry: { type: 'LineString', coordinates: [[0, 0], [0, 0]] } })).toThrow('nonzero')
+  })
+
+  it('labels actual truck IDs without replacing unknown IDs', () => {
+    expect(truckLabel('truck-006')).toBe('Truck T-06')
+    expect(truckLabel('special-truck')).toBe('special-truck')
+  })
+})
