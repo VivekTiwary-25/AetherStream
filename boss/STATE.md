@@ -49,6 +49,13 @@ Updated: 19 Nov 09:20 IST. M1 + M2 DONE. M3 (12:30) in progress: T92 shell integ
 5. vachana-claude = hardest remaining M3 work (shell/UI integration, anything broken in the shell).
 Known infra flake: ci-e2e "Build and start stack ... BUILD FAILED in ~49s" (Gradle inside docker build) - rerun, not the task's fault.
 
+## Task board (09:35)
+09:35: merged also T168 doc links, T142 features spec, T162 Gradle flake fix, T165 tunnel watchdog, T166 expo-reset, T150 BackpressureIT,
+  T154 release wf (dry-run 44455143454 dispatched by boss), T164 kill-repeat (20 kills green). MAIN ci-ui-e2e GREEN (dde776d).
+  Running: vachana T155 rehearsal -> T158 fixes; vimlesh claude T157 recording; T169 demo push (vivek-sol); T170 proofs + T171 demo
+  dashboard (vimlesh); T149 + T160 (utkarsh-sol); T167 longrun + T172 offline 3x (utkarsh-luna). Boss background waits killed twice
+  by low-memory reaper (vivek-pc 3.6 GB free; vmmemWSL 7.2 GB).
+
 ## Task board (09:20)
 merged since 07:10 (68). Key: T120c -> ci-ui-e2e GREEN (banner text fix + static city on software WebGL + every-frame WS),
   T156 offline expo mode (ci-offline green with outbound network blocked), T121 QA2 UI P1s, T151 live LATE + REBALANCED,
