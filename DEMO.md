@@ -1,3 +1,9 @@
+## New UI (ui-glorious)
+
+[20-minute demo](docs/expo/DEMO-NEW-UI.md) · [Cheat sheet — New UI](docs/expo/CHEATSHEET.md#new-ui-ui-glorious)
+The new UI is the default.
+The classic UI is at `?ui=classic`.
+All classic steps below still work there.
 # AetherStream examiner demo (12 minutes)
 
 Presenter script. Click only labels that are on the page. Read numbers off the screen. Do not push to `main` during the slot: `cd` deploys onto the machine you are demoing.
