@@ -46,3 +46,4 @@ blob-report/
 .nyc_output/
 dist-mock/
 web/mock/package-lock.json
+docs/expo/backup/_video_tmp/
