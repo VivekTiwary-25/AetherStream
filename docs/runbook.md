@@ -54,12 +54,14 @@ curl -fsS http://localhost:8088/api/version
 
 Check readiness, fresh window results, a completed checkpoint, and the reference comparison; this script starts or restarts the demo pipeline if there is no active execution or no window progress:
 
+<!-- ci-check -->
 ```bash
 bash infra/scripts/demo-ready.sh
 ```
 
 Check container state, then check the web UI and API locally:
 
+<!-- ci-check -->
 ```bash
 docker ps
 curl -fsS http://localhost:8088/api/health
