@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+set -u
+base=${AETHER_URL:-http://localhost:8088}
+base=${base%/}
+usage() { echo 'Usage: worker kill <1..3> | worker status' >&2; exit 2; }
+request() {
+  local method=$1 path=$2 body=${3-} response status
+  if [[ -n $body ]]; then
+    response=$(curl -sS --max-time 10 -X "$method" -H 'Content-Type: application/json' --data "$body" -w '\n%{http_code}' "$base$path") || exit 1
+  else
+    response=$(curl -sS --max-time 10 -X "$method" -w '\n%{http_code}' "$base$path") || exit 1
+  fi
+  status=${response##*$'\n'}
+  response=${response%$'\n'*}
+  if [[ ! $status =~ ^2 ]]; then
+    if command -v jq >/dev/null 2>&1; then
+      local msg
+      msg=$(jq -r '.message // .error // empty' <<<"$response" 2>/dev/null)
+      [[ -n $msg ]] && response=$msg
+    fi
+    echo "$response" >&2
+    exit 1
+  fi
+  printf '%s' "$response"
+}
+case ${1-} in
+  status)
+    [[ $# == 1 ]] || usage
+    data=$(request GET /api/workers) || exit 1
+    if command -v jq >/dev/null 2>&1; then
+      jq -r '.[] | "\(.workerId): alive=\(.alive) state=\(.state) partitions=[\(.partitions // [] | join(","))]"' <<<"$data"
+    else
+      python3 -c 'import json,sys; [print("{}: alive={} state={} partitions=[{}]".format(w.get("workerId"),w.get("alive"),w.get("state"),",".join(map(str,w.get("partitions") or [])))) for w in json.load(sys.stdin)]' <<<"$data"
+    fi
+    ;;
+  kill)
+    [[ $# == 2 && $2 =~ ^[1-3]$ ]] || usage
+    id="worker-$2"
+    data=$(request POST /api/chaos/kill-worker "{\"workerId\":\"$id\"}") || exit 1
+    echo "Killed $id (engine will recover; watch Settings → Logs & Recovery)"
+    ;;
+  *) usage ;;
+esac
