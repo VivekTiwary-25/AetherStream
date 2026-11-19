@@ -1,0 +1,8 @@
+# Build the web app and hand over the dist folder (artifact only, will not be merged)
+
+Files: preview-dist/ (new, at the repo root: the built web/dist contents). Do NOT read or describe swarm/. Do not change any source file.
+
+Node: if not on PATH prepend %USERPROFILE%\tools\node (PowerShell `$env:PATH = "$env:USERPROFILE\tools\node;$env:PATH"`).
+1. In web/: `npm ci`, `npm run build`, `npm run check:no-mock`. If the build fails, report the exact errors (file:line) and stop — do not fix sources.
+2. Copy the full contents of web/dist/ to preview-dist/ at the repo root (so preview-dist/index.html exists). Make sure nothing in preview-dist is git-ignored (`git status --ignored preview-dist` must show the files as untracked/new, not ignored; if a rule ignores them, use `git add -f preview-dist` is NOT allowed — instead report it).
+3. Report: build result, total size of preview-dist, the commit of ui-glorious it was built from (`git rev-parse HEAD`).

@@ -26,17 +26,25 @@ Fresh boss session: read swarm/BOSS.md, then design/ui-glorious/BOSS_PROMPT.md (
 - 01:10 Real one-PC test PASSED: t261120-0108-1c34 (utkarsh-pc/codex-luna) stripped audio + made home-poster.jpg, merged into ui-glorious (b5fec7b); main has only swarm/** commits. All listeners on code d5d007b0.
 - Note: workers may refuse to write swarm/reports/<id>.md (CLAUDE.md swarm rule); the fallback report captures their final output. Fine.
 
+## Vivek's notes 02:29 (binding)
+1. Docker deadline 03:00 on utkarsh-pc. Then move full stack to vimlesh/upendra if Docker works there. Else TELL VIVEK; he decides whether the preview may read live data from vivek-pc's stack. Do NOT start the vivek-pc read-only fallback without his OK. Live data is top priority; nothing is "done" until seen working with real data.
+2. Shipped UI must never silently fall back to mock data (audited 02:29: none in web/src/glorious; classic MockBadge only with VITE_USE_MOCK=1; check:no-mock on dist). Labelled non-data fallbacks: AI saved example, editor static field list.
+3. Dead hold 3 s is display only; all times shown in log/history are real event times (audited: entry.at / completedAt shown; observedAt only for hold).
+4. Breakdown is real (Simulation.java:120-139), one-way action via POST /api/simulator/scenario, auto-resumes; no toggle-off exists.
+5. Rerun clean-checkout check after map+recovery merges (queued t261120-0229-b8ea).
+6. When stack is up: FIRST real kill test (worker kill 2 -> dead -> recovering -> rejoined, screenshots), THEN full demo-path pass.
+
 ## Running / queued (all --base ui-glorious). Task specs: design/ui-glorious/tasks/*.md
-- t261120-0224-4b72  utkarsh-pc/codex-sol   Docker Desktop diagnose + safe fix (wsl --shutdown, restart DD)
-- t261120-0217-4cd6  utkarsh-pc/codex-luna  Home video seamless crossfade loop + web encode
-- t261120-0217-0993  vimlesh-pc/claude      Integration check (clean checkout lint/test/build) — started before map + recovery merged; rerun later
-- t261120-0218-1e31  vimlesh-pc/codex-sol   New-UI Playwright smoke tests (tests/ui/glorious.spec.ts, GLORIOUS_URL default :8089)
+- t261120-0224-4b72  utkarsh-pc/codex-sol   Docker Desktop diagnose + safe fix
+- t261120-0229-dee9  upendra-pc/codex-sol   Docker probe + preview-up on upendra (RAM gate 6 GB)
+- t261120-0217-4cd6  utkarsh-pc/codex-luna  Home video seamless loop
+- t261120-0228-9f5b  vimlesh-pc/codex-sol   Build dist into task branch preview-dist/ (artifact only; NEVER merge; reject after use)
+- t261120-0229-b8ea  vimlesh-pc/claude      Integration check rerun
 - t261120-0125-ed02  upendra-pc/codex-luna  D3 AI bridge
-- Merged (all tracks' main code IN): shell, A0 sprite, A map (t261120-0130-3a5f), B analytics (verified B2), C2 terminal, C1 backend + C1-UI (recovery/), D1 backend, D2 frontend.
-- DOCKER: no worker PC has working Docker (utkarsh stuck, upendra none, vimlesh engine down + 3 GB free RAM). Vivek pinged 01:28 (no reply yet).
-- PLAN for 03:30 screenshots if Docker still down: worker builds web dist into a task branch (never merged); boss serves it on vivek-pc via throwaway nginx container on :8089 proxying /api,/ws to live API localhost:18080, READ-ONLY (no kill/breakdown/tunnel). New endpoints (recovery history, pipelines) will show 'unavailable' there because live API is main.
-- GOTCHA: root .gitignore `logs/` ignores any folder named logs. Never name a folder logs.
-- Known: vitest needs --maxWorkers=2 on loaded PCs. vimlesh-pc now has portable Node at %USERPROFILE%\tools\node (not on listener PATH). upendra-pc has Node 26 (needs NODE_OPTIONS=--no-experimental-webstorage for vitest).
+- Merged: all tracks' main code (shell, map, analytics, recovery UI+backend, pipelines FE+BE, terminal cmds, sprite), smoke tests tests/ui/glorious.spec.ts (+playwright.glorious.config.ts, GLORIOUS_URL default :8089).
+- Read-only screenshot fallback prepared (NOT started, needs Vivek OK): scratchpad\preview\nginx.conf — GET-only proxy to live API localhost:18080.
+- GOTCHA: root .gitignore `logs/` ignores any folder named logs.
+- Known: vitest needs --maxWorkers=2 on loaded PCs. vimlesh portable Node at %USERPROFILE%\tools\node. upendra Node 26 (NODE_OPTIONS=--no-experimental-webstorage for vitest). Main bundle 1.68 MB (maplibre not code-split; optional later).
 
 ## Key recon decisions
 - Worker-card bug: killed worker restarts + re-registers before 4 s timeout, never DEAD server-side; old UI used client overlay only on its own button -> terminal kill invisible. C1 adds server-side recovery history (/api/recovery/history + WS).
