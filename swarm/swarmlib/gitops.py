@@ -256,14 +256,69 @@ def worktree_path(task_id):
     return util.home() / "work" / task_id
 
 
-def add_worktree(task_id):
+def check_base(base):
+    """Optional task base branch (default main). Only plain names, never task/* or hb/*."""
+    base = (base or "main").strip()
+    ok = base and all(c.isalnum() or c in "._-" for c in base) and not base.startswith((".", "-"))
+    if not ok:
+        raise ValueError("bad base branch %r" % base)
+    return base
+
+
+def fetch_base(base):
+    """Fetch origin/<base> (main is already in FETCH_SPECS)."""
+    base = check_base(base)
+    if base == "main":
+        return git("rev-parse", "origin/main")
+    return git("fetch", "origin", "+refs/heads/%s:refs/remotes/origin/%s" % (base, base))
+
+
+def merge_into_base(task_id, base):
+    """Merge origin/task/<id> into a non-main base branch in a throwaway worktree and push it.
+    Never touches the clone's main checkout. Returns (ok, conflict, msg)."""
+    base = check_base(base)
+    path = util.home() / "work" / ("_merge-" + task_id)
+    with git_lock():
+        r = fetch_base(base)
+        if not r.ok:
+            return False, False, "fetch %s failed: %s" % (base, short(r.err or r.out))
+        git("worktree", "prune")
+        if path.exists():
+            _rmtree_force(path)
+        try:
+            r = git("worktree", "add", "-f", "--detach", str(path), "origin/" + base)
+            if not r.ok:
+                return False, False, "worktree add failed: " + short(r.err or r.out)
+            r = git("merge", "--no-ff", "-m", "swarm: merged %s into %s" % (task_id, base),
+                    "origin/task/" + task_id, cwd=path)
+            if not r.ok:
+                git("merge", "--abort", cwd=path)
+                return False, True, short(r.err or r.out)
+            r = git("push", "origin", "HEAD:refs/heads/" + base, cwd=path)
+            if not r.ok:
+                return False, False, "push failed: " + short(r.err or r.out)
+            fetch_base(base)
+            return True, False, "pushed"
+        finally:
+            git("worktree", "remove", "--force", str(path))
+            if path.exists():
+                _rmtree_force(path)
+            git("worktree", "prune")
+
+
+def add_worktree(task_id, base="main"):
     path = worktree_path(task_id)
+    base = check_base(base)
     with git_lock():
         git("worktree", "prune")
         if path.exists():
             remove_worktree(task_id)
         path.parent.mkdir(parents=True, exist_ok=True)
-        r = git("worktree", "add", "-f", "-B", "task/" + task_id, str(path), "origin/main")
+        if base != "main":
+            r = fetch_base(base)
+            if not r.ok:
+                raise RuntimeError("fetch %s failed: %s" % (base, short(r.err or r.out)))
+        r = git("worktree", "add", "-f", "-B", "task/" + task_id, str(path), "origin/" + base)
     if not r.ok:
         raise RuntimeError("worktree add failed: " + short(r.err or r.out))
     return path

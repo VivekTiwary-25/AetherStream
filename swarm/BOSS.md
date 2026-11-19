@@ -32,7 +32,7 @@ swarm tasks         # queued / running / waiting for review, per worker
    swarm queue second task.md       # second opinion: Antigravity / Moksh's Gemini
    swarm queue pratham-pc/argon task.md   # or a specific worker
    ```
-   Options: `--title`, `--files a,b`. It prints the task id.
+   Options: `--title`, `--files a,b`, `--base <branch>` (task starts from that branch; `review`/`merge` then diff against and merge into it, never main). It prints the task id.
    Never route to Codex Astra (it's blocked anyway). Grok only gets routine work.
 3. Keep tasks small (≤ 30 min of work) and independent. Two tasks must not edit the same file at the same time.
 

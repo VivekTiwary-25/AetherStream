@@ -48,15 +48,18 @@ def _build_parser():
     s.add_argument("--title")
     s.add_argument("--kind")
     s.add_argument("--files")
+    s.add_argument("--base", help="branch to start from and merge into (default main)")
 
     sub.add_parser("tasks", help="list tasks")
 
     s = sub.add_parser("review", help="show a finished task")
     s.add_argument("id")
     s.add_argument("--full", action="store_true")
+    s.add_argument("--base", help="override the task's base branch")
 
     s = sub.add_parser("merge", help="merge a finished task")
     s.add_argument("id")
+    s.add_argument("--base", help="override the task's base branch")
 
     s = sub.add_parser("reject", help="reject a finished task")
     s.add_argument("id")

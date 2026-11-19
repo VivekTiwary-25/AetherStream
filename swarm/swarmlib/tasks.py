@@ -242,7 +242,7 @@ def run_task(worker, path, holder=None):
     machine = config.machine()
     try:
         with gitops.git_lock():
-            wt = gitops.add_worktree(tid)
+            wt = gitops.add_worktree(tid, task.get("base") or "main")
         prompt = PROMPT.format(id=tid, title=title, files=files_of(task), body="@@BODY@@")
         (wt / "SWARM_TASK.md").write_text(prompt.replace("@@BODY@@", task["body"].strip()),
                                           encoding="utf-8", newline="\n")

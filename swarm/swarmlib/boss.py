@@ -52,6 +52,8 @@ def queue(args):
     kind = args.kind or (args.target if "/" not in args.target else "routine")
     task = {"id": tasks.new_id(), "title": args.title or _guess_title(body), "kind": kind,
             "files": args.files or "", "created": time.strftime("%Y-%m-%d %H:%M"), "body": body}
+    if getattr(args, "base", None):
+        task["base"] = gitops.check_base(args.base)
     ok, msg = gitops.commit_to_main(lambda repo: _write_task(repo, task, target),
                                     "swarm: queue %s → %s" % (task["id"], target))
     if not ok:
@@ -104,6 +106,15 @@ def tasks_cmd(args):
     return 0
 
 
+def _base_of(task_id, override=None):
+    """Base branch of a task: --base, else the queue file's base:, else main."""
+    if override:
+        return gitops.check_base(override)
+    for p in _find_queue_files(task_id):
+        return gitops.check_base(tasks.parse(p.read_text(encoding="utf-8")).get("base") or "main")
+    return "main"
+
+
 def _branch_check(task_id):
     gitops.fetch_all()
     if task_id not in gitops.remote_task_branches():
@@ -119,9 +130,13 @@ def review(args):
     ref = "origin/task/" + tid
     rep = gitops.git("show", "%s:swarm/reports/%s.md" % (ref, tid))
     print("REPORT\n" + (rep.out.strip() if rep.ok else "(no report found)"))
-    stat = gitops.git("diff", "--stat", "origin/main..." + ref)
+    base = _base_of(tid, getattr(args, "base", None))
+    if base != "main":
+        gitops.fetch_base(base)
+        print("BASE " + base)
+    stat = gitops.git("diff", "--stat", "origin/%s...%s" % (base, ref))
     print("\nCHANGES\n" + stat.out.strip())
-    diff = gitops.git("diff", "origin/main..." + ref)
+    diff = gitops.git("diff", "origin/%s...%s" % (base, ref))
     lines = diff.out.splitlines()
     shown = lines if args.full else lines[:300]
     print("\nDIFF\n" + "\n".join(shown))
@@ -134,6 +149,9 @@ def merge(args):
     tid = args.id
     if not _branch_check(tid):
         return 1
+    base = _base_of(tid, getattr(args, "base", None))
+    if base != "main":
+        return _merge_into_base(tid, base)
     state = {"conflict": False}
 
     def apply_fn(repo):
@@ -163,6 +181,29 @@ def merge(args):
     gitops.delete_remote_branch("task/" + tid)
     util.event("merged task %s into main" % tid)
     print("Merged %s into main and deleted its branch." % tid)
+    return 0
+
+
+def _merge_into_base(tid, base):
+    ok, conflict, msg = gitops.merge_into_base(tid, base)
+    if conflict:
+        print("Conflict merging %s into %s. Resolve by hand in your own clone or: swarm reject %s --requeue <target>"
+              % (tid, base, tid))
+        return 1
+    if not ok:
+        print("Merge into %s failed: %s" % (base, msg))
+        return 1
+
+    def apply_fn(repo):
+        for p in _find_queue_files(tid):
+            p.unlink()
+
+    ok, msg = gitops.commit_to_main(apply_fn, "swarm: merged %s into %s" % (tid, base))
+    if not ok:
+        print("Merged into %s but could not clear the queue file: %s" % (base, msg))
+    gitops.delete_remote_branch("task/" + tid)
+    util.event("merged task %s into %s" % (tid, base))
+    print("Merged %s into %s and deleted its branch." % (tid, base))
     return 0
 
 
