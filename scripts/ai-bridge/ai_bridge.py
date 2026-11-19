@@ -18,7 +18,35 @@ from urllib.request import Request, urlopen
 ROOT = Path(__file__).resolve().parents[2]
 SCHEMA_PATH = ROOT / "schemas" / "glorious-pipeline.schema.json"
 EXAMPLES_DIR = ROOT / "schemas" / "examples"
-SYSTEM_PROMPT = """You generate a Glorious live truck processing pipeline. Return ONE JSON object only: {\"name\": short name, \"nodes\": [...], \"edges\": [...]}. No markdown or prose. Use only these five node types and their params: filter {field,op,value}; pickFields {fields}; windowAverage {field,windowSec,groupBy?}; thresholdAlert {field,op,value,message}; output {name}. Allowed fields: truckId (string), speedKmh (number), heading (number), x (number), y (number), routeId (string), status (DRIVING/UNLOADING/IDLE/STOPPED), partition (number 0-5), eventTime (epoch milliseconds). Numeric fields: speedKmh, heading, x, y, partition, eventTime. Operators: >, >=, <, <=, ==, !=; string comparisons allow == and != only. groupBy: truckId, routeId, status, partition. windowSec is an integer 5-300. Graph must be acyclic, have 1-12 nodes, at least one output, every path ends in output, and every non-first node has exactly one input. The source is the live truck position stream; do not add a source node. Use short names.\n"""
+SYSTEM_PROMPT = """You build supported Glorious live truck pipelines. Return one JSON object only: {"name":"...","nodes":[...],"edges":[...]}. If a request cannot be expressed with supported fields/nodes, choose the closest supported pipeline and state the limitation briefly in its pipeline name; never invent capabilities.
+
+Fields (type; unit; meaning):
+- truckId (string; —): truck identifier.
+- speedKmh (number; km/h): truck speed.
+- heading (number; degrees): direction.
+- x, y (number; metres in simulator grid): position.
+- routeId (string; —): route identifier.
+- status (string; —): one of DRIVING, UNLOADING, IDLE, STOPPED.
+- partition (number; integer 0-5; —): simulator partition.
+- eventTime (number; epoch milliseconds): event timestamp.
+
+Use exactly these node types and params:
+- filter {field, op, value}: filter events.
+- pickFields {fields}: keep a nonempty list of unique fields.
+- windowAverage {field, windowSec, groupBy?}: average a numeric field; windowSec integer 5-300; groupBy is truckId, routeId, status, or partition.
+- thresholdAlert {field, op, value, message}: emit a threshold alert; message is 1-120 characters.
+- output {name}: required terminal output.
+
+Comparisons use >, >=, <, <=, ==, !=; string fields allow == and != only. Numeric fields are speedKmh, heading, x, y, partition, eventTime. Use only listed fields and params. The live truck position stream is the implicit source; do not add a source node.
+Graph rules: pipeline name and output name are 1-60 characters; 1-12 nodes with unique nonempty ids; edges reference existing nodes, each node has at most one input, graph is acyclic, at least one output exists, and every path terminates at an output. Field availability must respect upstream pickFields/windowAverage projections.
+
+Examples:
+Request: alert when speed exceeds 60 km/h.
+{"name":"Speed over 60 km/h","nodes":[{"id":"filter","type":"filter","params":{"field":"speedKmh","op":">","value":60}},{"id":"alert","type":"thresholdAlert","params":{"field":"speedKmh","op":">","value":60,"message":"Speed above 60 km/h"}},{"id":"out","type":"output","params":{"name":"Speed alerts"}}],"edges":[{"from":"filter","to":"alert"},{"from":"alert","to":"out"}]}
+Request: average speed per truck over 30 seconds.
+{"name":"30-second speed average","nodes":[{"id":"avg","type":"windowAverage","params":{"field":"speedKmh","windowSec":30,"groupBy":"truckId"}},{"id":"out","type":"output","params":{"name":"Speed averages"}}],"edges":[{"from":"avg","to":"out"}]}
+Request: show speed on partition 2.
+{"name":"Partition 2 speeds","nodes":[{"id":"filter","type":"filter","params":{"field":"partition","op":"==","value":2}},{"id":"pick","type":"pickFields","params":{"fields":["truckId","speedKmh"]}},{"id":"out","type":"output","params":{"name":"Truck speeds"}}],"edges":[{"from":"filter","to":"pick"},{"from":"pick","to":"out"}]}"""
 BUSY = threading.Lock()
 FIELDS = {"truckId": "string", "routeId": "string", "status": "string", "speedKmh": "number", "heading": "number", "x": "number", "y": "number", "partition": "number", "eventTime": "number"}
 NUMERIC = {k for k, v in FIELDS.items() if v == "number"}
@@ -39,18 +67,59 @@ def prompt_context() -> str:
 
 
 def parse_pipeline(result: str) -> dict:
-    text = result.strip()
-    text = re.sub(r"^```(?:json)?\s*|\s*```$", "", text, flags=re.IGNORECASE)
-    try:
-        value = json.loads(text)
-    except json.JSONDecodeError:
-        start, end = text.find("{"), text.rfind("}")
-        if start < 0 or end < start:
-            raise ValueError("Claude returned no JSON object")
-        value = json.loads(text[start:end + 1])
-    if not isinstance(value, dict) or not isinstance(value.get("pipeline", value), dict):
+    text = re.sub(r"```(?:json)?\s*|\s*```", "", result, flags=re.IGNORECASE).strip()
+    start = text.find("{")
+    if start < 0:
+        raise ValueError("Claude returned no JSON object")
+    depth = 0
+    quoted = escaped = False
+    end = None
+    for index in range(start, len(text)):
+        char = text[index]
+        if quoted:
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == '"':
+                quoted = False
+            continue
+        if char == '"':
+            quoted = True
+        elif char == "{":
+            depth += 1
+        elif char == "}":
+            depth -= 1
+            if depth == 0:
+                end = index + 1
+                break
+    if end is None:
+        raise ValueError("Claude returned an incomplete JSON object")
+    value = json.loads(text[start:end])
+    pipeline = value.get("pipeline", value) if isinstance(value, dict) else None
+    if not isinstance(pipeline, dict):
         raise ValueError("Claude response must contain a pipeline object")
-    return value.get("pipeline", value)
+    nodes = pipeline.get("nodes")
+    if isinstance(nodes, list):
+        for node in nodes:
+            if not isinstance(node, dict) or not isinstance(node.get("params"), dict):
+                continue
+            params = node["params"]
+            for key in ("value", "windowSec"):
+                number = params.get(key)
+                if isinstance(number, str):
+                    try:
+                        params[key] = float(number) if key == "value" and any(c in number for c in ".eE") else int(number)
+                    except ValueError:
+                        pass
+        if "edges" not in pipeline:
+            pipeline["edges"] = [
+                {"from": first["id"], "to": second["id"]}
+                for first, second in zip(nodes, nodes[1:])
+                if isinstance(first, dict) and isinstance(second, dict)
+                and isinstance(first.get("id"), str) and isinstance(second.get("id"), str)
+            ]
+    return pipeline
 
 
 def local_validate(pipeline: dict) -> list[str]:
@@ -265,8 +334,11 @@ class Handler(BaseHTTPRequestHandler):
                 self.respond(400, {"error": "invalid JSON"})
                 return
             prompt = payload.get("prompt") if isinstance(payload, dict) else None
-            if not isinstance(prompt, str) or not prompt.strip() or len(prompt) > 500:
-                self.respond(400, {"error": "prompt must be a non-empty string of at most 500 characters"})
+            if not isinstance(prompt, str) or not prompt.strip():
+                self.respond(400, {"error": "prompt must be a non-empty string"})
+                return
+            if len(prompt) > 500:
+                self.respond(400, {"error": "prompt must be at most 500 characters"})
                 return
             result = generate(prompt)
             result["ms"] = round((time.monotonic() - started) * 1000)

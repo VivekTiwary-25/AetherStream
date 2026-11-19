@@ -8,7 +8,7 @@ The listener defaults to `127.0.0.1:18090`. Docker Desktop forwards `host.docker
 
 Environment: `AI_CMD` (default `claude`, executable path), `AI_MODEL` (default `claude-haiku-5-5`), `CLAUDE_CONFIG_DIR` (optional Claude login profile), `AI_PORT` (default `18090`), and `AI_VALIDATE_URL` (default `http://localhost:8088/api/glorious/pipelines/validate`). The Windows launcher uses `%USERPROFILE%\.swarm\profiles\vachana-claude\claude` only when it exists and no config dir was supplied.
 
-Routes: `GET /health`, `POST /generate` with `{"prompt":"..."}`. The bridge validates against the control API, falling back to local structural validation when unreachable; saved schema examples are used if Claude fails.
+Routes: `GET /health`, `POST /generate` with `{"prompt":"..."}`. Prompts must be non-empty and at most 500 characters. The bridge repairs common model output issues (fences/prose, numeric strings, and omitted linear edges), validates against the control API, and falls back to local structural validation when unreachable; saved schema examples are used if Claude fails.
 
 ## Tests
 
