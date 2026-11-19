@@ -13,7 +13,7 @@ import java.util.Map;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
-/** Inclusive, unbounded polls keep all rows sharing the cursor timestamp visible. */
+/** Inclusive, unbounded polls; callers overlap written_at to cover transactions committing late. */
 @Repository
 public class IncrementalResultRepository {
     private final JdbcTemplate jdbc;
