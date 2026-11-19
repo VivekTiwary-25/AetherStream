@@ -74,14 +74,14 @@ export function AnalyticsPanel({ id }: { id: AnalyticsId }) {
   const content = selectedTruck ? <TruckDetail truckId={selectedTruck} windows={speedWindows} liveSamples={speedSamples} /> : selectedFailure ? <FailureDetail record={selectedFailure} /> : <>
     {id === 'truck-speeds' && <section data-testid="analytics-truck-speeds">
       <p className="an-caption">Current speed from live simulator readings · completed averages and reading counts use simulation windows.</p>
-      {truckIds.length ? <div className="an-list" role="list" aria-label="Truck speeds">{truckIds.map((truckId) => {
+      {truckIds.length ? <ul className="an-list" aria-label="Truck speeds">{truckIds.map((truckId) => {
         const current = trucks.find((truck) => truck.truckId === truckId)
         const latest = speedByTruck.get(truckId)
-        return <button className="an-row" type="button" data-testid={`truck-row-${truckId}`} key={truckId} onClick={() => showTruck(truckId)}>
+        return <li key={truckId}><button className="an-row" type="button" data-testid={`truck-row-${truckId}`} onClick={() => showTruck(truckId)}>
           <strong>{truckId}</strong><span>{current ? `${current.speedKmh.toFixed(1)} km/h now` : 'Live speed unavailable'}</span>
           <span>{latest ? `${typeof latest.values.avgSpeedKmh === 'number' ? `${latest.values.avgSpeedKmh.toFixed(1)} km/h ${windowLengthLabel(latest)}` : 'No average'} · ${latest.eventCount} readings` : 'No completed speed window'}</span>
-        </button>
-      })}</div> : <EmptyState socketStatus={socketStatus} execution={execution?.state} message="No live trucks or completed speed windows yet." />}
+        </button></li>
+      })}</ul> : <EmptyState socketStatus={socketStatus} execution={execution?.state} message="No live trucks or completed speed windows yet." />}
     </section>}
     {id === 'deliveries' && <section>
       <p className="an-caption">Per-truck counts use each truck's latest completed delSink window; the trend sums by simulation window end.</p>

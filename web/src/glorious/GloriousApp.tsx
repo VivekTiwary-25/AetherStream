@@ -15,11 +15,11 @@ export function GloriousApp() {
   return <div className={`glorious-app${screen === 'home' ? ' glorious-app--home' : ''}`}>
     <DashboardProvider><WindowManager>
       {screen === 'editor' ? <EditorPage /> : <>
+        <Sidebar screen={screen} navigate={navigate} />
         {screen === 'home' && <Home />}
         {screen !== 'home' && <main className={`gl-screen${enteringLive ? ' gl-screen--enter' : ''}`} key={screen}>
           {screen === 'live' ? <LiveWorld /> : <PipelinesPanel />}
         </main>}
-        <Sidebar screen={screen} navigate={navigate} />
       </>}
       <StatusPill />
     </WindowManager></DashboardProvider>
