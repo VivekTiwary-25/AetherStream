@@ -28,10 +28,10 @@ jobs:
       - name: Check deployment scripts
         run: |
           set -euo pipefail
-          bash -n infra/deploy/deploy.sh infra/deploy/smoke-deploy.sh
+          bash -n infra/deploy/deploy.sh infra/deploy/smoke-deploy.sh infra/scripts/demo-freeze.sh
           sudo apt-get update
           sudo apt-get install --yes shellcheck
-          shellcheck infra/deploy/deploy.sh infra/deploy/smoke-deploy.sh
+          shellcheck infra/deploy/deploy.sh infra/deploy/smoke-deploy.sh infra/scripts/demo-freeze.sh
 
   publish:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -115,7 +115,28 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v7
+      - name: Check demo freeze
+        id: freeze
+        shell: C:/Users/Arena/AppData/Local/Programs/Git/bin/bash.exe --noprofile --norc -eo pipefail {0}
+        env:
+          DEMO_FREEZE: ${{ vars.DEMO_FREEZE }}
+        run: |
+          set -euo pipefail
+          if [[ "$DEMO_FREEZE" == "1" || -e infra/deploy/FREEZE ]]; then
+            echo 'frozen=true' >> "$GITHUB_OUTPUT"
+            echo '::notice::Demo freeze active: deployment and live checks skipped; image publishing remains enabled.'
+            {
+              echo '## Demo freeze active — deployment skipped'
+              echo 'No live deployment, smoke test, or demo readiness check was run. Image build/push is not blocked by this gate.'
+              [[ "$DEMO_FREEZE" != "1" ]] || echo '- Repository variable DEMO_FREEZE=1.'
+              [[ ! -e infra/deploy/FREEZE ]] || echo '- infra/deploy/FREEZE exists in the checked-out workflow commit.'
+              echo 'To resume future deployments, set DEMO_FREEZE=0 and remove infra/deploy/FREEZE from the commit.'
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'frozen=false' >> "$GITHUB_OUTPUT"
+          fi
       - name: Deploy requested image SHA
+        if: steps.freeze.outputs.frozen == 'false'
         shell: C:/Users/Arena/AppData/Local/Programs/Git/bin/bash.exe --noprofile --norc -eo pipefail {0}
         env:
           DEPLOY_SHA: ${{ inputs.sha || github.sha }}
@@ -123,6 +144,7 @@ jobs:
           set -euo pipefail
           bash infra/deploy/deploy.sh "$DEPLOY_SHA"
       - name: Smoke-test deployment
+        if: steps.freeze.outputs.frozen == 'false'
         shell: C:/Users/Arena/AppData/Local/Programs/Git/bin/bash.exe --noprofile --norc -eo pipefail {0}
         env:
           DEPLOY_SHA: ${{ inputs.sha || github.sha }}
@@ -130,6 +152,7 @@ jobs:
           set -euo pipefail
           bash infra/deploy/smoke-deploy.sh "$DEPLOY_SHA"
       - name: Verify live demo
+        if: steps.freeze.outputs.frozen == 'false'
         timeout-minutes: 6
         shell: C:/Users/Arena/AppData/Local/Programs/Git/bin/bash.exe --noprofile --norc -eo pipefail {0}
         env:
@@ -141,6 +164,6 @@ jobs:
           bash infra/scripts/demo-ready.sh http://localhost:18080 | tee "$demo_log"
           grep '^DEMO READY ' "$demo_log" >> "$GITHUB_STEP_SUMMARY"
       - name: Show deployment logs on failure
-        if: failure()
+        if: failure() && steps.freeze.outputs.frozen == 'false'
         shell: C:/Users/Arena/AppData/Local/Programs/Git/bin/bash.exe --noprofile --norc -eo pipefail {0}
         run: docker compose -p aether -f docker-compose.yml -f infra/deploy/docker-compose.deploy.yml logs --tail 200
