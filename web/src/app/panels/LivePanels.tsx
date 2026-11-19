@@ -7,6 +7,7 @@ import { GlassPanel } from '../ui/GlassPanel'
 import { StatusPill, type StatusState } from '../ui/StatusPill'
 
 const number = new Intl.NumberFormat('en-US')
+const RECOVERY_MIN_VISIBLE_MS = 1500
 
 function PanelState({ loading, disconnected, empty }: { loading: boolean; disconnected: boolean; empty: string }) {
   if (loading) return <div className="panel-skeleton" role="status" aria-label="Loading panel data"><span /><span /><span /></div>
@@ -120,12 +121,22 @@ function QueueBar({ label, size, capacity }: { label: string; size: number; capa
 }
 
 export function ExecutionBanner() {
-  const { execution, lastExecutionEvent, socketStatus, workers } = useDashboard()
+  const { execution, lastExecutionEvent, socketStatus, workers, recoveries, recoveryCheckpoint } = useDashboard()
   const [starting, setStarting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [recoveryHeld, setRecoveryHeld] = useState(false)
   const checkpointRef = useRef<HTMLElement>(null)
-  const checkpoint = lastExecutionEvent?.checkpointId ?? execution?.lastCompletedCheckpoint ?? 0
-  const isRecovering = execution?.state === 'RECOVERING' || lastExecutionEvent?.event === 'RECOVERING' || workers.some((worker) => worker?.alive && worker?.state === 'RESTORING')
+  // A fast recovery can deliver RECOVERING and RECOVERED within one render; keep the recovery visible briefly so
+  // presenters (and the browser test) always see it happen.
+  useEffect(() => {
+    if (!recoveries) return
+    setRecoveryHeld(true)
+    const timer = window.setTimeout(() => setRecoveryHeld(false), RECOVERY_MIN_VISIBLE_MS)
+    return () => window.clearTimeout(timer)
+  }, [recoveries])
+  const liveRecovering = execution?.state === 'RECOVERING' || lastExecutionEvent?.event === 'RECOVERING' || workers.some((worker) => worker?.alive && worker?.state === 'RESTORING')
+  const isRecovering = liveRecovering || (recoveryHeld && execution?.state !== 'FAILED' && execution?.state !== 'STOPPED')
+  const checkpoint = (isRecovering && !liveRecovering ? recoveryCheckpoint : null) ?? lastExecutionEvent?.checkpointId ?? execution?.lastCompletedCheckpoint ?? 0
   const backpressured = workers.some((worker) => worker?.alive && worker?.backpressured)
   const status: StatusState | 'stopped' = execution?.state === 'FAILED'
     ? 'failed'
