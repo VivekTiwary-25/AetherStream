@@ -1,6 +1,6 @@
 # Glorious shell API
 
-Each track edits only its own folder: `map/`, `analytics/`, `logs/`, or `pipelines/`.
+Each track edits only its own folder: `map/`, `analytics/`, `recovery/`, or `pipelines/`.
 The integration owner maintains `shell/`, `home/`, `GloriousApp.tsx`, and routing.
 
 ## Windows
@@ -30,7 +30,7 @@ Use `strong` surfaces for dense text. Tokens are `--gl-*` in `shell/tokens.css`.
 
 ## Sidebar
 
-Analytics owns `analytics/menu.ts` (`analyticsMenu`); Logs owns `logs/menu.ts`
+Analytics owns `analytics/menu.ts` (`analyticsMenu`); Logs & Recovery owns `recovery/menu.ts`
 (`settingsMenu`). Both export `SidebarItem[]` from `shell/sections.ts`:
 `{ id, label, icon?: ReactNode, onSelect: (windows: WindowsApi) => void }`.
 Use window IDs `analytics.<item.id>` or `settings.<item.id>` for active styling.

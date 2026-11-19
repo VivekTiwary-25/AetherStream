@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { analyticsMenu } from '../analytics/menu'
-import { settingsMenu } from '../logs/menu'
+import { settingsMenu } from '../recovery/menu'
 import { GlassSurface } from './GlassSurface'
 import { Icon, type IconName } from './Icon'
 import type { Screen } from './router'
