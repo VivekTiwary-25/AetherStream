@@ -84,3 +84,21 @@ Use a warm `accent-clay` fill, dark readable label, rounded `radius-md` shape, a
 - Checkpoint timeline/table, recovery event feed, comparison summary and mismatch table.
 - Chaos controls with confirmation, pending, success, and failure feedback.
 - Empty, loading, unavailable, and error states that are distinct from zero results.
+
+## Integrated feature components and state patterns
+
+These are implementation notes, not a claim that all proposed tokens below are consumed by every feature.
+
+| Surface | Existing visual / interaction pattern | States and accessibility evidence |
+|---|---|---|
+| Ops panel (`web/src/app/ops/OpsPanel.tsx`) | Shared `GlassPanel` section; shared `ClayButton` primary/ghost actions; savepoint rows use bordered rounded surfaces. | Native execution status text; pending actions disabled; savepoint success uses `role="status"` and failure `role="alert"`. No explicit load skeleton. |
+| Scenario panel (`web/src/app/scenarios/ScenarioPanel.tsx`) | `GlassPanel`, clay actions, cyan active outline/glow; two-column options collapse to one column below 480px. | Native select labelled “Breakdown truck”; active buttons use `aria-pressed`; request busy state disables buttons; error uses `role="alert"`. Reduced-motion rule removes active glow. |
+| Tour (`web/src/app/tour/TourOverlay.tsx`, `IntroSplash.tsx`, `tour.css`) | Dark strong-panel tour card with border, radius, blur, and shadow; cyan spotlight. Intro uses full-screen dark layer. | Tour is a labelled non-modal dialog, intro a labelled dialog with Skip; arrow keys/Escape navigate/dismiss. Intro honors reduced motion; spotlight transition is removed under reduced motion. No focus trap/order management is implemented. |
+| Editor (`web/src/app/editor/PipelineEditor.tsx`, `editor.css`) | Full-screen dark translucent editor with graph, palette, inspector; operator nodes use left-edge type accents and selected/invalid outlines. Header actions are native buttons; clay primary button for Run. | Example picker has an accessible label; palette buttons have action names; validation feedback is `aria-live="polite"` and error list has node selection buttons. React Flow canvas editing is primarily drag-based; keyboard/accessibility coverage needs direct validation. At narrow widths, inspector overlays the editor body. |
+| Checkpoint timeline (`web/src/app/timeline/CheckpointTimeline.tsx`) | `GlassPanel`; 720px minimum-width visual track inside horizontal scroll; colored event bands/markers and text summary. | Panel has heading; track uses `role="img"`/aria label and checkpoint markers carry names; latest event is announced with a hidden live region. No separate event table; verify keyboard and screen-reader access to all details. |
+
+**Glass vs. clay:** glass/strong surfaces group status and detail, while clay buttons emphasize actions; `ClayButton` supports primary/danger/ghost variants. These shared components provide the style convention; panel-specific colors and inline styles remain in several feature components, so token uniformity and measured contrast are not established. Native button/select semantics provide standard focusability, but do not infer a verified focus order or visible focus-ring compliance without checking the rendered surface. The editor graph's drag-to-add palette does not offer a documented click-to-add route.
+
+**Motion:** scenario active glow reduces with `prefers-reduced-motion`; tour spotlight transition is disabled and intro animation removed when reduced motion is requested. The intro is skipped entirely for users preferring reduced motion. No additional motion guarantees for editor or timeline are established by these files.
+
+**States:** describe actual differences, not a universal pattern. Ops has success/error and “No savepoints yet” but no loading label; scenarios show active state/error and disable while busy, with list fallback on 404; the editor disables the picker while choices load and shows request/validation feedback; timeline uses “Waiting” and a refresh error. None of these facts proves WCAG contrast, focus order, or comprehensive screen-reader equivalence; measure the rendered result.
