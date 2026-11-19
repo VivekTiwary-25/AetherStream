@@ -1,0 +1,18 @@
+# T132: Integration test - no duplicate or lost results across a crash during a sink transaction  [tests, hard]
+
+Lane 8. Add tests/src/test/java/io/aetherstream/tests/ExactlyOnceSinkIT.java using the existing harness (EngineCluster etc.):
+run the truck workload; kill a worker while it is inside a Postgres sink transaction (inject a sink delay to widen the window,
+using an existing test hook if present); after recovery, assert (1) no duplicate window rows (unique on sink id + key + window),
+(2) no missing windows vs the reference executor for the same events, (3) rows written by the fenced old generation were not
+committed. Add it to one of the ci-integration matrix groups (T75b split the job into 2 groups) without pushing that job over 20
+minutes.
+
+Files (edit only these): tests/src/test/java/io/aetherstream/tests/ExactlyOnceSinkIT.java (new), tests/src/test/java/**/support/**
+(small helpers only), .github/workflows/ci-integration.yml (add the class to a group only).
+
+Acceptance check: ci-integration green on your branch with ExactlyOnceSinkIT passing.
+
+## Rules (apply to every task)
+- Read every file in docs/contracts/ first and follow them exactly. Do not edit docs/contracts/ or infra/db/schema.sql (if a contract looks wrong, say so in your report).
+- Do not read or change anything in swarm/ (except your own report file if the swarm asks you to write one).
+- Only edit the files listed. If you are on vivek-pc: do NOT start Docker containers or kind there (the live demo runs on it). Acceptance runs in GitHub Actions on your task branch.

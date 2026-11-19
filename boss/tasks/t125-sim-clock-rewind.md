@@ -1,0 +1,18 @@
+# T125: Simulator bug - a late event + duplicate at the partition tail rewinds the clock after restart  [simulator, hard]
+
+Lane 4. T114 added a @Disabled("BUG: ...") regression in simulator/src/test/java/io/aetherstream/simulator/RestartContractTest.java
+(or SimulatorRuntimeTest.java): when the newest records at a Kafka partition tail are an injected late event and its verbatim
+duplicate, the restart logic (T69: anchor sim time to the Kafka tail) reads the late timestamp and hides the earlier maximum, so
+new events after a restart rewind by up to 178,000 ms and become LATE for the engine (empty panels after a deploy). Fix the
+restart anchoring so it uses the maximum non-late event time seen in the tail window (e.g. ignore eventIds with the "-late-"
+suffix, or take max over the last N records per partition), enable the test, and add one more case: restart right after
+POST /chaos/late.
+
+Files (edit only these): simulator/src/main/java/**, simulator/src/test/java/**.
+
+Acceptance check: ci-java green on your branch with the formerly disabled test enabled and passing.
+
+## Rules (apply to every task)
+- Read every file in docs/contracts/ first and follow them exactly. Do not edit docs/contracts/ or infra/db/schema.sql (if a contract looks wrong, say so in your report).
+- Do not read or change anything in swarm/ (except your own report file if the swarm asks you to write one).
+- Only edit the files listed. If you are on vivek-pc: do NOT start Docker containers or kind there (the live demo runs on it). Acceptance runs in GitHub Actions on your task branch.

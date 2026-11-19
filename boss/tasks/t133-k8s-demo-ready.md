@@ -1,0 +1,15 @@
+# T133: kind/Kubernetes CI also proves the demo works (demo-ready.sh in ci-k8s)  [DevOps]
+
+Lane 7. ci-k8s deploys all services into kind, kills a worker pod and checks recovery. Add, at the end of that job, a run of
+infra/scripts/demo-ready.sh against the control-api service (port-forward or NodePort, whichever ci-k8s already uses) so the
+Kubernetes deployment ends with "DEMO READY ... compare=M/M" in the log and step summary. If the k8s manifests lack something
+demo-ready needs (simulator reachable through control-api, etc.), fix the manifests.
+
+Files (edit only these): .github/workflows/ci-k8s.yml, infra/kubernetes/**.
+
+Acceptance check: ci-k8s green on your branch with the DEMO READY line in the log.
+
+## Rules (apply to every task)
+- Read every file in docs/contracts/ first and follow them exactly. Do not edit docs/contracts/ or infra/db/schema.sql (if a contract looks wrong, say so in your report).
+- Do not read or change anything in swarm/ (except your own report file if the swarm asks you to write one).
+- Only edit the files listed. If you are on vivek-pc: do NOT start Docker containers or kind there (the live demo runs on it). Acceptance runs in GitHub Actions on your task branch.

@@ -31,3 +31,5 @@
 - 07:45 Contract 04 (additive): RECOVERED execution events carry durationMs (server-measured WORKER_DEAD -> RECOVERED), so the timeline shows real recovery time instead of '-'. Implemented by T110.
 - 07:55 T105 diagnosis: soak failure was the harness (docker compose kill without start), not the engine. Closed T105/T78b; T78c fixes soak.sh (restart + rejoin timing) and the TaskRuntimeTest processedRecords flake.
 - 08:02 Hand-merged T89 (ci-web.yml conflict with T97): kept both; added 'set -o pipefail' because '| tee' in GitHub's default bash hid test failures.
+- 08:10 Vivek's new loop rules adopted (queue first, fast-merge low-risk on green CI, batch reviews to cheap workers, 1-2 min waits). Recorded at top of STATE.md.
+- 08:12 Batch-merged 9 (T108 T113 T111 T119 T114 T112 T75b T78c T98). T75b ci-e2e red = docker Gradle build flake (same as T97). T98 hand-merged (CityView conflict with T102). Approved grok (T122) to add already-implemented ops/scenario routes to contract 04 and fix contract 01 event-id note.

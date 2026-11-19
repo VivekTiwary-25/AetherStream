@@ -1,6 +1,6 @@
 # Boss STATE (single source of truth)
 
-Updated: 19 Nov 08:05 IST. M1 + M2 DONE. M3 (12:30) in progress: T92 shell integration (redo T26) + T93 restored compare running.
+Updated: 19 Nov 08:15 IST. M1 + M2 DONE. M3 (12:30) in progress: T92 shell integration (redo T26) + T93 restored compare running.
 
 ## Plain-language update for Vivek (newest first)
 - 07:30 Boss back after the 03:51-07:10 usage-limit gap. Reviewed the 10 finished tasks: merged 8 (docs refresh, live
@@ -40,18 +40,26 @@ Updated: 19 Nov 08:05 IST. M1 + M2 DONE. M3 (12:30) in progress: T92 shell integ
   operator runtime, coordinator, simulator, control-api core and the first city UI are merged. Deploy runner
   `vivek-pc-deploy` is online. cloudflared at C:\Users\Arena\bin\cloudflared.exe.
 
-## Task board (08:05)
-merged since 07:10 (23): T66 T91 T81 T86 T84 T61 T72 T80 T99 T93 T92 T95 T101 T97 T100 T104 T107 T109 T103 T102 (city) T110
-  (RECOVERED durationMs) T89 (coverage; boss hand-merge + pipefail fix)
-waiting review (CI running): T78c soak restart+rejoin (ci-soak) · T112 Prometheus+Grafana (ci-monitoring)
-running / queued:
-- vivek-pc/vachana-claude: T98 Claude polish pass · vivek-pc/codex-sol: T118 control-api contract tests
-- vivek-pc/codex-luna: T111 test catalogue · vivek-pc/grok: T108 README final pass
-- upendra-pc/codex-sol: T116 CD runs demo-ready.sh (verify on main after merge!) · upendra-pc/codex-luna: T119 syllabus mapping
-- utkarsh-pc/codex-sol: T75b ITs + split ci-integration (35m+, split if >60m) · utkarsh-pc/codex-luna: T117 web API tests
-- vimlesh-pc/claude: T115 visual QA round 2 (docs) · codex-sol: T114 simulator tests · codex-luna: T113 demo-day runbook
-next: T115 P1 items -> a Claude fix task after T98 merges. M4: FINAL.md at 14:00.
-deployed: 44dfe07 (07:58). ci-ui-e2e on main keeps getting cancelled by new merges (cancel-in-progress) - verified on task branches now (T107).
+## LOOP RULES (Vivek, 08:05 - follow every loop)
+1. Queue FIRST, review SECOND: at loop start give every idle worker a task; keep one extra task pre-queued behind each busy worker.
+2. Fast-merge low-risk work (docs, tests, CI config, isolated UI components) on green CI + PASS without reading it. Read only
+   engine/protocol changes and integration tasks yourself.
+3. Batch reviews: hand waiting tasks to idle cheap workers (codex-luna/grok) as first-pass reviewers in one go; merge in a batch.
+4. Wait only ~1-2 min between loops while anything waits for review.
+5. vachana-claude = hardest remaining M3 work (shell/UI integration, anything broken in the shell).
+Known infra flake: ci-e2e "Build and start stack ... BUILD FAILED in ~49s" (Gradle inside docker build) - rerun, not the task's fault.
+
+## Task board (08:15)
+merged since 07:10 (32): ... T89 + T108 README, T113 runbook, T111 test catalogue, T119 syllabus, T114 simulator tests, T112
+  Prometheus+Grafana CI, T75b ITs + 2-job ci-integration, T78c soak restart/rejoin, T98 polish (hand-merged, CityView conflict)
+RED: ci-ui-e2e (blocking) fails on main code: "Start demo pipeline" click never stable -> T120 (vachana) top priority.
+running + pre-queued (busy -> next):
+- vachana-claude: T120 ui-e2e + WS drops -> T121 visual QA2 P1/P2 fixes
+- vivek codex-sol: T118 api contract tests -> T132 ExactlyOnceSinkIT · vivek codex-luna: T126 collab templates · grok: T122 doc/contract consistency
+- upendra codex-sol: T116 CD demo-ready -> T133 ci-k8s demo-ready · upendra codex-luna: T127 CHANGELOG
+- utkarsh codex-sol: T129 bench report · utkarsh codex-luna: T117 web API tests -> T134 chaos/compare tests
+- vimlesh claude: T115 visual QA 2 -> T135 city leftovers · vimlesh codex-sol: T125 sim clock rewind bug · vimlesh codex-luna: T128 wireframes
+open: soak ci-soak result on T78c branch never confirmed (merged on ci-java + review) - run ci-soak via workflow_dispatch on main.
 
 ## Lanes
 1 engine: coordinator merged; worker T14 running · 2 compiler/reference: ops+compiler merged; T13 running ·

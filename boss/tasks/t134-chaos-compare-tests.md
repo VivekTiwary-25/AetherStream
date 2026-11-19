@@ -1,0 +1,15 @@
+# T134: Web tests for chaos + compare panels  [tests]
+
+Lane 6, tests only. Add vitest + Testing Library tests in web/src/app/chaos/__tests__/ for ChaosPanel and ComparePanel: every
+button calls the right API (contract 04) with the right body; kill asks for confirmation first; disabled/loading/error states;
+409 messages shown verbatim; compare shows "N / N results match" and mismatches clearly. Mock fetch; fake timers cleaned up so
+vitest exits. Do not change non-test code (write it.skip + "BUG:" for bugs).
+
+Files (edit only these): web/src/app/chaos/__tests__/** (new files only).
+
+Acceptance check: ci-web green on your branch.
+
+## Rules (apply to every task)
+- Read every file in docs/contracts/ first and follow them exactly. Do not edit docs/contracts/ or infra/db/schema.sql (if a contract looks wrong, say so in your report).
+- Do not read or change anything in swarm/ (except your own report file if the swarm asks you to write one).
+- Only edit the files listed. If you are on vivek-pc: do NOT start Docker containers or kind there (the live demo runs on it). Acceptance runs in GitHub Actions on your task branch.
