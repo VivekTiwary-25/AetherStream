@@ -249,6 +249,14 @@ class TaskRuntimeTest {
     }
 
     @Test
+    void calculatesLagOnlyForAssignedPositionsWithKnownEndsAndClampsStaleEnds() {
+        assertThat(TaskRuntime.calculateLag(
+                Map.of(0, 100L, 1, 50L, 2, 90L, 4, 999L),
+                Map.of(0, 25L, 1, 50L, 2, 95L, 3, 10L)))
+                .containsExactlyInAnyOrderEntriesOf(Map.of(0, 75L, 1, 0L, 2, 0L));
+    }
+
+    @Test
     void lagUsesPerPartitionConsumerPositionsAndStaysOffStatusThread() throws Exception {
         FakeSource source = new FakeSource(data);
         source.limit.set(0);

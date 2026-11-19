@@ -33,8 +33,9 @@ class WorkerMetricsTest {
                 "aether_worker_queue_capacity{" + labels + ",queue=\"source\"} 1000\n",
                 "aether_worker_queue_capacity{" + labels + ",queue=\"sink\"} 1000\n",
                 "aether_worker_backpressured{" + labels + "} 1\n",
-                "aether_worker_lag{" + labels + ",partition=\"0\"} 17\n",
-                "aether_worker_lag{" + labels + ",partition=\"2\"} 9007199254740993\n",
+                "# TYPE aether_worker_consumer_lag gauge\n",
+                "aether_worker_consumer_lag{" + labels + ",partition=\"0\"} 17\n",
+                "aether_worker_consumer_lag{" + labels + ",partition=\"2\"} 9007199254740993\n",
                 "aether_worker_generation{" + labels + "} 7\n",
                 "aether_worker_last_checkpoint_id{" + labels + "} 42\n",
                 "aether_worker_sink_batches_total{" + labels + "} 19\n",
@@ -65,9 +66,12 @@ class WorkerMetricsTest {
             assertThat(running.body()).contains("aether_worker_processed_records_total{worker=\"w-http\"} 2\n",
                     "aether_worker_generation{worker=\"w-http\"} 1\n",
                     "aether_worker_last_checkpoint_id{worker=\"w-http\"} 1\n");
+            assertThat(running.body()).contains("aether_worker_consumer_lag{worker=\"w-http\",partition=\"0\"}");
             worker.handle(new Command.Cancel("e1", 1));
             String idle = get(http, base.resolve("/metrics")).body();
             assertThat(idle).contains("aether_worker_processed_records_total{worker=\"w-http\"} 2\n");
+            assertThat(idle).contains("aether_worker_consumer_lag{worker=\"w-http\",partition=\"\"} NaN\n")
+                    .doesNotContain("partition=\"0\"");
             assertThat(sample(idle, "sink_batches_total")).isEqualTo(sample(running.body(), "sink_batches_total"));
             sink.fenced.set(true);
             worker.handle(new Command.Assign("e1", 2, plan, List.of(0), 0, null, Map.of(0, 0L)));
