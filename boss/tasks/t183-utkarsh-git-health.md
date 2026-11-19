@@ -14,3 +14,16 @@ Write your findings in docs/expo/healthcheck-utkarsh-git.md (new): what was wron
 Files (edit only these): docs/expo/healthcheck-utkarsh-git.md (new). (Lock-file removal and prune are local git housekeeping, not repo edits.)
 
 Acceptance check: the report file exists on your branch with the findings and the disk-space table.
+
+## Extra from the boss (10:36)
+The latest failure on this PC was: "push failed: remote: Create a pull request for 'task/t261119-1027-80ba' ..." and the branch
+did NOT reach GitHub (so the push really failed; the real error is cut off). Also run, from the AetherStream checkout:
+`git push --dry-run origin HEAD:refs/heads/healthcheck/utkarsh-dry-run 2>&1` and paste the FULL output, plus `git remote -v`
+(hide any token in the URL), `git config --get credential.helper`, `git --version`, and the size of .git
+(`du -sh .git` or PowerShell Measure-Object). Do not change credentials or remotes; just report.
+
+## Rules (apply to every task)
+- Read every file in docs/contracts/ first and follow them exactly. Do not edit docs/contracts/ or infra/db/schema.sql (if a contract looks wrong, say so in your report).
+- Do not read or change anything in swarm/ (except your own report file if the swarm asks you to write one).
+- Only edit the files listed. If you are on vivek-pc: do NOT start Docker containers or kind there (the live demo runs on it). Acceptance runs in GitHub Actions on your task branch.
+- If you are on vivek-pc: it runs the live demo. Do NOT run builds, test suites, Gradle, npm build/test, Playwright or any browser/renderer locally there - read code, edit, and rely on GitHub Actions for every check.
