@@ -1,5 +1,6 @@
 package io.aetherstream.tests.support;
 
+import io.aetherstream.common.protocol.HeartbeatResponse;
 import io.aetherstream.common.protocol.Protocol;
 import io.aetherstream.common.protocol.RegisterRequest;
 import io.aetherstream.engine.coordinator.Clock;
@@ -26,7 +27,9 @@ public final class EngineCluster implements AutoCloseable {
     private final List<WorkerSlot> workers = new ArrayList<>();
     private final AtomicReference<Throwable> failure = new AtomicReference<>();
     private final ScheduledExecutorService loops;
-    private final CoordinatorHttpServer http;
+    private CoordinatorHttpServer http;
+    private Coordinator coordinator;
+    private final Object coordinatorLock = new Object();
 
     private final PGSimpleDataSource dataSource;
     private final S3CheckpointStore store;
@@ -47,14 +50,18 @@ public final class EngineCluster implements AutoCloseable {
         dataSource.setPassword("aether");
         store = new S3CheckpointStore(IntegrationInfrastructure.s3Endpoint(), "aether", "aether-secret",
                 IntegrationInfrastructure.BUCKET);
-        var coordinator = new Coordinator(new PostgresExecutionRepository(dataSource), store,
+        coordinator = new Coordinator(new PostgresExecutionRepository(dataSource), store,
                 new KafkaOffsetsLookup(IntegrationInfrastructure.bootstrap()), Clock.SYSTEM, 2000);
         coordinator.loadActiveExecutions();
         http = new CoordinatorHttpServer(coordinator, 0);
         loops = Executors.newScheduledThreadPool(Math.max(2, workerCount + 1));
         try {
             http.start();
-            loops.scheduleWithFixedDelay(() -> guarded(coordinator::tick), 250, 250, TimeUnit.MILLISECONDS);
+            loops.scheduleWithFixedDelay(() -> {
+                synchronized (coordinatorLock) {
+                    guarded(coordinator::tick);
+                }
+            }, 250, 250, TimeUnit.MILLISECONDS);
             for (int i = 0; i < workerCount; i++) {
                 addWorker();
             }
@@ -81,7 +88,13 @@ public final class EngineCluster implements AutoCloseable {
         slot.heartbeat = loops.scheduleWithFixedDelay(() -> {
             synchronized (slot.heartbeatLock) {
                 if (!slot.crashed) {
-                    guarded(() -> worker.handleAll(client.heartbeat(workerId, worker.status()).commands()));
+                    guarded(() -> {
+                        HeartbeatResponse response;
+                        synchronized (coordinatorLock) {
+                            response = client.heartbeat(workerId, worker.status());
+                        }
+                        worker.handleAll(response.commands());
+                    });
                 }
             }
         }, 0, registration.heartbeatIntervalMs(), TimeUnit.MILLISECONDS);
@@ -96,6 +109,21 @@ public final class EngineCluster implements AutoCloseable {
         synchronized (slot.heartbeatLock) {
             var runtime = slot.worker.runtime();
             if (runtime != null) runtime.stop();
+        }
+    }
+
+    /** Replaces only the coordinator, preserving its address, durable stores and live worker runtimes. */
+    public synchronized void restartCoordinator() throws Exception {
+        if (stopped) throw new IllegalStateException("Cluster is stopped");
+        synchronized (coordinatorLock) {
+            int port = http.port();
+            // No execution stop or graceful checkpoint: discard all coordinator in-memory state.
+            http.stop();
+            coordinator = new Coordinator(new PostgresExecutionRepository(dataSource), store,
+                    new KafkaOffsetsLookup(IntegrationInfrastructure.bootstrap()), Clock.SYSTEM, 2000);
+            coordinator.loadActiveExecutions();
+            http = new CoordinatorHttpServer(coordinator, port);
+            http.start();
         }
     }
 

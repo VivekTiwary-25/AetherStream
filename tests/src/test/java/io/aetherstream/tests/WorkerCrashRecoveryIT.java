@@ -91,9 +91,19 @@ class WorkerCrashRecoveryIT {
             assertThat(replacement.workerId()).isNotEqualTo(deadWorker.workerId());
             await(cluster, remaining(crashedAt), "RECOVERING after worker death", () ->
                     repository.findExecution(executionId).orElseThrow().state().equals("RECOVERING"));
-            await(cluster, remaining(crashedAt), "RUNNING with recovered generation", () -> {
+            await(cluster, remaining(crashedAt), "RUNNING with recovered generation and committed audit", () -> {
                 var execution = repository.findExecution(executionId).orElseThrow();
-                return execution.state().equals("RUNNING") && execution.generation() > generation;
+                if (!execution.state().equals("RUNNING") || execution.generation() <= generation) return false;
+                // RUNNING and its audit row are separate commits; wait for both before asserting the audit.
+                try (var connection = DriverManager.getConnection(
+                        IntegrationInfrastructure.jdbcUrl(), "aether", "aether");
+                     var statement = connection.prepareStatement(
+                             "SELECT 1 FROM audit_log WHERE action = 'execution.recovered' AND detail->>'executionId' = ?")) {
+                    statement.setString(1, executionId);
+                    try (var rows = statement.executeQuery()) {
+                        return rows.next();
+                    }
+                }
             });
             long recoveryMs = Duration.ofNanos(System.nanoTime() - crashedAt).toMillis();
             assertThat(recoveryMs).isLessThan(15_000);
