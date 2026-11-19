@@ -40,6 +40,11 @@ Updated: 19 Nov 09:20 IST. M1 + M2 DONE. M3 (12:30) in progress: T92 shell integ
   operator runtime, coordinator, simulator, control-api core and the first city UI are merged. Deploy runner
   `vivek-pc-deploy` is online. cloudflared at C:\Users\Arena\bin\cloudflared.exe.
 
+## UTKARSH-PC HEALTH CHECK (Vivek, 10:27) - in progress
+1. T182 tiny test queued to utkarsh-luna (t261119-1027-80ba). 2. If it fails with "cannot lock ref 'HEAD'" / "worktree add failed":
+after utkarsh-sol finishes T179, queue boss/tasks/t183-utkarsh-git-health.md to utkarsh-pc/codex-sol. 3. Then queue another tiny
+test to luna. 4. If still failing: exact error + disk-space numbers into NEEDS_VIVEK.
+
 ## ROUTING RULES (Vivek, 09:45)
 - vivek-pc (RTX 2050) runs ONLY the live demo + the boss. No heavy builds, renders or browser tests there. Heavy work ->
   utkarsh-pc first (RTX 4050, always on), then vimlesh-pc / upendra-pc when online. vivek-pc workers: light work only.
