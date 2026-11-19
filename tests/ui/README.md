@@ -72,6 +72,8 @@ not yet mount the existing editor, chaos, or comparison components; these are
 integration failures to fix in the UI lane, not reasons to weaken this scenario.
 
 ## New-UI smoke tests
-Run `npm run test:glorious` for three independent Chromium checks (Home/map, Truck Speeds, Logs & Recovery).
-Set `GLORIOUS_URL` to override `http://localhost:8089`; use a running demo stack with live trucks and three workers.
-This isolated config uses fresh contexts, no classic storage flag, reduced motion, and no AI or mocked data.
+Run `npm run test:glorious` for Chromium checks of Home/map, Truck Speeds, and Logs & Recovery.
+The recovery spec is destructive: it skips unless `ALLOW_KILL=1`; it refuses `GLORIOUS_URL` containing `:8088`.
+Run it only against a disposable stack with three live workers and an active execution; it kills `worker-2`.
+Recovery screenshots are written to `test-results/recovery-*.png`.
+The isolated config uses fresh contexts, no storage state, reduced motion, and no AI or mocked data.
