@@ -24,7 +24,7 @@ export function Footer() {
   }, [])
 
   return (
-    <footer className="app-footer">
+    <footer className="app-footer" data-tour="devops">
       <span>Deployed version: {version ?? '…'}</span>
       <MockBadge />
     </footer>

@@ -117,18 +117,31 @@ test('real-stack demo: deployed UI, engine values, editor, recovery, reference',
     await open.click()
     const editor = page.getByRole('dialog', { name: 'Pipeline editor', exact: true })
     await expect.soft(editor, 'Pipeline editor must open as an accessible dialog').toBeVisible()
+    // The editor offers an Examples picker when /api/pipelines/examples exists, else a "Load demo" button.
+    const examples = editor.getByRole('combobox', { name: 'Examples', exact: true })
+    await expect.soft(examples.or(editor.getByRole('button', { name: 'Load demo', exact: true })), 'Editor must offer examples or Load demo').toBeVisible()
+    const usePicker = await examples.isVisible()
+    if (usePicker) await expect.soft(examples, 'Examples picker must finish loading').toBeEnabled()
     const [demoResponse] = await Promise.all([
-      page.waitForResponse((response) => new URL(response.url()).pathname === '/api/pipelines/demo'),
-      editor.getByRole('button', { name: 'Load demo', exact: true }).click(),
+      page.waitForResponse((response) => usePicker
+        ? new URL(response.url()).pathname === '/api/pipelines/examples/logistics-demo'
+        : new URL(response.url()).pathname === '/api/pipelines/demo'),
+      usePicker
+        ? examples.selectOption('logistics-demo')
+        : editor.getByRole('button', { name: 'Load demo', exact: true }).click(),
     ])
-    expect.soft(demoResponse.ok(), 'Load demo must succeed against the real API').toBe(true)
+    expect.soft(demoResponse.ok(), 'Loading the demo pipeline must succeed against the real API').toBe(true)
     await expect.soft(editor.getByLabel('Output src', { exact: true }), 'Demo source must finish rendering before Validate').toBeVisible()
     await editor.getByRole('button', { name: 'Validate', exact: true }).click()
     await expect.soft(editor.getByText(/^Valid - \d+ operators, \d+ partitions$/), 'Real compiler must validate the demo successfully').toBeVisible()
     await screenshot('04-valid-demo')
+    const brokenOption = examples.locator('option[value="broken-for-demo"]')
     const broken = editor.getByRole('button', { name: /broken-for-demo/i })
-    if (await broken.isVisible()) {
-      await broken.click()
+    const pickerOffersBroken = usePicker && await brokenOption.count() > 0
+    if (pickerOffersBroken || await broken.isVisible()) {
+      if (pickerOffersBroken) await examples.selectOption('broken-for-demo')
+      else await broken.click()
+      await expect.soft(editor.getByText('This pipeline has 3 mistakes - press Validate'), 'broken-for-demo must load').toBeVisible()
       await editor.getByRole('button', { name: 'Validate', exact: true }).click()
       const errors = editor.getByRole('region', { name: 'Validation errors', exact: true })
       await expect.soft(errors.getByRole('button'), 'Offered broken-for-demo example must yield exactly three compiler errors').toHaveCount(3)

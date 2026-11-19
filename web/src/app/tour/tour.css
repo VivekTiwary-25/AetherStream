@@ -62,9 +62,10 @@
   animation: intro-splash-fade 2s ease-in-out forwards;
 }
 
-.intro-splash h1 {
+.intro-splash .intro-splash__title {
   margin: 0;
   font-size: 2.5rem;
+  font-weight: 700;
   color: var(--color-cyan);
 }
 

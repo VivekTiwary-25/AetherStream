@@ -38,7 +38,7 @@ export function IntroSplash({ durationMs = 2000, onDone }: IntroSplashProps) {
   return (
     <div className="intro-splash" role="dialog" aria-label="AetherStream introduction" onClick={finish}>
       <div>
-        <h1>AetherStream</h1>
+        <p className="intro-splash__title">AetherStream</p>
         <p>a fault-tolerant stream engine</p>
         <button type="button" className="clay-button clay-button--ghost" onClick={(event) => { event.stopPropagation(); finish() }}>Skip</button>
       </div>
