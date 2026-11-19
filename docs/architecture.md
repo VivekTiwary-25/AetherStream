@@ -386,23 +386,30 @@ If input offsets, operator state, and upserts agree, the closed windows in Postg
 
 Local and demo deployment is Docker Compose: Kafka (KRaft, one node), Postgres, MinIO, one coordinator, three workers, the simulator, the control API, and nginx. Custom Dockerfiles cover the engine (coordinator by default, worker by command override), the simulator, the control API, and the web image. Runtime base for the Java services is `eclipse-temurin:21-jre`. The web image is built with `node:22-alpine` and served by `nginx:1.29-alpine`. Images are identified by the commit SHA passed in as `GIT_SHA` (web build: `VITE_GIT_SHA`). `GET /api/version` returns `{"commit":"<GIT_SHA>","builtAt":...}`.
 
-Kubernetes and Terraform are **planned**. They are not the v1 runtime. Compose does not become interruption-free scaling by being called a cluster. A separate registry-to-container exercise for a stateless syllabus demo, if one is required, is not a substitute for this engine's deployment.
+An optional Compose profile `monitoring` adds Prometheus (`prom/prometheus:v3.5.0`, host port 19090) and Grafana (`grafana/grafana:12.1.0`, host port 13000). Start it with `docker compose --profile monitoring up -d`. The provisioned dashboard is **AetherStream engine** (`infra/monitoring/grafana/dashboards/aetherstream.json`). A plain `docker compose up` does not start it. See `infra/monitoring/README.md`.
+
+Kubernetes manifests in `infra/kubernetes/` are a single-node demo, checked by `.github/workflows/ci-k8s.yml` on a kind cluster named `aether-ci`. Worker pods there are `worker-0`, `worker-1`, and `worker-2`. Compose workers are `worker-1`, `worker-2`, and `worker-3`. Terraform in `infra/terraform/` is a local Docker provider path, not a cloud account. `.github/workflows/ci-terraform.yml` checks formatting, initializes, validates, applies, waits for readiness, and destroys. The apply log prints the plan; the workflow has no separate plan step. Neither path replaces the Compose demo or the self-hosted Compose deploy in `cd.yml`. They are not a highly available cluster.
 
 ### Workflows
 
-Contract 00 defines one workflow file per concern. All of the CI files run on push to `main` and to `task/**`, and on pull request to `main`. A task is accepted only when CI on its `task/<id>` branch is green. A green workflow file in the repo is the design of the check. It is not, by itself, a measured performance result.
+Contract 00 defines one workflow file per concern. Most CI workflows run on push to `main` and to `task/**`, and on pull request to `main`. `ci-web`, `ci-k8s`, `ci-terraform`, `bench`, and `ci-ui-e2e` also use path filters, so a docs-only push does not start them. A task is accepted only when CI on its `task/<id>` branch is green. A green workflow file in the repo is the design of the check. It is not, by itself, a measured performance result. Trigger detail is in `docs/ci-cd.md`.
 
 | File | Job | What it runs |
 |---|---|---|
 | `.github/workflows/ci-java.yml` | `java` | `./gradlew build` (compile and unit tests of every module). Uploads test reports. |
 | `.github/workflows/ci-web.yml` | `web` | In `web/`: `npm ci`, lint, test if present, production build. |
-| `.github/workflows/ci-integration.yml` | `integration` | `./gradlew :tests:integrationTest` (Testcontainers). Uploads reports. |
+| `.github/workflows/ci-integration.yml` | `integration` | `./gradlew :tests:integrationTest` (Testcontainers). Uploads reports. Includes `EngineMatchesReferenceIT` and `WorkerAdaptersIT`. |
 | `.github/workflows/ci-compose.yml` | `compose` | Build images, `docker compose up -d`, wait for health, run `infra/scripts/smoke.sh`, dump logs. |
+| `.github/workflows/ci-e2e.yml` | `lint`, `e2e` | ShellCheck `infra/scripts/demo-e2e.sh`, then `docker compose up -d --build` and `bash infra/scripts/demo-e2e.sh`. Uploads Compose logs. The demo job is blocking. |
 | `.github/workflows/ci-images.yml` | `images` | Build every Dockerfile under `infra/docker` (no push) and smoke-run them. |
 | `.github/workflows/ci-mock.yml` | `mock` | Dev mock server self-test. The UI shows a visible MOCK DATA badge when `VITE_USE_MOCK=1`. A production build must leave that unset. |
-| `.github/workflows/cd.yml` | `publish`, `deploy` | Push to `main` only. Publish images to GHCR tagged with the commit SHA. Deploy on the self-hosted runner labelled `aether-deploy`. |
+| `.github/workflows/ci-k8s.yml` | `ci-k8s` | Render and kubeconform-check `infra/kubernetes`, build four images, create the kind cluster, deploy, smoke, delete pod `worker-1`, and always run `kubectl get pods -A -o wide`. |
+| `.github/workflows/ci-terraform.yml` | `ci-terraform` | `terraform -chdir=infra/terraform fmt -check`, `init`, `validate`, `apply`, readiness checks, and `destroy`. |
+| `.github/workflows/bench.yml` | `benchmark` | `./gradlew :tests:benchmarkTest`. Uploads reports. This document does not quote benchmark numbers. |
+| `.github/workflows/ci-ui-e2e.yml` | `ui-e2e` | Playwright demo in `tests/ui` against Compose. The job is `continue-on-error: true` until the editor, chaos, and compare surfaces are mounted in the shell. A green workflow can hide a failed browser job. |
+| `.github/workflows/cd.yml` | `publish`, `deploy` | Push to `main` only for publish and deploy. Publish images to GHCR tagged with the commit SHA. Deploy on the self-hosted runner labelled `aether-deploy`. |
 
-Longer chaos, recovery, scaling, and benchmark scenarios are **planned** as on-demand or release checks. They stay off the live demonstration environment. v1 does put a bounded chaos API on the coordinator and the simulator (kill a worker, delay the sink, inject late, duplicate, and malformed events) so a demo can exercise the contracts without a separate benchmark suite. Those injections are functional tests of the policies above. They are not a licence to invent throughput or latency numbers.
+`infra/scripts/demo-e2e.sh` starts the demo pipeline, injects late events, kills a Compose worker, and exercises sink delay. That is a functional check, not a throughput result. `bench.yml` runs a separate benchmark task. Do not copy numbers out of a benchmark report into this document. Rescale is a controlled pause at a completed checkpoint, then reassignment. It is not interruption-free scaling, and it does not change the Kafka partition count.
 
 ### Publish, deploy, smoke
 
@@ -472,12 +479,12 @@ The gain is one JSON stack, no worker listen port for control, and no way for th
 
 ### Limitations / future work
 
-These are **planned**. They are not silent parts of v1.
+These are **planned**, except where a bullet says the limited form is already on `main`. They are not silent parts of a broader claim.
 
-- **Coordinator high availability.** Needs a single leader and the fencing token that already exists. Multiple active coordinators must not assign the same execution. Not in v1.
-- **Rescaling.** The first correct approach is to pause at a completed checkpoint, transfer state, change the assignment, and resume. That pause is not interruption-free scaling. Online state migration is later still. v1 only assigns on start and on recovery, round-robin, same partition count (6).
-- **Savepoints.** A user-named, retained checkpoint for a controlled restart or a compatible upgrade. v1 has periodic checkpoints and checkpoint 0 only. An incompatible savepoint must be rejected with a clear reason. That checker is planned with savepoints, not claimed now.
-- **Kubernetes and Terraform.** Proposed for a later distributed runtime and for infrastructure as code. v1 deployment is Compose, plus GHCR images and a self-hosted Compose deploy. Container orchestration does not implement the recovery protocol. The coordinator does.
+- **Coordinator high availability.** Still planned. One active coordinator. Compose, kind, and the Terraform demo each run one coordinator. Multiple active coordinators must not assign the same execution.
+- **Online rescaling.** Not implemented. What is on `main` is a pause. `POST /api/executions/{id}/rescale` asks the coordinator to rebalance. That triggers a checkpoint if none is pending. Only after that checkpoint completes does the execution enter recovery, bump the generation, cancel the old assignment, and assign the same partitions again. It runs only when the live assignment is unbalanced: a live worker owns no partitions, or the busiest and quietest live workers differ by at least two partitions. It is also refused if a rebalance happened less than 30 seconds ago. A balanced three-worker demo returns HTTP 409 `CONFLICT`. That pause is not interruption-free scaling and not a shuffle.
+- **Savepoints.** Implemented. `POST /api/executions/{id}/savepoints` waits for an aligned checkpoint and keeps the manifest at `savepoints/{id}/manifest.json`. `GET /api/savepoints` lists them. `POST /api/executions/{id}/restore` needs `savepointId` and `idempotencyKey`. It stops that execution and starts a new one from the savepoint, using the newest stored plan for the same pipeline. A mismatch of pipeline id, protocol version, partition count, topic, or operator set is rejected as an incompatible savepoint. Repeating the same idempotency key returns the execution already created for it. This is not checkpoint branching.
+- **Kubernetes and Terraform.** Present as demo and CI paths, not as the v1 deploy. v1 deploy remains Compose on the self-hosted runner, with images from GHCR. kind is one node. Terraform uses the Docker provider on the runner and destroys what it created. There is no cloud account in `infra/terraform/`. Container orchestration does not implement the recovery protocol. The coordinator does.
 
 Also planned, and not in the v1 operator or API contracts: login and organisation access control; sliding and session windows; stream joins; schema evolution; incremental or asynchronous snapshots; skew-aware partitioning; autoscaling; checkpoint branching; a SQL front end; pluggable inference operators. The handoff lists them as staged work. This design does not claim them.
 
