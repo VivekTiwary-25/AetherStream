@@ -6,7 +6,7 @@ Click only these labels. No **MOCK DATA** badge. Do not push to `main`. Do not r
 
 - App: <http://localhost:8088>
 - API: <http://localhost:18080> — footer **Deployed version:** is the first 7 characters of `GET /api/version`
-- Grafana: <http://localhost:13000> — dashboard **AetherStream engine** (anonymous, read-only). Prometheus, if asked: <http://localhost:19090>
+- Grafana: <http://localhost:13000> — dashboards **AetherStream engine** and **AetherStream Demo** (<http://localhost:13000/d/aetherstream-demo/aetherstream-demo>); anonymous, read-only. Prometheus, if asked: <http://localhost:19090>
 - Actions: <https://github.com/VivekTiwary-25/AetherStream/actions> — if slow, do not wait; show [run 44440449358](https://github.com/VivekTiwary-25/AetherStream/actions/runs/44440449358)
 
 ## Six clicks (labels from DEMO.md)
