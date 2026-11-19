@@ -80,7 +80,7 @@ The control API is the only process the browser calls. It stores pipeline versio
 
 **Recovery coordination.** The coordinator is not on the record path. It decides who owns which partitions, when a checkpoint starts, when it is complete, and what to do when a worker disappears. Checkpoint bytes live in MinIO. The decision of which checkpoint is safe to restore lives in the Postgres `checkpoints` row, and only after the manifest upload succeeds.
 
-A metrics stack (Prometheus, Grafana) was proposed in the handoff and is **planned**. v1 exposes health endpoints, queue depths, lag, and records-per-second on the heartbeat and on the WebSocket. Those fields exist so an operator can see backpressure. This document does not treat any sample value as a measurement.
+A metrics stack (Prometheus, Grafana) was proposed in the handoff and is no longer only **planned**. Compose profile `monitoring` runs Prometheus (`prom/prometheus:v3.5.0`, host port 19090) and Grafana (`grafana/grafana:12.1.0`, host port 13000). `.github/workflows/ci-monitoring.yml` starts that profile and checks Prometheus targets plus the Grafana **AetherStream engine** dashboard. A plain `docker compose up` does not start the profile. v1 also exposes health endpoints, queue depths, lag, and records-per-second on the heartbeat and on the WebSocket. Those fields exist so an operator can see backpressure. This document does not treat any sample value as a measurement.
 
 ### Services and ports
 

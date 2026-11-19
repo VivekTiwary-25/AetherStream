@@ -15,7 +15,7 @@ Topic `truck-events`, 6 partitions. Kafka key = `key` field (UTF-8). Kafka value
 ```
 | Field | Type | Rule |
 |---|---|---|
-| eventId | string, non-empty | globally unique per logical event. Simulator: `s<seed>-<truckId>-<seq 6 digits>`. Duplicates (same eventId) may be re-sent on purpose (chaos). |
+| eventId | string, non-empty | globally unique per logical event. Simulator: `s<seed>-<truckId>-<seq 6 digits>`, plus an optional chaos suffix such as `-late-<n>`. At runtime a 39-digit zero-padded decimal derived from a random UUID is inserted before the 6-digit sequence, so ids stay unique across same-seed restarts. The example above omits that prefix. Duplicates (same eventId) may be re-sent on purpose (chaos). |
 | schemaVersion | int | must be `1` |
 | type | string | `truck.position` or `truck.delivery` |
 | eventTime | long | epoch milliseconds in **simulation time** (see 4) |
@@ -57,8 +57,9 @@ injected late events.
   emitting a `truck.delivery` event when unloading finishes.
 - `truck-007` is the "stuck truck" scenario when `stuckTruckDemo=true` (default): after 5 sim-minutes it stops
   (status `STOPPED`, speed 0) for 15 sim-minutes while still emitting position events, so the stuck-truck rule fires.
-- Determinism: given the same seed and the same sequence of API calls, each truck's event sequence (payloads, eventTime
-  offsets, eventIds) is identical. Use `java.util.SplittableRandom(seed ^ truckIndex)` per truck.
+- Determinism: given the same seed and the same sequence of API calls, each truck's event sequence (payloads and eventTime
+  offsets) is identical. Use `java.util.SplittableRandom(seed ^ truckIndex)` per truck. Event ids are not stable across
+  process restarts: each start inserts the UUID-derived prefix described for `eventId`.
 - Kafka producer: `acks=all`, `enable.idempotence=true`, key = truckId.
 - About 1 in 400 records is deliberately malformed when `malformedRate` > 0 (default 0.0025): e.g. missing `speedKmh` or
   negative speed. These must keep `key` and partitioning correct.
