@@ -1,7 +1,7 @@
 $ErrorActionPreference = 'Stop'
 $runDir = Join-Path $PSScriptRoot '.run'
 New-Item -ItemType Directory -Force -Path $runDir | Out-Null
-if (-not $env:AI_BIND) { $env:AI_BIND = '0.0.0.0' }
+if (-not $env:AI_BIND) { $env:AI_BIND = '127.0.0.1' }
 if (-not $env:AI_PORT) { $env:AI_PORT = '18090' }
 if (-not $env:CLAUDE_CONFIG_DIR) {
     $profileDir = Join-Path $env:USERPROFILE '.swarm\profiles\vachana-claude\claude'

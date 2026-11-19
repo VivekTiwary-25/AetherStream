@@ -279,7 +279,7 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main():
-    host = os.environ.get("AI_BIND", "0.0.0.0")
+    host = os.environ.get("AI_BIND", "127.0.0.1")  # Docker Desktop forwards host.docker.internal to host localhost; keeps the bridge off the LAN
     port = int(os.environ.get("AI_PORT", "18090"))
     ThreadingHTTPServer((host, port), Handler).serve_forever()
 
