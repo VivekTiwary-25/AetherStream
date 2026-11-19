@@ -16,3 +16,9 @@ Acceptance check: 3 green ci-offline runs on your branch (paste the 3 run URLs).
 - Read every file in docs/contracts/ first and follow them exactly. Do not edit docs/contracts/ or infra/db/schema.sql (if a contract looks wrong, say so in your report).
 - Do not read or change anything in swarm/ (except your own report file if the swarm asks you to write one).
 - Only edit the files listed. If you are on vivek-pc: do NOT start Docker containers or kind there (the live demo runs on it). Acceptance runs in GitHub Actions on your task branch.
+
+## Update from the boss (09:58)
+Real cause of ci-offline failing on every branch: its browser check does expect(locator('canvas')).toBeVisible(), but since
+T120c the app shows a STATIC city backdrop (no canvas) on software WebGL like the CI runner. Fix the check: open the page with
+?city=live (supported by web/src/app/shell/cityMode.ts) and keep the canvas check, OR accept the static backdrop element as the
+city. You cannot push or dispatch runs yourself: the swarm pushes your branch and CI runs then; just make the fix.

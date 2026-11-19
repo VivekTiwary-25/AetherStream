@@ -19,3 +19,6 @@ Current public link (quick tunnel, changes if the PC restarts): https://trance-c
 9. [09:20] (optional, 1 min) Make the laptop boot straight into a ready demo. In PowerShell on vivek-pc:
    `cd D:\projects\AetherStream; powershell -ExecutionPolicy Bypass -File infra\deploy\register-expo-autostart.ps1`
    (undo: same command with `-Unregister`). The boss was not allowed to register a scheduled task itself. Dry run checked OK.
+10. [09:58] utkarsh-pc cannot sync with GitHub ("unpack-objects failed", "worktree add failed: cannot create directory").
+   On utkarsh-pc open a terminal and run: `swarm fix`  (if it fails again: check free disk space, then run `swarm fix` again).
+   This matters: utkarsh-pc is the main machine for heavy work now. Its queued tasks were moved to other workers meanwhile.
