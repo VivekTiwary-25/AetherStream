@@ -72,7 +72,7 @@ Three planes share one set of Java records (`:common`) and one operator implemen
 | MinIO | infrastructure | recovery coordination | Checkpoint worker files and the manifest. S3 API. |
 | nginx | infrastructure | control plane edge | Serves the UI and proxies `/api` and `/ws`. |
 
-**Control plane.** The pipeline author edits a graph. The operator watches workers, queues, checkpoints, and failures. The evaluator starts a seeded run and compares it with the reference. An organisation-administrator role, login, and cross-organisation access control are **planned**. They are not in the v1 API.
+**Control plane.** The pipeline author edits a graph. The operator watches workers, queues, checkpoints, and failures. The evaluator starts a seeded run and compares it with the reference. The control API scopes pipelines, executions, results, savepoints, and comparisons by the caller-supplied `X-Org` header (default `demo`); this is an organisation selector, not authentication or an administrator role. `OrgFilter`, `OrgContext`, and `OrgAccess` implement that boundary in `control-api/src/main/java/io/aetherstream/api/org/`.
 
 The control API is the only process the browser calls. It stores pipeline versions in Postgres (`pipelines`, primary key `id, version`; the same id gets the next version). Starting an execution sends the plan to the coordinator. Only one execution is RUNNING at a time; starting another stops the old one. The same idempotency key returns the same execution. A WebSocket pushes trucks, flow, new result rows, worker status, and execution events. The UI must show running, backpressured, checkpointing, recovering, paused or stopped, and failed as text plus colour, not colour alone.
 
@@ -277,6 +277,7 @@ The coordinator triggers a checkpoint every `CHECKPOINT_INTERVAL_MS` (default 10
 ```mermaid
 sequenceDiagram
   participant C as Coordinator
+  participant W as Worker heartbeat client
   participant Src as Source thread
   participant Op as Operator thread
   participant Sink as Sink thread
@@ -284,9 +285,10 @@ sequenceDiagram
   participant PG as Postgres
 
   C->>PG: insert checkpoint N PENDING
-  Src->>C: heartbeat
-  C-->>Src: TRIGGER_CHECKPOINT N
-  Src->>Src: next offset not yet queued, per partition
+  W->>C: Heartbeat with worker status
+  C-->>W: TRIGGER_CHECKPOINT N in heartbeat response
+  W->>Src: deliver command to runtime
+  Src->>Src: capture next offset not yet queued, per partition
   Src->>Op: Barrier N behind records already queued
   Op->>Op: snapshot each PartitionPipeline
   Op->>Sink: Barrier N
@@ -306,9 +308,41 @@ If the manifest were written earlier, a restore could follow a pointer to a cut 
 
 A checkpoint that is not `COMPLETED` within 30 seconds, or that is interrupted by a failure, is set `ABORTED`. Restore uses only the latest `COMPLETED` checkpoint. It never uses `PENDING` or `ABORTED`, even if some worker files already exist in MinIO. Incomplete files are leftover, not a checkpoint.
 
-**Checkpoint 0.** Written at execution start, already `COMPLETED`, with empty operator state. `source_offsets` are the topic end offsets when `startFrom` is `latest`, or the beginning offsets when `startFrom` is `earliest`. No barrier round is required. It is the left edge of a reference comparison, and it is a valid restore point: empty state, seek to those offsets. An execution that starts at `latest` does not claim to recompute history from before it started.
+**Checkpoint 0.** For a normal execution, checkpoint 0 is written at start as `COMPLETED` with empty operator state and offsets at topic end (`startFrom: latest`) or beginning (`earliest`). No barrier round is required; it is the left edge for reference comparison and a valid empty-state restore point. A savepoint-restored execution instead writes checkpoint 0 as `COMPLETED` with the savepoint manifest key and saved source offsets; the manifest carries the initial worker state. The restored execution's own barrier checkpoints are numbered from 1. An execution that starts at `latest` does not claim to recompute history from before it started.
 
-Protocol version in every request body, and in the manifest, is 1. A restore that does not match the plan's pipeline version or the protocol version is not a compatible restore. Savepoints, and a separate compatibility checker for them, are **planned**. Container rollback alone does not repair incompatible state or a database migration. That limit is already true in v1.
+Protocol version in every request body, and in the manifest, is 1. Restore checks savepoint compatibility against the target plan (pipeline id, protocol version, partition count, topic, operator set, and stateful operator type/config); it is not general state schema evolution. Container rollback alone does not repair incompatible state or a database migration.
+### Savepoint restore and comparison lineage
+
+`POST /api/executions/{id}/savepoints` waits for an aligned checkpoint, then writes an immutable manifest at `savepoints/{savepointId}/manifest.json`; that manifest retains references to the checkpoint's worker snapshot objects and stores the plan used to validate compatibility. Restore validates compatibility, starts a new execution from the saved manifest offsets and state, and stores that manifest key on the new execution's completed checkpoint 0. That restored execution numbers its own later checkpoints from 1; `TaskRuntime.checkpointBaseline` treats the external savepoint checkpoint id as a baseline of 0, so its first `TRIGGER_CHECKPOINT 1` is not discarded as stale. See `engine/src/main/java/io/aetherstream/engine/coordinator/Coordinator.java` (`createSavepoint`, `startExecutionFromSavepoint`) and `engine/src/main/java/io/aetherstream/engine/worker/TaskRuntime.java` (`checkpointBaseline`).
+
+Compare on a restored execution follows checkpoint-0 savepoint links back through `savepoint.created` audit rows. `CompareService.replayLineage` reads each execution's Kafka offset range from its initial offsets to the latest completed checkpoint offsets, then `ReferenceExecutor.run(List<ReplayStage>)` applies each stage in order, restoring each partition's prior snapshot between stages. `ResultComparator` compares that reference replay with the restored execution's Postgres rows. The lineage lookup is org-scoped; unavailable or cyclic lineage is an error, not an incomplete comparison. Code: `control-api/src/main/java/io/aetherstream/api/compare/CompareService.java` and `reference/src/main/java/io/aetherstream/reference/ReferenceExecutor.java`.
+
+```mermaid
+sequenceDiagram
+  participant C as Coordinator
+  participant W as Worker source/operator/sink
+  participant S3 as MinIO
+  participant PG as Postgres
+  participant API as Control API
+  participant K as Kafka
+  participant R as ReferenceExecutor
+
+  C->>W: Trigger aligned checkpoint N
+  W->>S3: Upload worker snapshot(s) after barrier flush
+  W-->>C: CheckpointAck with offsets and object key
+  C->>S3: Savepoint manifest + saved plan
+  C->>PG: Record savepoint and audit lineage
+  API->>C: Restore savepoint as a new execution
+  C->>S3: Read savepoint manifest
+  C->>PG: Create new execution, checkpoint 0 points to savepoint offsets/manifest
+  C-->>W: ASSIGN generation 1, restore state and seek to saved offsets
+  Note over C: New execution checkpoints are numbered from 1
+  API->>API: Compare selects latest completed checkpoint C
+  API->>PG: Follow checkpoint-0 savepoint lineage and load source plans
+  API->>K: Read each lineage segment's half-open offset range
+  API->>R: Replay ordered stages, restoring partition state between stages
+  API->>PG: Compare reference output with restored execution results
+```
 
 ## 7. Failure detection and recovery
 
@@ -327,9 +361,34 @@ If that worker owned partitions of a `RUNNING` execution, recovery is:
 
 Audit rows: `worker.dead`, `execution.recovering`, `execution.recovered`. The recovered row's detail includes checkpoint id, generation, and recovery duration. That duration is a recorded fact of a run, not a number this document claims.
 
-A restarted process registers again and receives a new worker id. It is eligible for the next assignment. It does not resume its old id's partitions by itself.
+A restarted process may register with the same fixed `WORKER_ID`. Registration replaces the prior worker incarnation and drops its command queue. A worker joining or rejoining while an execution is `RUNNING` or `RECOVERING` can become a rebalance candidate when it is outside the current assignment; the existing stability and rate-limit rules still apply. It does not resume old ownership without a coordinator assignment. See `Coordinator.register` and `Coordinator.maybeResendAssign` in `engine/src/main/java/io/aetherstream/engine/coordinator/Coordinator.java`.
 
 Coordinator restart, still the single-coordinator baseline: read executions in `RUNNING` or `RECOVERING`, wait one heartbeat timeout so workers can register again, then run the same recovery. Two coordinators must not assign the same execution. High availability with a leader lock is **planned**. Until then, a second coordinator is not part of the design.
+
+Coordinator self-healing covers missed heartbeat responses and failed recovery steps. The coordinator retains the current-generation `ASSIGN` per member and resends it, at most once per two heartbeat intervals, when the worker status shows an old generation/execution or no execution; a current-generation `IDLE` member is retried only after one heartbeat timeout. If a checkpoint is pending, the trigger is re-queued too. A newly re-registered same-id member can join during recovery. Each tick also retries recovery if the active assignment names a dead or unknown member. The generation in memory advances immediately after the database fencing-token bump, even if a later repository operation fails. During the coordinator-restart grace window, an empty assignment is not considered running, so no checkpoint or rebalance starts before recovery. These rules are implemented in `Coordinator.java`; rationale and regression cases are in `docs/reviews/R07-engine-hardening.md`.
+
+```mermaid
+sequenceDiagram
+  participant K as Kafka
+  participant C as Coordinator
+  participant Dead as Failed worker
+  participant Live as Live workers
+  participant PG as Postgres
+  participant S3 as MinIO
+
+  Dead--xC: Heartbeats stop / worker crash
+  C->>PG: Mark execution RECOVERING; abort pending checkpoint
+  C->>PG: Load latest COMPLETED checkpoint N and bump generation
+  C->>S3: Read N manifest (if N > 0)
+  C-->>Live: CANCEL old generation; ASSIGN all partitions at new generation
+  Live->>S3: Restore each partition state from N (empty state at checkpoint 0)
+  Live->>K: Seek to checkpoint nextOffsets and consume/replay
+  Live-->>C: Heartbeat reports RUNNING at new generation
+  C->>PG: Mark execution RUNNING when all assignees converge
+  Note over C: If ASSIGN response was lost, resend it; stale generations cannot commit
+```
+
+Recovery and checkpoint numbering follow code, not the savepoint's identity: only the latest `COMPLETED` checkpoint is eligible for worker-failure recovery; incomplete checkpoint worker files are ignored. `ExecutionEvents` emits `RECOVERED` when execution returns to `RUNNING` after recovery, with `durationMs` measured by the control API from worker-dead detection to recovered state, as required by contract 04. See `control-api/src/main/java/io/aetherstream/api/ws/ExecutionEvents.java`.
 
 ```mermaid
 stateDiagram-v2
@@ -483,9 +542,9 @@ These are **planned**, except where a bullet says the limited form is already on
 
 - **Coordinator high availability.** Still planned. One active coordinator. Compose, kind, and the Terraform demo each run one coordinator. Multiple active coordinators must not assign the same execution.
 - **Online rescaling.** Not implemented. What is on `main` is a pause. `POST /api/executions/{id}/rescale` asks the coordinator to rebalance. That triggers a checkpoint if none is pending. Only after that checkpoint completes does the execution enter recovery, bump the generation, cancel the old assignment, and assign the same partitions again. It runs only when the live assignment is unbalanced: a live worker owns no partitions, or the busiest and quietest live workers differ by at least two partitions. It is also refused if a rebalance happened less than 30 seconds ago. A balanced three-worker demo returns HTTP 409 `CONFLICT`. That pause is not interruption-free scaling and not a shuffle.
-- **Savepoints.** Implemented. `POST /api/executions/{id}/savepoints` waits for an aligned checkpoint and keeps the manifest at `savepoints/{id}/manifest.json`. `GET /api/savepoints` lists them. `POST /api/executions/{id}/restore` needs `savepointId` and `idempotencyKey`. It stops that execution and starts a new one from the savepoint, using the newest stored plan for the same pipeline. A mismatch of pipeline id, protocol version, partition count, topic, or operator set is rejected as an incompatible savepoint. Repeating the same idempotency key returns the execution already created for it. This is not checkpoint branching.
+- **Savepoints.** Implemented. `POST /api/executions/{id}/savepoints` waits for an aligned checkpoint and retains worker files plus a manifest at `savepoints/{savepointId}/manifest.json`; the manifest includes the source plan. `GET /api/savepoints` lists savepoints scoped to the caller's organisation. `POST /api/executions/{id}/restore` needs `savepointId` and `idempotencyKey`; it stops that execution and starts a new one from the savepoint, using the newest stored plan for the same pipeline. A mismatch of pipeline id, protocol version, partition count, topic, operator set, or stateful operator type/config is rejected as incompatible. The restored execution starts with checkpoint 0 pointing at the savepoint; its own checkpoints start at 1. Compare replays the saved execution lineage through savepoint links. Repeating the same idempotency key returns the execution already created for it. This is not checkpoint branching.
 - **Kubernetes and Terraform.** Present as demo and CI paths, not as the v1 deploy. v1 deploy remains Compose on the self-hosted runner, with images from GHCR. kind is one node. Terraform uses the Docker provider on the runner and destroys what it created. There is no cloud account in `infra/terraform/`. Container orchestration does not implement the recovery protocol. The coordinator does.
 
-Also planned, and not in the v1 operator or API contracts: login and organisation access control; sliding and session windows; stream joins; schema evolution; incremental or asynchronous snapshots; skew-aware partitioning; autoscaling; checkpoint branching; a SQL front end; pluggable inference operators. The handoff lists them as staged work. This design does not claim them.
+Also planned, and not in the v1 operator or API contracts: login and authenticated identity (the current `X-Org` selector is not authentication); sliding and session windows; stream joins; schema evolution; incremental or asynchronous snapshots; skew-aware partitioning; autoscaling; checkpoint branching; a SQL front end; pluggable inference operators. The handoff lists them as staged work. This design does not claim them.
 
 What v1 does claim is narrower, and it is the point of the project. Event time is explicit. Lateness is a dead letter, not a silent drop and not a rewrite of a fired window. Dedup is per key per window. Placement does not change results, because watermarks are per partition. Checkpoints are consistent cuts, completed only after every partition acks and the manifest upload succeeds. A stale worker cannot commit, because the generation bump and `SELECT ... FOR SHARE` share a row lock. Postgres upserts are the only exactly-once-style output, and only in the sense section 8 states. The reference comparison is how that claim is checked.
