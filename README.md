@@ -153,6 +153,8 @@ Collaborative Development and DevOps (CDD) course project, faculty expo 21 Novem
 - [Project report](docs/report/project-report.md)
 - [UX](docs/ux/README.md) — notes and screenshots under [docs/ux/](docs/ux/)
 
+The new default UI (`ui-glorious`) has a [20-minute expo demo](docs/expo/DEMO-NEW-UI.md) and [New UI cheat sheet](docs/expo/CHEATSHEET.md#new-ui-ui-glorious); the classic UI remains available at `?ui=classic`.
+
 ## License
 
 Proprietary. See [LICENSE](LICENSE).

@@ -5,6 +5,7 @@ All notable changes to this project are documented here.
 ## [Unreleased]
 
 - Fixed production Live World basemap loading by bundling MapLibre's worker through Vite, serving `.mjs` as JavaScript in nginx, and checking worker-load console errors in the UI smoke test.
+- Added the new default Glorious UI: Home and live status, the Live World map and truck details, analytics for speeds and failed records, AI-assisted pipeline review/run and editor results, and Logs & Recovery history. The classic UI remains available at `?ui=classic`.
 
 ## [1.0.0] - 2026-11-19
 
