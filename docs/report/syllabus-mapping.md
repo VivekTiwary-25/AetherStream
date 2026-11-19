@@ -34,4 +34,5 @@ Each listed workflow file exists in `.github/workflows/`; open its linked Action
 | `ci-k8s` | [workflow](../../.github/workflows/ci-k8s.yml) | [Actions](https://github.com/VivekTiwary-25/AetherStream/actions/workflows/ci-k8s.yml) |
 | `ci-terraform` | [workflow](../../.github/workflows/ci-terraform.yml) | [Actions](https://github.com/VivekTiwary-25/AetherStream/actions/workflows/ci-terraform.yml) |
 | `bench` | [workflow](../../.github/workflows/bench.yml) | [Actions](https://github.com/VivekTiwary-25/AetherStream/actions/workflows/bench.yml) |
-| `cd` | [workflow](../../.github/workflows/cd.yml) | [Actions](https://github.com/VivekTiwary-25/AetherStream/actions/workflows/cd.yml) |
+| `ci-monitoring` | [workflow](../../.github/workflows/ci-monitoring.yml) | [Actions](https://github.com/VivekTiwary-25/AetherStream/actions/workflows/ci-monitoring.yml) |
+| `ci-soak` | [workflow](../../.github/workflows/ci-soak.yml) | [Actions](https://github.com/VivekTiwary-25/AetherStream/actions/workflows/ci-soak.yml) |

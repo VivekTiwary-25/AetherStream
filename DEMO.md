@@ -2,7 +2,7 @@
 
 Presenter script. Click only labels that are on the page. Read numbers off the screen. Do not push to `main` during the slot: `cd` deploys onto the machine you are demoing.
 
-Checked against this checkout: `web/src/app/shell/AppShell.tsx` mounts the city, **Pipeline** editor, live panels, **Chaos controls**, **Reference comparison**, **Checkpoint & recovery timeline**, and the footer. It does not import `OpsPanel`, `ScenarioPanel`, `TourOverlay`, or `IntroSplash`. Those labels exist in `web/src/app/ops`, `web/src/app/scenarios`, and `web/src/app/tour`. If a later build puts them on the page, click the label named below. If it does not, run the command. Do not hunt for a missing button.
+Checked against this checkout: `web/src/app/shell/AppShell.tsx` mounts the city, **Pipeline** editor, live panels, **Chaos controls**, **Reference comparison**, **Checkpoint & recovery timeline**, **Operations**, and **City scenarios**. The **Tour** button opens the eight-step tour, and `IntroSplash` is mounted. Use the visible labels named below; collapse/expand controls use **Collapse <panel title>** and **Expand <panel title>**.
 
 A production page must not show **MOCK DATA**. That badge is only rendered when `VITE_USE_MOCK=1`.
 
@@ -59,7 +59,7 @@ A production page must not show **MOCK DATA**. That badge is only rendered when 
 
 **Say:** "The compiler collects every mistake and says how to fix it. The same operators run in the engine and in the reference executor. **Run** saves this graph and starts it; a second start stops the previous execution."
 
-**Fallback:** If **Examples** is missing, the editor shows **Load demo** only (`GET /api/pipelines/examples` returned 404). Click **Load demo**, then **Validate**. No editor screenshot is in `docs/ux/screenshots/`. API fallback:
+**Fallback:** If the examples request returns 404, the editor shows **Load demo** instead of the **Examples** selector. Click **Load demo**, then **Validate**. No editor screenshot is in `docs/ux/screenshots/`. API fallback:
 
 ```sh
 curl -fsS http://localhost:18080/api/pipelines/examples
@@ -103,7 +103,7 @@ Cited logs, not substitutes for a live click: e2e [44410772993](https://github.c
 
 ### 6:15-7:15 — Savepoint, restore, rescale
 
-**Click / run:** There is no **Operations** panel in the shell. Do not look for **Take savepoint**. Run:
+**Click / run:** Open **Operations**. Use **Take savepoint**, **Restore**, or **Rescale**. **Restore** asks **Restart the pipeline from this savepoint?** The rescale sentence is **Pauses at the next checkpoint, moves partitions, resumes - a controlled pause, not live migration.**
 
 ```sh
 curl -fsS http://localhost:18080/api/executions/current
@@ -123,7 +123,7 @@ If the panel is on the page, the buttons are **Take savepoint**, **Restore**, **
 
 ### 7:15-8:00 — Scenarios
 
-**Click / run:** **City scenarios** is not in the shell. Run:
+**Click / run:** Open **City scenarios**. Choose **Rush hour**, **Breakdown**, **Surge**, or **Reset**. **Breakdown** also has **Breakdown truck**.
 
 ```sh
 curl -fsS http://localhost:18080/api/scenarios
@@ -142,9 +142,9 @@ If the panel is mounted, it renders the `label` values from `GET /api/scenarios`
 
 ### 8:00-8:45 — Presenter tour and version footer
 
-**Click / run:** There is no **Next** button on the page. `TourOverlay` is not mounted. Walk the eight steps yourself, in order, pointing at the real targets. Then point at the footer **Deployed version:** and compare it with `curl -fsS http://localhost:18080/api/version`.
+**Click / run:** Click **Tour** and walk the eight steps in order. Then point at the footer **Deployed version:** and compare it with `curl -fsS http://localhost:18080/api/version`.
 
-**Audience sees:** You, pointing. The step titles, if the overlay is ever mounted, are **The city**, **The stream into the engine**, **Live panels**, **Pipeline editor**, **Chaos**, **Kill a worker**, **Compare with reference**, **DevOps**, with **Back**, **Next**, **Close**, **Finish**, and **Step N of 8**. The intro card, also unmounted, says **a fault-tolerant stream engine** and **Skip**. The footer is seven characters of `commit`, or **unknown** if `/api/version` failed.
+**Audience sees:** Tour step titles **The city**, **The stream into the engine**, **Live panels**, **Pipeline editor**, **Chaos**, **Kill a worker**, **Compare with reference**, **DevOps**, with **Back**, **Next**, **Close**, **Finish**, and **Step N of 8**. The intro card says **a fault-tolerant stream engine** and **Skip** when shown. The footer is seven characters of `commit`, or **unknown** if `/api/version` failed.
 
 **Say:** "The tour is eight sentences over this same page. The footer commit is the GIT_SHA of the image that is running, which is what the deploy smoke checks."
 
@@ -206,7 +206,7 @@ Then open Grafana, dashboard **AetherStream engine**.
 | 2:20 | Footer **Deployed version:** and [cd run 44438884629](https://github.com/VivekTiwary-25/AetherStream/actions/runs/44438884629) | `vivek-pc-deploy`, GHCR tags, smoke `PASS` | "That push published images and deployed them here. I am not pushing now." |
 | 2:45 | [44398295492](https://github.com/VivekTiwary-25/AetherStream/actions/runs/44398295492) or [44395770221](https://github.com/VivekTiwary-25/AetherStream/actions/runs/44395770221) | kind recovery line, or 811/811 | "kind and Testcontainers are the other proofs." |
 
-If a click fails, use the fallback in the matching 12-minute step. Ops, scenarios, and the tour are not on the page; one sentence is enough unless they ask.
+If a click fails, use the fallback in the matching 12-minute step.
 
 ## Likely examiner questions
 
