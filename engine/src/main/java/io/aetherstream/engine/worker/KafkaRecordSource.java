@@ -102,29 +102,32 @@ public final class KafkaRecordSource implements RecordSource {
     private void monitorEndOffsets() {
         Consumer<String, String> offsets = null;
         try {
-            offsets = endOffsetConsumerFactory.get();
-            endOffsetConsumer = offsets;
             while (monitoring) {
-                List<TopicPartition> current = assigned;
                 try {
+                    if (offsets == null) {
+                        offsets = endOffsetConsumerFactory.get();
+                        endOffsetConsumer = offsets;
+                    }
+                    List<TopicPartition> current = assigned;
                     Map<Integer, Long> end = new TreeMap<>();
                     offsets.endOffsets(current, Duration.ofSeconds(1))
                             .forEach((tp, offset) -> end.put(tp.partition(), offset));
                     if (monitoring && current == assigned) {
                         cachedEndOffsets = Map.copyOf(end);
                     }
-                } catch (RuntimeException e) {
+                } catch (Throwable e) {
                     if (monitoring) {
-                        log.debug("consumer lag end-offset refresh failed", e);
+                        log.warn("Consumer lag refresh failed; retrying in {} ms", TaskRuntime.LAG_REFRESH_MS, e);
                     }
                 }
-                Thread.sleep(TaskRuntime.LAG_REFRESH_MS);
-            }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        } catch (RuntimeException e) {
-            if (monitoring) {
-                log.warn("consumer lag monitor failed", e);
+                try {
+                    Thread.sleep(TaskRuntime.LAG_REFRESH_MS);
+                } catch (InterruptedException e) {
+                    if (!monitoring) {
+                        break;
+                    }
+                    log.warn("Consumer lag monitor interrupted; continuing assignment", e);
+                }
             }
         } finally {
             // Interrupt is used to stop sleep or a metadata request, not to abort consumer cleanup.
