@@ -9,6 +9,8 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.time.Duration;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -16,6 +18,11 @@ import java.util.Map;
 import java.util.OptionalLong;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.consumer.MockConsumer;
+import org.apache.kafka.clients.consumer.OffsetResetStrategy;
+import org.apache.kafka.common.PartitionInfo;
+import org.apache.kafka.common.TopicPartition;
 import org.junit.jupiter.api.Test;
 
 class SimulatorRuntimeTest {
@@ -99,6 +106,81 @@ class SimulatorRuntimeTest {
                 verify(runtime.tick(), lastTimes, ids);
                 assertEquals(initial + 9000, runtime.simulation.now());
             }
+        }
+    }
+
+    @Test
+    void restartAfterLateEventAndVerbatimDuplicateDoesNotRewind() throws Exception {
+        verifyRestartAfterChaosTail(true);
+    }
+
+    @Test
+    void restartImmediatelyAfterPostChaosLateDoesNotRewind() throws Exception {
+        verifyRestartAfterChaosTail(false);
+    }
+
+    private static void verifyRestartAfterChaosTail(boolean duplicate) throws Exception {
+        AtomicLong wall = new AtomicLong(ANCHOR + 1000);
+        SimulatorRuntime first = new SimulatorRuntime(config(20), ANCHOR, wall::get, OptionalLong.empty());
+        List<Simulation.Emission> log = new ArrayList<>(first.tick());
+        wall.addAndGet(10_000);
+        log.addAll(first.tick());
+        Map<String, Long> times = new HashMap<>();
+        Set<String> ids = new HashSet<>();
+        verify(log, times, ids);
+        long maximum = times.values().stream().mapToLong(Long::longValue).max().orElseThrow();
+
+        try (HttpApi api = new HttpApi(new InetSocketAddress("127.0.0.1", 0),
+                first.simulation, first, log::addAll);
+             HttpClient client = HttpClient.newHttpClient()) {
+            api.start();
+            URI base = URI.create("http://127.0.0.1:" + api.port());
+            HttpResponse<String> late = client.send(HttpRequest.newBuilder(base.resolve("/chaos/late"))
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString("{\"count\":20,\"lateByMs\":180000}")).build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(200, late.statusCode());
+            assertEquals(20, Json.MAPPER.readTree(late.body()).path("sent").intValue());
+            Simulation.Emission last = log.getLast();
+            JsonNode event = Json.MAPPER.readTree(last.json());
+            assertTrue(event.path("eventId").textValue().contains("-late-"));
+            assertEquals(maximum - 180_000, event.path("eventTime").longValue());
+            if (duplicate) {
+                HttpResponse<String> replay = client.send(HttpRequest.newBuilder(base.resolve("/chaos/duplicates"))
+                        .header("Content-Type", "application/json")
+                        .POST(HttpRequest.BodyPublishers.ofString("{\"count\":1}")).build(),
+                        HttpResponse.BodyHandlers.ofString());
+                assertEquals(200, replay.statusCode());
+                assertEquals(1, Json.MAPPER.readTree(replay.body()).path("sent").intValue());
+                assertEquals(last, log.getLast());
+            }
+        }
+
+        OptionalLong recovered = recoverTail(log);
+        assertEquals(OptionalLong.of(maximum), recovered);
+        // A lower startup scale makes the Kafka fence, rather than wall time, authoritative.
+        SimulatorRuntime restarted = new SimulatorRuntime(config(1), ANCHOR, wall::get, recovered);
+        List<Simulation.Emission> resumed = restarted.tick();
+        verify(resumed, times, ids);
+        for (Simulation.Emission emission : resumed) {
+            assertTrue(Json.MAPPER.readTree(emission.json()).path("eventTime").longValue() > maximum);
+        }
+    }
+
+    private static OptionalLong recoverTail(List<Simulation.Emission> log) {
+        String topic = "truck-events";
+        TopicPartition partition = new TopicPartition(topic, 0);
+        try (MockConsumer<String, String> consumer = new MockConsumer<>(OffsetResetStrategy.NONE)) {
+            consumer.updatePartitions(topic, List.of(new PartitionInfo(topic, 0, null, null, null)));
+            consumer.updateBeginningOffsets(Map.of(partition, 0L));
+            consumer.updateEndOffsets(Map.of(partition, (long) log.size()));
+            consumer.schedulePollTask(() -> {
+                for (long offset = consumer.position(partition); offset < log.size(); offset++) {
+                    Simulation.Emission emission = log.get((int) offset);
+                    consumer.addRecord(new ConsumerRecord<>(topic, 0, offset, emission.key(), emission.json()));
+                }
+            });
+            return KafkaEventTime.latest(consumer, topic, Duration.ofSeconds(1));
         }
     }
 
