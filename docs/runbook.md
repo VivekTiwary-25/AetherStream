@@ -22,6 +22,23 @@ The script waits up to five minutes for Docker, then waits up to 180 seconds for
 
 Set the Arena user environment variable `AETHER_OFFLINE=1` before sign-in to force offline mode; otherwise a five-second GHCR connectivity probe selects it when no HTTP response is received. Offline mode appends root `docker-compose.offline.yml` after the CD override if that file exists, and always uses `--pull never --no-build`. Without the offline file it uses cached CD images. Pre-cache every required image for the selected SHA; missing images fail rather than trigger a download/build. `-DryRun` prints both branches without contacting Docker/network, writing logs, starting the pipeline or opening a result console.
 
+## Public link watchdog
+
+`infra/deploy/tunnel-watchdog.ps1` reads the newest `https://<words>.trycloudflare.com` URL in `C:/Users/Arena/aether-tunnel.log` every 60 seconds and GETs `/api/version` with a 10-second timeout. Three consecutive failures (including a missing URL) restart only Scheduled Task `AetherStream-Tunnel`, which runs `C:/Users/Arena/bin/aether-tunnel.cmd`; success resets the failure count. Recovery waits up to 30 seconds for task shutdown and polls every two seconds for a different URL for up to 120 seconds, then resumes monitoring if none appeared. The pre-restart URL is not republished as a replacement.
+
+Each discovered URL updates `C:/Users/Arena/aether-public-url.txt` and `C:/Users/Arena/aether-link.html`. Open the HTML file locally for a 64px clickable URL (QR omitted; no external resources); the page refreshes every 60 seconds. These files show the last discovered URL, not a guarantee of readiness, and can remain stale while recovery is pending. The tunnel task must already exist, and Arena must have permission to stop/start it and write those files; the watchdog does not change task permissions.
+
+```powershell
+powershell.exe -NoProfile -File infra/deploy/tunnel-watchdog.ps1 -DryRun
+powershell.exe -NoProfile -File infra/deploy/register-tunnel-watchdog.ps1 -DryRun
+# Boss only, after reviewing the preview; do not register during worker verification:
+powershell.exe -NoProfile -File infra/deploy/register-tunnel-watchdog.ps1
+# Stop/remove only the watchdog, leaving the tunnel and link files alone:
+powershell.exe -NoProfile -File infra/deploy/register-tunnel-watchdog.ps1 -Unregister
+```
+
+`AetherStream-Tunnel-Watchdog` runs at Arena logon with an interactive, non-elevated token, including on battery, with no execution time limit and duplicate instances ignored. Keep the registered checkout available. Registration does not start it; both scripts' `-DryRun` exits without task changes, requests, file writes, or waiting.
+
 ## Expo quick fixes (21 Nov)
 
 Run from the repository root. Do not put credentials in commands or logs.
