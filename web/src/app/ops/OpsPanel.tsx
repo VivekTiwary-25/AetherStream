@@ -82,7 +82,7 @@ export function OpsPanel() {
         <div className="ops-panel__savepoints" aria-label="Recent savepoints">
           {savepoints.map((savepoint) => (
             <div className="ops-panel__savepoint" key={savepoint.savepointId}>
-              <span>{savepoint.savepointId} · checkpoint #{savepoint.checkpointId}</span>
+              <span className="ops-panel__savepoint-id" title={`${savepoint.savepointId} · checkpoint #${savepoint.checkpointId}`}>{savepoint.savepointId} · checkpoint #{savepoint.checkpointId}</span>
               <ClayButton type="button" variant="ghost" disabled={pending || !executionId} onClick={() => void restore(savepoint.savepointId)}>
                 Restore
               </ClayButton>
@@ -91,7 +91,7 @@ export function OpsPanel() {
           {savepoints.length === 0 && <p className="ops-panel__muted">No savepoints yet.</p>}
         </div>
         <div className="ops-panel__rescale">
-          <ClayButton type="button" disabled={pending || !executionId} onClick={() => void rescale()}>Rescale</ClayButton>
+          <ClayButton type="button" variant="ghost" disabled={pending || !executionId} onClick={() => void rescale()}>Rescale</ClayButton>
           <p>{RESCALE_EXPLANATION}</p>
         </div>
       </div>
@@ -100,7 +100,7 @@ export function OpsPanel() {
         .ops-panel__controls { display: grid; gap: var(--space-3); }
         .ops-panel__savepoints { display: grid; gap: var(--space-2); }
         .ops-panel__savepoint { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); padding: var(--space-2) var(--space-3); border: 1px solid rgb(148 163 184 / 20%); border-radius: var(--radius-md); color: var(--color-muted, #aebdca); }
-        .ops-panel__savepoint span { overflow-wrap: anywhere; }
+        .ops-panel__savepoint-id { min-width: 0; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; font-size: 0.85rem; line-height: 1.4; }
         .ops-panel__rescale { display: grid; gap: var(--space-2); }
         .ops-panel__rescale p, .ops-panel__muted { margin: 0; color: var(--color-muted, #aebdca); font-size: 0.85rem; line-height: 1.4; }
         .ops-panel__success { margin: 0; color: #4ade80; }
