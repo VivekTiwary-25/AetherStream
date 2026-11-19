@@ -21,7 +21,12 @@ Typical durations are approximate planning ranges, not guarantees; runtime varie
 | `ci-monitoring.yml` (`ci-monitoring`) | Push to `main` or `task/**` except ignored `swarm/**`, `boss/**`, `docs/**`, and Markdown paths; PR to `main` | Starts the monitoring profile and verifies Prometheus targets/metrics, Grafana health/dashboard, and dashboard metric names. | ~5–30 min | [Runs](https://github.com/VivekTiwary-25/AetherStream/actions/workflows/ci-monitoring.yml) |
 | `ci-soak.yml` (`ci-soak`) | Scheduled, manual dispatch, or task-branch changes to this workflow/soak script | ShellChecks and runs a 15-minute chaos soak; uploads summary and Compose logs. | ~15–40 min | [Runs](https://github.com/VivekTiwary-25/AetherStream/actions/workflows/ci-soak.yml) |
 | `bench.yml` (`bench`) | Push to `main` or `task/**` for its listed Java/benchmark paths; PR to `main`; manual dispatch | Runs `:tests:benchmarkTest`, appends any generated benchmark report to the job summary, and uploads reports/results. | ~2–30 min | [Runs](https://github.com/VivekTiwary-25/AetherStream/actions/workflows/bench.yml) |
-| `cd.yml` (`cd`) | Push to `main` except ignored `swarm/**`, `boss/**`, `docs/**`, and Markdown paths; manual dispatch (optional SHA) | Lints deployment scripts; on main push publishes four GHCR images tagged with the commit SHA and deploys that SHA on the self-hosted `aether-deploy` runner. | ~5–30 min | [Runs](https://github.com/VivekTiwary-25/AetherStream/actions/workflows/cd.yml) |
+| `cd.yml` (`cd`) | Push to `main` except ignored `swarm/**`, `boss/**`, `docs/**`, and Markdown paths; manual dispatch (optional SHA) | Lints deployment scripts; publishes four GHCR images on main push. Deployment is skipped when `DEMO_FREEZE=1` or `infra/deploy/FREEZE` exists; otherwise deploys the SHA on the self-hosted `aether-deploy` runner. | ~5–30 min | [Runs](https://github.com/VivekTiwary-25/AetherStream/actions/workflows/cd.yml) |
+| `ci-offline.yml` (`ci-offline`) | Manual dispatch; push to `task/**` for listed offline/Expo/stack paths | Builds and caches images, blocks runner and container egress, then verifies offline demo readiness, UI/WebSocket, Grafana and absence of external browser requests; uploads proof artifacts. | ~10–30 min | [Runs](https://github.com/VivekTiwary-25/AetherStream/actions/workflows/ci-offline.yml) |
+| `ci-kill-repeat.yml` (`ci-kill-repeat`) | Manual dispatch; push to `task/**` for the repeat-kill script/workflow | ShellChecks the script and performs 20 worker-kill/recovery rounds against the Compose demo. | ~10–30 min | [Runs](https://github.com/VivekTiwary-25/AetherStream/actions/workflows/ci-kill-repeat.yml) |
+| `ci-coldstart.yml` (`ci-coldstart`) | Push to `main` or `task/**`; PR to `main`; manual dispatch | Builds Compose images and measures cold startup to demo readiness; uploads Compose logs. | ~5–20 min | [Runs](https://github.com/VivekTiwary-25/AetherStream/actions/workflows/ci-coldstart.yml) |
+| `ci-docs.yml` (`ci-docs`) | Push to `main` or `task/**` when Markdown/docs paths match; manual dispatch | Runs `infra/scripts/check-md-links.py` to check Markdown links. | <1 min | [Runs](https://github.com/VivekTiwary-25/AetherStream/actions/workflows/ci-docs.yml) |
+| `release.yml` (`release`) | Push tag `v*`; manual dispatch with version and dry-run option | Checks release notes/version, builds four images with version/SHA tags, and creates a GitHub Release when not dry-running. | ~5–30 min | [Runs](https://github.com/VivekTiwary-25/AetherStream/actions/workflows/release.yml) |
 
 ### CD path
 
@@ -32,23 +37,29 @@ Typical durations are approximate planning ranges, not guarantees; runtime varie
 
 ### Dated run snapshot
 
-Latest run snapshot for the 12 workflows queried on `main` at the API query time, 2026-11-19. `In progress` is not a passing conclusion. Run links lead to the individual logs. The newer `ci-monitoring` and `ci-soak` definitions were not included in this snapshot.
+Latest run snapshot queried from the public Actions API for `branch=main`, `per_page=100`, on 2026-11-19. `In progress` is not a passing conclusion. Run links lead to the individual logs; workflows absent from the returned recent runs are marked not included.
 
 | Workflow | Last conclusion/status | Run |
 |---|---|---|
-| `bench` | success | [Run 44439772649](https://github.com/VivekTiwary-25/AetherStream/actions/runs/44439772649) |
-| `cd` | in progress | [Run 44440449426](https://github.com/VivekTiwary-25/AetherStream/actions/runs/44440449426) |
-| `ci-compose` | in progress | [Run 44440449456](https://github.com/VivekTiwary-25/AetherStream/actions/runs/44440449456) |
-| `ci-e2e` | in progress | [Run 44440449461](https://github.com/VivekTiwary-25/AetherStream/actions/runs/44440449461) |
-| `ci-images` | failure | [Run 44440449386](https://github.com/VivekTiwary-25/AetherStream/actions/runs/44440449386) |
-| `ci-integration` | in progress | [Run 44439772349](https://github.com/VivekTiwary-25/AetherStream/actions/runs/44439772349) |
-| `ci-java` | success | [Run 44439772370](https://github.com/VivekTiwary-25/AetherStream/actions/runs/44439772370) |
-| `ci-k8s` | success | [Run 44398295492](https://github.com/VivekTiwary-25/AetherStream/actions/runs/44398295492) |
-| `ci-mock` | success | [Run 44440449358](https://github.com/VivekTiwary-25/AetherStream/actions/runs/44440449358) |
-| `ci-terraform` | success | [Run 44395471523](https://github.com/VivekTiwary-25/AetherStream/actions/runs/44395471523) |
-| `ci-ui-e2e` | in progress | [Run 44440449360](https://github.com/VivekTiwary-25/AetherStream/actions/runs/44440449360) |
-| `ci-web` | success | [Run 44440449457](https://github.com/VivekTiwary-25/AetherStream/actions/runs/44440449457) |
-| `ci-monitoring` | not included in snapshot | — |
-| `ci-soak` | not included in snapshot | — |
+| `bench` | success | [Run 44458797146](https://github.com/VivekTiwary-25/AetherStream/actions/runs/44458797146) |
+| `cd` | success | [Run 44460264804](https://github.com/VivekTiwary-25/AetherStream/actions/runs/44460264804) |
+| `ci-coldstart` | in progress | [Run 44460820210](https://github.com/VivekTiwary-25/AetherStream/actions/runs/44460820210) |
+| `ci-compose` | success | [Run 44460264602](https://github.com/VivekTiwary-25/AetherStream/actions/runs/44460264602) |
+| `ci-docs` | success | [Run 44460820178](https://github.com/VivekTiwary-25/AetherStream/actions/runs/44460820178) |
+| `ci-e2e` | in progress | [Run 44460264712](https://github.com/VivekTiwary-25/AetherStream/actions/runs/44460264712) |
+| `ci-images` | success | [Run 44460264820](https://github.com/VivekTiwary-25/AetherStream/actions/runs/44460264820) |
+| `ci-integration` | success | [Run 44458797222](https://github.com/VivekTiwary-25/AetherStream/actions/runs/44458797222) |
+| `ci-java` | success | [Run 44458797166](https://github.com/VivekTiwary-25/AetherStream/actions/runs/44458797166) |
+| `ci-monitoring` | success | [Run 44460264695](https://github.com/VivekTiwary-25/AetherStream/actions/runs/44460264695) |
+| `ci-ui-e2e` | success | [Run 44458797463](https://github.com/VivekTiwary-25/AetherStream/actions/runs/44458797463) |
+| `ci-web` | success | [Run 44457719918](https://github.com/VivekTiwary-25/AetherStream/actions/runs/44457719918) |
+| `ci-k8s` | not included in returned recent runs | — |
+| `ci-kill-repeat` | not included in returned recent runs | — |
+| `ci-mock` | not included in returned recent runs | — |
+| `ci-offline` | not included in returned recent runs | — |
+| `ci-soak` | not included in returned recent runs | — |
+| `ci-terraform` | not included in returned recent runs | — |
+| `release` | not included in returned recent runs | — |
+| `ci-longrun` | no workflow file in this checkout | — |
 
-Workflow inventory checked against the local `.github/workflows/` directory: all 14 listed workflow files exist.
+Workflow inventory checked against `.github/workflows/`: all 19 workflow files in this checkout are represented in the workflow table; `ci-longrun` named in the task is not present.
