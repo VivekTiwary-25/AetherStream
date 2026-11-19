@@ -1,0 +1,5 @@
+# Gap #6: Analytics/Settings from another screen must show the map underneath
+
+Files: web/src/glorious/shell/Sidebar.tsx, web/src/glorious/GloriousApp.tsx, web/src/glorious/shell/router.ts (boss approved this shell change). Do NOT read or describe swarm/. Node: if not on PATH prepend %USERPROFILE%\tools\node (Node 26: set NODE_OPTIONS=--no-experimental-webstorage for vitest). Before finishing: in web/ `npm run lint`, `npm test -- --maxWorkers=2`, `npm run build`, `npm run check:no-mock` must pass. Only real data; no mock data; no fake controls. Read design/ui-glorious/GAPS.md for evidence lines.
+
+GAPS.md #6: when the user opens Analytics or Settings sub-options (or any analytics./settings. window) while on Home or Pipelines, navigate to the Live World screen first (same history-based router, no reload), so the windows float over the live map as the mission requires. Keep the sidebar transform (sub-options view) and keep already-open windows. From Home, use the normal Home->Live World slide-up transition (fade only under reduced motion). Add a vitest test: on Home, select Analytics -> Truck Speeds -> route becomes /live and the window is open.

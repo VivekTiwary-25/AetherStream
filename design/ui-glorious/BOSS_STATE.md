@@ -41,6 +41,18 @@ Fresh boss session: read swarm/BOSS.md, then design/ui-glorious/BOSS_PROMPT.md (
 - Grok watermark: crop it (b).
 - CORRECTION 03:40: vivek-pc workers stay ENABLED (disable reverted: main 1574ad8). Instead vivek-pc has "max_busy": 1 (main 1111cd1, listener caps concurrent tasks per machine). Boss session + live demo must never be starved; do not queue heavy work (builds/stacks) to vivek-pc yourself.
 
+## Vivek 04:33 (binding, replaces earlier vivek-pc limits)
+- vivek-pc Codex workers are FULL workers: max_busy and no_auto_pick removed (main bf3f361); "light only / no builds" rule removed. Still: do not start a second Docker stack on vivek-pc (live demo ports) and never touch the live demo.
+- ONLY thing to protect: the boss session's tokens (ran out briefly tonight). Keep context lean, delegate, warn Vivek early if low.
+- GOTCHA: pushing swarm .py code while long tasks run stalls dispatch on that PC until they finish (_first_runnable waits for restart). Config JSON pushes are safe.
+
+## 04:37 queue
+- utkarsh-pc: luna t261120-0408-c1a7 Docker (running) -> t261120-0411-0830 pipelines live; sol (held until luna restarts) t261120-0409-2aa3 stack -> t261120-0410-1e14 kill test
+- vimlesh-pc (back since ~04:27): sol t261120-0432-ec77 code-split; luna t261120-0432-dd12 gaps 8-10; claude t261120-0432-933d visual polish
+- upendra-pc: luna t261120-0355-fca7 a11y (auto-moved from vimlesh); sol idle -> feed
+- vivek-pc: luna t261120-0433-a18d DoD checklist; sol t261120-0435-fd0d dist #3 -> t261120-0436-3a95 full test rehearsal
+- Merged 04:24-04:36: gap review GAPS.md, frontend review fix (6c6f), gap6 analytics->map (ab7f), OFFLINE-CHECK.md (no external fetches), GAP7.md (1-min label honest).
+
 ## 04:22 status
 - vimlesh-pc DOWN since ~04:15 (heartbeat >5 min; Vivek push-notified 04:20 to call Vimlesh). Its running tasks t261120-0355-fca7 (a11y, claude) and t261120-0355-a603 (code-split, luna) are stranded; the swarm auto-moves after 10 min. NEVER let a moved build task run on vivek-pc: if one lands there, reject + requeue elsewhere at once (vivek-pc max_busy=1 delays its start).
 - main dd0f8ee: routing "no_auto_pick_machines": ["vivek-pc"] (pick_worker skips it for kind-queues and moves; explicit targets still work). Listeners use it after idle restart.

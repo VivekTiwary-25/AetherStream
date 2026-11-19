@@ -1,0 +1,5 @@
+# Visual polish vs the mockups: Home, truck hover card, glass windows (no logic changes)
+
+Files: web/src/glorious/home/**, web/src/glorious/map/LiveWorld.css + the hover-card markup in map/LiveWorld.tsx, web/src/glorious/shell/shell.css + tokens.css (boss approved). Do NOT read or describe swarm/. Node: if not on PATH prepend %USERPROFILE%\tools\node. Before finishing: in web/ npm run lint, npm test -- --maxWorkers=2, npm run build, npm run check:no-mock must pass. This PC has ~3 GB free RAM: no parallel builds.
+
+Compare the production build (npm run build; npx vite preview; Playwright Chromium 1440x900, backend may be absent) with design/ui-glorious/home-mockup.png and liveworld-mockup.png. Polish ONLY visuals so they match the mockups more closely: Home rail and status pill sizing/spacing/shadow (neutral frosted glass, no blue tint), hover card layout (photo left, title + status chip, icon rows for speed/route/assignment like the mockup), glass window title bar and spacing, Inter weights. Keep WCAG AA contrast and focus rings; no new features; no animation beyond the allowed ones. Save before/after screenshots to design/ui-glorious/proof/polish/.

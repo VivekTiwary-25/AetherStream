@@ -1,0 +1,5 @@
+# Offline asset check (static, light: no builds, no npm install, no servers)
+
+Files: design/ui-glorious/OFFLINE-CHECK.md (new; the only file you write). Do NOT read or describe swarm/. This runs on the boss PC: NO npm install, NO builds, NO docker, NO servers.
+
+The expo PC may have no internet. Statically list every URL/asset the NEW UI loads at runtime and confirm it is local: grep web/src/glorious/**, web/index.html, web/public/glorious/map/style.json (sources, glyphs, sprite), any @import/url() in CSS, font imports (@fontsource), the MapLibre worker, pmtiles protocol, video/poster/images, and the AI/pipeline API paths (same-origin). Flag anything that points to http(s):// outside localhost (attribution links that are only <a href> text are fine; say so). Write OFFLINE-CHECK.md: table asset -> local path -> OK/EXTERNAL, then a verdict. Max 60 lines.

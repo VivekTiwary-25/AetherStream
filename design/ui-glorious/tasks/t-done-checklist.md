@@ -1,0 +1,5 @@
+# Definition-of-done evidence checklist (docs only, light)
+
+Files: design/ui-glorious/DONE-CHECKLIST.md (new; the only file you write). Do NOT read or describe swarm/. This runs on the boss PC: NO npm install, NO builds, NO docker, NO servers, NO tests.
+
+Read design/ui-glorious/BOSS_PROMPT.md sections 2, 5 and 7, design/ui-glorious/GAPS.md, design/ui-glorious/BOSS_STATE.md and list the files under design/ui-glorious/proof/. Write DONE-CHECKLIST.md: one row per demo-path step (1-7), per smoke test (1-3) and per definition-of-done bullet: requirement | evidence file(s) or test name | status VERIFIED-LIVE / VERIFIED-OFFLINE-ONLY / UNVERIFIED (be strict: only VERIFIED-LIVE if a proof file shows it working with real data). Max 60 lines. This is the skeleton the boss fills for the 08:30 report.
