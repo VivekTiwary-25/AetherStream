@@ -1,0 +1,5 @@
+# Pipelines checkpoint switch: full / editor-only / hidden (one-line change)
+
+Files: web/src/glorious/pipelines/** and web/src/glorious/shell/Sidebar.tsx + router.ts only for reading the switch (boss approved). Do NOT read or describe swarm/. Node: if not on PATH prepend %USERPROFILE%\tools\node (Node 26: NODE_OPTIONS=--no-experimental-webstorage for vitest). Before finishing: in web/ npm run lint, npm test -- --maxWorkers=2, npm run build, npm run check:no-mock must pass.
+
+The 06:00 checkpoint (BOSS_PROMPT.md section 3, Track D) decides: (a) keep Ask AI + editor, (b) ship the manual editor only, (c) hide Pipelines completely. Add ONE exported constant, e.g. web/src/glorious/pipelines/mode.ts: export const PIPELINES_MODE: 'full' | 'editor' | 'hidden' = 'full'. 'editor': the Pipelines panel shows only Open Editor (+ a one-line description), no Ask AI box. 'hidden': no Pipelines sidebar item, and /pipelines and /pipelines/editor redirect to Home. 'full': today's behaviour. Add vitest tests for all three modes. Document the switch in web/src/glorious/README.md (3 lines). Keep the default 'full'.

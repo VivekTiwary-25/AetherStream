@@ -46,6 +46,11 @@ Fresh boss session: read swarm/BOSS.md, then design/ui-glorious/BOSS_PROMPT.md (
 - ONLY thing to protect: the boss session's tokens (ran out briefly tonight). Keep context lean, delegate, warn Vivek early if low.
 - GOTCHA: pushing swarm .py code while long tasks run stalls dispatch on that PC until they finish (_first_runnable waits for restart). Config JSON pushes are safe.
 
+## DUPLICATE code-split (04:38)
+- t261120-0355-a603 is RUNNING on upendra-pc/codex-sol (started ~04:32, just before my reject landed) AND its requeue t261120-0432-ec77 runs on vimlesh-pc/codex-sol. The swarm cannot kill a running agent remotely. Merge whichever finishes first, discard the other.
+- DANGER: a603 has no queue file any more -> `swarm merge t261120-0355-a603` would default to MAIN. Always use `swarm merge t261120-0355-a603 --base ui-glorious` (or `swarm reject`).
+- utkarsh-pc/codex-sol idle with 2 queued: its listener holds dispatch until codex-luna's Docker task ends (new .py code pending since my 04:22 push).
+
 ## 04:37 queue
 - utkarsh-pc: luna t261120-0408-c1a7 Docker (running) -> t261120-0411-0830 pipelines live; sol (held until luna restarts) t261120-0409-2aa3 stack -> t261120-0410-1e14 kill test
 - vimlesh-pc (back since ~04:27): sol t261120-0432-ec77 code-split; luna t261120-0432-dd12 gaps 8-10; claude t261120-0432-933d visual polish
