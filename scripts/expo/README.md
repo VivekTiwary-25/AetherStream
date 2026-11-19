@@ -13,7 +13,10 @@ queues the existing worker-kill API action; the engine handles recovery.
 classification as late depends on the engine watermark. `worker status` only
 reads worker IDs, alive/state, and partitions. API errors are printed and exit
 nonzero; keep the classic UI available at `?ui=classic` as fallback.
-Run `preflight` (Bash) or `preflight.cmd` (Windows) before the demo slot for
-read-only app, API, worker, simulator, recovery, pipeline, and AI-bridge checks.
+Run `preflight` (Bash) or `preflight.cmd` (Windows) before the demo. It uses
+GET requests only to check the web app, API health/current execution, workers,
+simulator, recovery history, Pipelines fields, and AI bridge. Core check failures
+print `FAIL` and exit nonzero; a simulator truck-count mismatch or unavailable
+AI bridge prints `WARN`. A missing AI bridge warning includes its start command.
 Set `AETHER_URL` to check a different app host; the default is
-`http://localhost:8088`. A missing AI bridge warns with its start command.
+`http://localhost:8088`.

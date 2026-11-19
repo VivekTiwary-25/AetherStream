@@ -24,11 +24,11 @@ Vivek drives; keep the browser on the new UI at `http://localhost:8088`. Use onl
 - Know the demo commands (run only at the indicated step): `worker kill 2` and `events late 10`. `worker kill` sends the existing API action; it is not a Docker command. Never repeat it during recovery. Late-event classification depends on the engine watermark.
 - If the new UI or API is unavailable, use `http://localhost:8088/?ui=classic`; the classic controls remain available.
 
-For the 06:00 checkpoint, set `PIPELINES_MODE` in `web/src/glorious/pipelines/mode.ts` to `'full'` (Ask AI + editor), `'editor'` (editor only), or `'hidden'` (no Pipelines screen).
+For the 06:00 checkpoint, set `PIPELINES_MODE` in `web/src/glorious/pipelines/mode.ts`: `'full'` shows Ask AI and the editor; `'editor'` shows only Open Editor and its description; `'hidden'` removes the Pipelines navigation item and redirects Pipelines/editor routes to Home.
 
 Window behavior: Analytics and Settings switch to Live World; their submenu choices open floating windows over the map. Escape closes the front window and restores focus to its opener. Lazy-loaded Live World, Pipelines, and editor screens briefly show **Loading…**.
 
-The map’s **Simulate breakdown** action currently sends the request immediately; there is no confirmation dialog in this code. Do not promise a confirmation step.
+The map menu and **Settings → Truck breakdown** both confirm before sending: **“Simulate a breakdown of Truck {truckId}? It stops for about 15 simulated minutes and resumes by itself.”** Buttons: **Confirm** and **Cancel**.
 
 ## Seven-step run of show
 
