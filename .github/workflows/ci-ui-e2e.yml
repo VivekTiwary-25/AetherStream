@@ -49,11 +49,14 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: Build and wait for real stack
         run: GIT_SHA=${{ github.sha }} docker compose up -d --build --wait
-      - name: Run six-step browser demo
+      - name: Run browser acceptance specs
         working-directory: tests/ui
         env:
           EXPECT_SHA: ${{ github.sha }}
-        run: npm test
+        run: |
+          trap 'rm -f playwright.ci.config.ts' EXIT
+          node -e "const fs = require('fs'); const path = 'playwright.ci.config.ts'; fs.writeFileSync(path, fs.readFileSync('playwright.config.ts', 'utf8').replace(\"testMatch: 'demo.spec.ts'\", \"testMatch: '**/*.spec.ts'\"))"
+          npm test -- --config=playwright.ci.config.ts
       - name: Dump Compose status and logs
         if: always()
         run: |
