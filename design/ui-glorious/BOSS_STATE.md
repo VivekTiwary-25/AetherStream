@@ -34,15 +34,21 @@ Fresh boss session: read swarm/BOSS.md, then design/ui-glorious/BOSS_PROMPT.md (
 5. Rerun clean-checkout check after map+recovery merges (queued t261120-0229-b8ea).
 6. When stack is up: FIRST real kill test (worker kill 2 -> dead -> recovering -> rejoined, screenshots), THEN full demo-path pass.
 
-## Running / queued — 03:00
-- Vivek 02:52: approved + pushed swarm upkeep change (main 32d75a0); chose Docker fallback A.
-- PREVIEW A RUNNING on vivek-pc: docker container `glorious-preview` (nginx:1.29-alpine, 127.0.0.1:8089 only, 64 MB, GET-only proxy to live API host.docker.internal:18080, POST -> 403). Files: scratchpad\preview\{html,nginx.conf} (html = dist from task/t261120-0228-9f5b built at ui-glorious 1c90f92). Rebuild: new dist task -> git archive FETCH_HEAD preview-dist | tar -x -C html --strip-components=1. Stop: docker rm -f glorious-preview. NEVER kill/breakdown against it.
-- Walkthrough with LIVE data 02:50-02:58 (screenshots in C:\Users\Arena\AppData\Local\Temp\claude-chrome-screenshots-hgitD0\): Home OK (video, rail, pill Running ~40 ev/s); Live World: 6 markers + hover card real (truck-001 DRIVING 37.9 km/h, P5 W3 correct) BUT basemap blank: MapLibre "Worker failed to load" in prod build (fix queued t261120-0253-e411 vimlesh-pc/codex-sol: nginx .mjs MIME + maplibre classic-vs-module worker); Analytics Truck Speeds + row->chart same window OK; Failed Records OK live; Settings sub-menu OK; Logs & Recovery OK (3 workers, P0-P5, checkpoints; history 'endpoint not found' expected on live main); Pipelines panel renders (no backend on live).
-- Fixed by boss: 20b2f8c strong glass 0.72 -> 0.9 (text over content was unreadable).
-- Video has a 'Grok' watermark bottom-right (Grok Imagine). Ask Vivek; do NOT remove without his OK.
-- t261120-0125-ed02 D3 AI bridge: upendra-pc down 22 min, swarm moved task to vivek-pc/codex-luna (running; light python). After it: consider disabling vivek-pc workers (ask Vivek).
-- utkarsh-pc: disk 1.6 GB free after sweep (only 0.3 GB was worktrees) -> Utkarsh must run manual cleanup (commands sent 02:50) / Docker disk. Do not queue there.
-- Integration rerun t261120-0229-b8ea PASSED (214 tests, build OK, map+recovery tracked) -> closed.
+## Vivek 03:30 (binding)
+- Make technical decisions yourself and TELL him. Only ASK about anything touching main (except swarm-tool changes) or the live demo.
+- ui-glorious -> main: NOT tonight. Bring it with the 08:30 final report.
+- Timeline: 06:00 Pipelines checkpoint, 07:00 freeze + full tests, 08:30 final report, 09:00 stop.
+- Grok watermark: crop it (b). vivek-pc workers: disabled (main 1952713).
+
+## Running / queued — 03:33
+- t261120-0323-e100 vimlesh-pc/codex-luna  web build #2 artifact (after map fix) -> load into :8089 preview, re-check map with live data, then reject 9f5b + e100 (artifacts never merged)
+- t261120-0323-e480 vimlesh-pc/codex-sol   map polish (fit city, icons, overlap)
+- t261120-0332-b2f9 vimlesh-pc/claude      crop Grok watermark from home-loop.mp4 + poster
+- t261120-0332-4990 utkarsh-pc/codex-luna  disk report + clear regenerable caches (C: 3.96 GB free after Utkarsh's 03:15 cleanup; Docker still not running, Vivek asking Utkarsh to start it)
+- upendra-pc: back online ~03:05; Codex 18% left (resets 05:50). Upendra ran a recovery with his own agent (details unsure).
+- t261120-0224-4b72 (utkarsh docker diag) FAILED on full disk: close with reject when convenient.
+- Preview A on vivek-pc: container glorious-preview, 127.0.0.1:8089, GET-only to live API (see 03:00 notes above in history / scratchpad\preview).
+- Still unverified with live data: real kill test (needs separate stack), Ask AI generate->run, editor run, recovery history endpoint, map tiles+live trucks (build #2).
 
 ## Key recon decisions
 - Worker-card bug: killed worker restarts + re-registers before 4 s timeout, never DEAD server-side; old UI used client overlay only on its own button -> terminal kill invisible. C1 adds server-side recovery history (/api/recovery/history + WS).

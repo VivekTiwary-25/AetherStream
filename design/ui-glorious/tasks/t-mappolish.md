@@ -1,0 +1,10 @@
+# Live World map polish (small, visual only)
+
+Files: web/src/glorious/map/** only. Do NOT read or describe swarm/. Node: if not on PATH prepend %USERPROFILE%\tools\node.
+
+Seen on a production build (design/ui-glorious/proof/map-prod.png) compared with design/ui-glorious/liveworld-mockup.png:
+1. Initial view and "Recenter" are far too zoomed out (whole district). Open and recenter on the city like the mockup: fit the bounds of the 6 routes (web/public/glorious/map/routes.geojson) with padding that accounts for the sidebar on the left (~240 px) and the title/search at the top, capped at a sensible max zoom (~14.5). Keep the min/max bounds so users cannot pan far outside Mysuru.
+2. The floating controls: the Recenter button icon reads like a tiny "+" — use a clear locate/target icon (inline SVG) like the mockup; Zoom in "+" and Zoom out "−" glyphs centred and >= 18 px; all buttons >= 44 px with visible focus rings and aria-labels (keep existing labels).
+3. Route lines: keep them subtle (they are a display aid), e.g. a soft warm line under the trucks, not dominant.
+4. Marker overlap: at the new zoom, make sure the per-truck offset keeps the 6 markers and their labels from overlapping where routes share roads (increase the offset in screen pixels if needed).
+Verify with a production build (`npm run build` + `npx vite preview`) and Playwright screenshot (backend can be absent) -> design/ui-glorious/proof/map-polish.png. lint, `npm test -- --maxWorkers=2`, build, check:no-mock must pass.

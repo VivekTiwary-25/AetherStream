@@ -1,0 +1,10 @@
+# Crop the "Grok" watermark out of the home loop video (Vivek approved)
+
+Files: web/public/glorious/home-loop.mp4, web/public/glorious/home-poster.jpg, design/ui-glorious/video/README.md (append the commands). Do NOT read or describe swarm/.
+
+web/public/glorious/home-loop.mp4 (1264x720, 24 fps, ~5.29 s, seamless crossfade loop, no audio) has a small "Grok" logo watermark in the BOTTOM-RIGHT corner. Vivek approved cropping it out.
+1. ffmpeg (if missing: `python -m pip install --user imageio-ffmpeg` and use its binary). Extract a few frames (first, middle, last) and find the exact bounding box of the watermark (it is in the same place in every frame). Save a zoomed crop of that corner to design/ui-glorious/video/watermark-before.png.
+2. Remove it by CROPPING ONLY (no blur/delogo patch): crop from the top-left so the right and bottom edges cut away the watermark with ~8 px margin, keeping the 1264:720 aspect ratio as closely as possible (crop width and height proportionally), then scale back to exactly 1264x720 (lanczos). Keep the loop seamless: apply the same crop to the whole clip, do not re-time or re-cut it.
+3. Encode like before: H.264 High, yuv420p, CRF ~23, +faststart, no audio, 24 fps, <= 4 MB. Regenerate home-poster.jpg from the new first frame (-q:v 3).
+4. Verify: ffprobe streams/duration/size; save the same corner of the new first frame to design/ui-glorious/video/watermark-after.png and confirm by looking that no part of the logo remains; re-check the loop seam SSIM (last vs first frame) is about the same as before (~0.88).
+Report: watermark bbox, crop rectangle, final size, seam SSIM, and an honest "watermark fully gone: yes/no".
