@@ -1,10 +1,98 @@
 # Testing
 
-This document lists the checks that are in the tree an examiner can open. It is not a test-run log and it does not report throughput, latency, or checkpoint times. A workflow file describes a check. It does not, by itself, prove that a run passed. Paths below were read from `main` (this branch does not differ from `main` in the test, workflow, or `infra/scripts` trees).
+This catalogue describes assertions present in the checkout; it is not a test-run log and does not report throughput, latency, or checkpoint times. A workflow file describes a check. It does not, by itself, prove that a run passed.
 
-Java is 21. The wrapper is `./gradlew` (CI) or `gradlew.bat` (Windows). Web tests use Vitest (`web/package.json` script `test` is `vitest run`). There is no Playwright or Cypress suite.
+Java is 21. The wrapper is `./gradlew` (CI) or `gradlew.bat` (Windows). Web unit tests use Vitest (`web/package.json` script `test` is `vitest run`); `tests/ui` contains a real-stack Playwright scenario.
 
 `./gradlew build` compiles every module and runs each module's `test` task. In `:tests`, that task excludes JUnit tag `integration`, so it does not start Testcontainers. The integration suite is a separate task.
+
+## Test catalogue
+
+Counts below are source declarations: literal `@Test` occurrences in Java and `it(` / `test(` occurrences in web and Playwright sources. Parameterized JUnit cases count once here, not once per generated invocation. Script checks are counted by declared workflow step/scenario, not by grep annotations. Workflow names are the YAML `name`; paths are included so the wiring is auditable.
+
+| Module | Class/file | Count | What it proves |
+|---|---|---:|---|
+| engine | `CoordinatorHardeningTest` | 8 | Coordinator retries/command delivery, heartbeat incarnation handling, recovery and fencing edge cases. |
+| engine | `CoordinatorHttpServerTest` | 2 | HTTP registration, heartbeat/start/state routes, and Prometheus metrics response. |
+| engine | `CoordinatorStressTest` | 1 | Coordinator invariants survive 200 simulated kill/rejoin/checkpoint cycles. |
+| engine | `CoordinatorTest` | 13 | Partition assignment, checkpoint completion ordering, stale ack rejection, recovery from last completed checkpoint, restart reconciliation, and rebalance limits. |
+| engine | `SavepointTest` | 13 | Savepoint creation, compatibility rejection, durable restore, checkpoint lineage, and stopped/timeout handling. |
+| engine | `TaskRuntimeTest` | 9 | Workload replay parity, barrier offsets and restore, stale sink fencing, bounded queues/backpressure, and checkpoint admission. |
+| engine | `WorkerCycleLeakTest` | 1 | Repeated assign/cancel cycles release worker threads and sources. |
+| engine | `WorkerMetricsTest` | 2 | Worker metrics remain live and preserve counters through cancellation/fencing. |
+| engine | `WorkerShutdownTest` | 3 | Shutdown flushes buffered output without waiting for injected sink delay. |
+| engine | `WorkerTest` | 4 | Idle/generation behavior, sink delay/kill commands, and fenced-runtime return to idle. |
+| compiler | `PipelineCompilerTest` | 9 | Demo-plan determinism/JSON round-trip and validation error collection, type/config hints, and unsupported node/key handling. |
+| compiler | `PipelineLibraryTest` | 4 | Example catalog ordering, runnable example validity/layout, and the deliberately invalid demo's three errors. |
+| compiler | `ConditionTest` | 2 | Missing fields do not match; numeric comparison uses numeric values without coercion. |
+| compiler | `EnvelopeValidatorTest` | 5 | Envelope/payload rules, trusted source position, malformed-record dead-letter identity, and unknown-field behavior. |
+| compiler | `PartitionPipelineTest` | 8 | Watermarks, late records, deduplication, ordering, rules, map isolation, and snapshot/restore equivalence. |
+| reference | `KafkaRangeReaderTest` | 7 | Reads only requested partition tails, handles malformed/tombstone tails, and skips empty retained partitions. |
+| reference | `ReferenceExecutorTest` | 5 | Deterministic partition replay and frontiers; seeded interleavings and an independent batch oracle exercise property-style semantic cases. |
+| reference | `ResultComparatorTest` | 10 | Window/alert identity, numeric tolerance, closed-window extras, open-window exclusion, and stable mismatch summaries. |
+| control-api | `ControlApiControllerTest` | 9 | Version/health, chaos proxy/error handling, and API response contract shapes. |
+| control-api | `PipelineControllerTest` | 11 | Validation/save behavior, demo plan, versions, lookup, start/idempotency, and upstream failure handling. |
+| control-api | `CompareServiceTest` | 8 | Reference comparison uses the correct checkpoint range and caller execution, with serialization, locking, and failure handling. |
+| control-api | `ExtrasControllerTest` | 5 | Scenario proxy/error handling, coordinator metrics, and scenario listing. |
+| control-api | `LibraryControllerTest` | 3 | Example listing/routing, retrieval, and unknown-example response. |
+| control-api | `OpsControllerTest` | 15 | Savepoint lifecycle, ownership checks, restore/rescale and authorization-sensitive operational routes. |
+| control-api | `ExecutionEventsTest` | 16 | Execution transitions and checkpoint changes produce the expected independent event messages. |
+| control-api | `LiveHubTest` | 1 | A blocked browser snapshot writer does not block another browser or truck polling. |
+| control-api | `NewRowsTrackerTest` | 8 | Database row cursor/deduplication across ordering, composite keys, and resets. |
+| control-api | `WebSocketServerTest` | 2 | Real random-port WebSocket client gets a snapshot/live updates and recovers from failed upstream polling. |
+| simulator | `HttpApiTest` | 14 | HTTP health/state, trucks, controls, scenario mutation, and chaos validation without Kafka. |
+| simulator | `KafkaEventTimeTest` | 3 | Kafka partition-tail consumption and safe handling of malformed/tombstone events. |
+| simulator | `SimClockTest` | 2 | Fractional ticks accumulate and pause/resume or invalid scale does not rewind/corrupt time. |
+| simulator | `SimulationTest` | 15 | Seed determinism, wire contract, stuck truck, chaos events, movement, and equivalent coarse/fine stepping. |
+| simulator | `SimulatorRuntimeTest` | 3 | Scenario lifecycle, restart-safe event identity/time, and runtime clock re-anchoring. |
+| tests (Testcontainers) | `EngineMatchesReferenceIT` | 1 | Distributed 3-worker Kafka/Postgres/MinIO run matches reference results at a completed checkpoint, with workload, alert, and dead-letter assertions. |
+| tests (Testcontainers) | `IncompleteCheckpointIT` | 1 | Interrupted pending checkpoint is aborted and recovery restores the prior completed manifest/generation. |
+| tests (Testcontainers) | `KafkaOffsetsLookupIT` | 1 | Real Kafka returns earliest offsets for every partition and latest offset for the populated partition. |
+| tests (Testcontainers) | `OrgAccessIT` | 1 | Organization-scoped API access prevents a caller from operating on another organization's execution/resources. |
+| tests (Testcontainers) | `PostgresExecutionRepositoryIT` | 1 | Real Postgres persists execution/generation/checkpoint/audit state and retains the latest completed checkpoint after abort. |
+| tests (Testcontainers) | `S3CheckpointStoreIT` | 1 | MinIO checkpoint manifest round-trips and missing object lookup returns absent. |
+| tests (Testcontainers) | `StaleWorkerFencingIT` | 1 | A stale worker's next nonempty sink transaction is rejected after generation changes and the worker stops. |
+| tests (Testcontainers) | `WorkerAdaptersIT` | 4 | Kafka source offset order; Postgres upsert/idempotent replay; stale-generation rejection and in-flight transaction fencing. |
+| tests (Testcontainers) | `WorkerCrashRecoveryIT` | 1 | Real worker process crash restores a completed checkpoint on survivors, then recovered output matches reference. |
+| tests (Testcontainers benchmark) | `EngineBenchmarkIT` | 1 | Testcontainers engine benchmark/recovery workload records its benchmark report. |
+| web (Vitest) | `App.test.tsx` | 1 | App title renders and mock badge is absent when mock mode is unset. |
+| web (Vitest) | `app/__tests__/appShell.test.tsx` | 5 | Shell composes app navigation, panels and visible shell states. |
+| web (Vitest) | `app/__tests__/dashboard.test.tsx` | 3 | Dashboard reducer applies contract WebSocket messages, bounds windows, and labels workers/recovery. |
+| web (Vitest) | `app/chaos/__tests__/panels.test.tsx` | 4 | Kill confirmation precedes request, slow-sink selection posts, and compare panel renders match/mismatches. |
+| web (Vitest) | `app/editor/__tests__/PipelineEditor.test.tsx` | 3 | Editor run remains disabled until validation succeeds. |
+| web (Vitest) | `app/editor/__tests__/ValidationList.test.tsx` | 1 | Compiler error is rendered and selects its node. |
+| web (Vitest) | `app/editor/__tests__/pipelineModel.test.ts` | 2 | Pipeline JSON round-trips without editor positions and layout respects edge direction. |
+| web (Vitest) | `app/ops/__tests__/OpsPanel.test.tsx` | 4 | Operational actions and displayed operational state follow the UI contract. |
+| web (Vitest) | `app/scenarios/__tests__/ScenarioPanel.test.tsx` | 4 | Scenario choices and API interaction render correctly. |
+| web (Vitest) | `app/timeline/__tests__/CheckpointTimeline.test.tsx` | 1 | Checkpoint timeline component renders its timeline state. |
+| web (Vitest) | `app/timeline/__tests__/timelineModel.test.ts` | 3 | Checkpoint timeline model orders and formats checkpoint state. |
+| web (Vitest) | `app/tour/__tests__/tour.test.tsx` | 9 | Tour overlay steps, storage/progress, and user navigation behave as expected. |
+| web (Vitest) | `city/__tests__/camera.test.ts` | 6 | Camera fitting, mapping, and viewport transforms are stable. |
+| web (Vitest) | `city/__tests__/cityLogic.test.ts` | 9 | World fit, origin mapping, heading, partition assignment, and particle cap. |
+| web (Vitest) | `city/__tests__/cityModel.test.ts` | 9 | City model produces consistent scene entities and derived model state. |
+| web (Vitest) | `city/__tests__/motion.test.ts` | 11 | Truck motion interpolation and timing behave consistently across updates. |
+| tests/ui (Playwright) | `demo.spec.ts` | 4 | Real-stack browser demo checks deployed UI/version, persisted engine speed, editor validation, rendered recovery, and nonempty reference parity. |
+| script | `infra/scripts/demo-e2e.sh` steps 1–11 | 11 | Compose readiness, start/results/late events, kill/recovery, reference compare, backpressure, SHA, savepoint restore/compare, rescale, and scenario reset; CI sets `E2E_EXTENDED=1`. |
+| script | `infra/scripts/demo-ready.sh` | 1 | Readiness/version plus running execution with new windows/checkpoint and nonempty exact reference compare. |
+| script | `infra/scripts/soak.sh` | 0 (not present) | No file with this path exists in the checkout; no soak check/workflow can be attributed. |
+| workflow check | `ci-k8s` (`.github/workflows/ci-k8s.yml`) | 1 job | Renders/validates Kubernetes manifests, deploys kind, verifies readiness/results, deletes a worker pod, and checks checkpoint recovery and subsequent progress. |
+| workflow check | `ci-terraform` (`.github/workflows/ci-terraform.yml`) | 1 job | Formats/validates Terraform, applies real Docker infrastructure, checks API/web/workers and backing services, then destroys and verifies cleanup. |
+
+Module totals (literal source occurrences): engine 56; compiler 28; reference 22; control-api 78; simulator 37; tests 13; web/Vitest 75; tests/ui 4. Overall: **313 test declarations**. Script/workflow checks are catalogued separately and are not included in this total.
+
+Workflows: engine/compiler/reference/control-api/simulator unit tests run under `ci-java` (`./gradlew build`); `tests` integration-tagged ITs run under `ci-integration` (`./gradlew :tests:integrationTest`); `EngineBenchmarkIT` runs under `bench` (`./gradlew :tests:benchmarkTest`); Vitest runs under `ci-web`; Playwright runs under advisory `ci-ui-e2e`; `demo-e2e.sh` and its final `demo-ready.sh` run under `ci-e2e` (the e2e job is `continue-on-error`); `ci-k8s` and `ci-terraform` are workflow checks above. `ci-mock` runs only the separate mock-server smoke command; it does not run these catalogued tests. The Compose worker-crash-and-compare check is also present in `ci-e2e`; it is not a Testcontainers IT.
+
+Reproduce counts (from repository root):
+
+```sh
+for d in engine/src/test compiler/src/test reference/src/test control-api/src/test simulator/src/test tests/src/test web/src tests/ui; do
+  printf '%-24s ' "$d"
+  rg -o '@Test|\bit\(|\btest\(' "$d" --glob '*.java' --glob '*.ts' --glob '*.tsx' --glob '*.js' | wc -l
+done
+rg -o '@Test|\bit\(|\btest\(' engine/src/test compiler/src/test reference/src/test control-api/src/test simulator/src/test tests/src/test web/src tests/ui --glob '*.java' --glob '*.ts' --glob '*.tsx' --glob '*.js' | wc -l
+```
+
+Headline proofs: `EngineMatchesReferenceIT` compares 3-worker Kafka/Postgres/MinIO output with reference at a completed checkpoint; `WorkerCrashRecoveryIT` kills a worker process and compares recovered output; `StaleWorkerFencingIT` proves Postgres rejects a stale worker's next nonempty sink transaction; `IncompleteCheckpointIT` aborts pending state and restores the previous completed manifest; `CoordinatorHardeningTest` exercises coordinator edge cases and `CoordinatorStressTest` checks invariants through 200 cycles. `ReferenceExecutorTest` has 32 seeded partition-preserving interleavings and 240 seeded independent-oracle cases. `demo-e2e.sh` step 9 restores from a savepoint and compares the resumed execution with reference. These are source assertions, not claims about a particular CI run.
 
 ## Pyramid
 
@@ -13,8 +101,8 @@ Java is 21. The wrapper is `./gradlew` (CI) or `gradlew.bat` (Windows). Web test
 | Unit | JUnit 5 in each module, no Docker | `./gradlew test` or `./gradlew build` | `ci-java` (`.github/workflows/ci-java.yml`), job `java`, `./gradlew build` |
 | Web unit | Vitest | `cd web && npm ci && npm test` | `ci-web`, job `web`, `npm run test` |
 | Integration | JUnit tag `integration`, Testcontainers | `./gradlew :tests:integrationTest` (Docker required) | `ci-integration`, job `integration` |
-| Fault | Fencing against Postgres is an integration test. Crash-recovery and incomplete-checkpoint fault ITs are not separate classes on `main`. | same as the cited test | `ci-java` for unit; `ci-integration` for `WorkerAdaptersIT`; compose kill is `ci-e2e` and is non-blocking |
-| Full system | `infra/scripts/demo-e2e.sh` against Compose | see below | `ci-e2e`, job `e2e` (`continue-on-error: true`) |
+| Fault | Postgres fencing, worker crash recovery, and incomplete-checkpoint recovery have dedicated Testcontainers ITs in `tests`. | `./gradlew :tests:integrationTest` (Docker required) | `ci-integration`; the separate Compose fault/demo checks run in `ci-e2e`. |
+| Full system | `infra/scripts/demo-e2e.sh` against Compose | see below | `ci-e2e`, job `e2e`; consult that job's result and logs. |
 | Stack smoke (not the demo) | `infra/scripts/smoke.sh` | `docker compose up -d --build` then `bash infra/scripts/smoke.sh` | `ci-compose`, job `compose` |
 
 Reports from `ci-java` are uploaded as artifact `java-test-reports` (`**/build/reports/tests/`). Reports from `ci-integration` are artifact `integration-test-reports` (`tests/build/reports` and `tests/build/test-results`).
@@ -151,7 +239,7 @@ CI: `ci-java`.
 
 ### Web Vitest
 
-No browser end-to-end runner. Tests render components or call pure functions.
+Vitest tests render components or call pure functions; the real-stack browser scenario is the separate Playwright project in `tests/ui` (catalogued above).
 
 | File | What it checks |
 |---|---|
@@ -231,7 +319,7 @@ That is the stale-worker fence against real Postgres. It is on `main`. It is not
 
 1. `WorkloadGenerator` builds a fixed seed-42 workload: `Simulation(42, 8, 0, true)`, 40 simulated minutes, 20 duplicates at minute 20, 20 late events (3 simulated minutes late), and 5 malformed records. No wall-clock sleep in the generator.
 2. Records are produced to the Testcontainers topic.
-3. `EngineCluster` starts a real coordinator HTTP server, 3 in-process workers, Kafka sources, fenced Postgres sinks, and the MinIO checkpoint store. Checkpoint interval in this cluster is 2000 ms (the constructor argument), not the Compose default of 10000. The cluster's kill handler throws; this test does not kill a worker.
+3. `EngineCluster` starts a real coordinator HTTP server, 3 in-process workers, Kafka sources, fenced Postgres sinks, and the MinIO checkpoint store. Checkpoint interval in this cluster is 2000 ms (the constructor argument), not the Compose default of 10000. This particular class does not kill a worker; that is covered by `WorkerCrashRecoveryIT`.
 4. The demo plan is started with `startFrom: earliest`. The test waits up to 120 seconds for a `COMPLETED` checkpoint whose source offsets cover the produced end offsets. Each worker must own 2 partitions.
 5. Postgres rows are compared with a single-process replay of the same offset range. The test requires `match == true`, `matched == referenceResults` and `matched > 100`, `recordsReplayed` equal to the workload size, an alert whose key is `truck-007` and whose message is `truck-007 has not moved for 10 min`, and dead-letter counts of at least 5 `REJECTED` and at least 1 `LATE`.
 
@@ -239,13 +327,13 @@ The `> 100` figure is an assertion in the test, not a benchmark result from a re
 
 ## Fault tests
 
-`tests/build.gradle.kts` describes `integrationTest` as "integration and fault tests". On `main` the only tagged classes are the five integration tests above. There is no `CrashRecoveryIT` or `IncompleteCheckpointIT`.
+`tests/build.gradle.kts` includes all classes tagged `integration` in `integrationTest`; the current checkout has dedicated `WorkerCrashRecoveryIT`, `StaleWorkerFencingIT`, and `IncompleteCheckpointIT` classes in addition to the other integration classes.
 
-| Scenario | On `main` | Where | Gap |
-|---|---|---|---|
-| Crash recovery | Unit yes. Compose script yes. Dedicated fault IT **(in progress)** | `CoordinatorTest.workerFailureRecoversFromLastCompletedCheckpointWithNewGeneration` and `workerFailureRecoversAllPartitionsOntoTwoSurvivors` (fake clock, in-memory store). `infra/scripts/demo-e2e.sh` step 5 kills a Compose `worker-N` container. | No Testcontainers test kills a worker process and then checks output. `EngineCluster` throws if `KILL` is requested. `ci-e2e`'s demo job is `continue-on-error: true`, so a red demo does not fail that workflow. |
-| Stale worker fencing | Yes | `WorkerAdaptersIT` (Postgres, above). Also `TaskRuntimeTest.fencedSinkStopsRuntimeAndWritesNothingMore`, `WorkerTest.fencedRuntimeMakesWorkerIdle`, `CoordinatorTest.staleAckIsRejected` (acks, not sink rows). | The integration tests fence a sink generation. They do not run a stale worker process after a kill. |
-| Incomplete checkpoint | Unit yes. Dedicated fault IT **(in progress)** | `CoordinatorTest.incompleteCheckpointIsNeverChosenForRecovery`: checkpoints 2 and 3 are aborted (partial ack, then worker loss); restore assignment uses checkpoint 1; manifests for 2 and 3 do not exist. | Not run against Postgres or MinIO. `PostgresExecutionRepositoryIT` checks that `latestCompleted` ignores an aborted row, which is the query the coordinator uses, not the recovery protocol. |
+| Scenario | Coverage | What it asserts |
+|---|---|---|
+| Crash recovery | `WorkerCrashRecoveryIT`, `EngineMatchesReferenceIT`, `CoordinatorTest`, `demo-e2e.sh` step 5 | The IT kills a worker process, restores a completed checkpoint on survivors, and compares the resulting output with reference. The Compose script also kills a live worker and checks recovery and parity. |
+| Stale worker fencing | `StaleWorkerFencingIT`, `WorkerAdaptersIT`, `TaskRuntimeTest`, `WorkerTest`, `CoordinatorTest` | The IT uses a real Postgres generation change to reject the stale worker's next nonempty sink batch and verifies it stops. |
+| Incomplete checkpoint | `IncompleteCheckpointIT`, `CoordinatorTest`, `PostgresExecutionRepositoryIT` | The IT aborts a pending checkpoint after failure and restores the previous completed manifest; unit coverage checks the coordinator avoids incomplete checkpoints. |
 
 ## Full-system Compose demo
 
@@ -273,8 +361,12 @@ Steps the script itself checks:
 6. After 20 seconds, poll compare for up to 60 seconds. Requires `match == true`, `referenceResults > 0`, and `matched == referenceResults`. The script prints the matched count. This document does not copy a number from a run.
 7. `POST /api/chaos/slow-sink` with `delayMs` 200 until workers are backpressured (30 seconds), then `delayMs` 0 until they drain (60 seconds).
 8. `GET /api/version`. If `EXPECT_SHA` is set, `.commit` must equal it.
+9. Save a savepoint, restore it as a new execution, wait for windows/checkpoints, and require restored results to match the reference.
+10. Rejoin the worker killed in step 5 and require rescale to assign all six partitions exactly once at a higher generation.
+11. Apply the rush-hour simulator scenario, verify it, reset, and verify `scenario == "none"`.
+The CI workflow sets `E2E_EXTENDED=1`, so it runs all eleven steps.
 
-CI: `.github/workflows/ci-e2e.yml`. Job `lint` runs ShellCheck on this script and is blocking. Job `e2e` depends on `lint`, builds the stack with `GIT_SHA` set to `github.sha`, runs the script, uploads logs, and always runs `docker compose down -v`. The `e2e` job is `continue-on-error: true` (comment in the file: temporary until the full backend is green on `main`). A green `ci-e2e` workflow is not proof that the demo passed. Open the `e2e` job log.
+CI: `.github/workflows/ci-e2e.yml`. `lint` runs ShellCheck; `e2e` depends on it, builds the stack, runs the extended demo, collects logs, tears down Compose, then reruns `demo-ready.sh`. The workflow does not set `continue-on-error`; examine job logs for the observed result.
 
 `infra/scripts/smoke.sh` is the shorter stack check, not this demo. It waits up to 120 seconds for Kafka, Postgres, and MinIO; requires topic `truck-events` to have 6 partitions, table `executions` to exist, and bucket `aether-checkpoints` to exist; requires coordinator `:18081/coord/health`, simulator `:18070/health`, control-api `:18080/api/health`, web `:8088/`, and nginx `:8088/api/health` to be up (180 seconds); expects 3 alive workers unless worker logs show `ClassNotFoundException` (that path warns and skips); expects the simulator state to list trucks; expects the topic offset sum to be greater than 0. CI: `ci-compose`. It does not kill a worker or compare with the reference.
 
@@ -282,20 +374,20 @@ CI: `.github/workflows/ci-e2e.yml`. Job `lint` runs ShellCheck on this script an
 
 Source: `handoff.md` section 10, "Verification and acceptance criteria". "Covered" means a test in this tree asserts the observation. It does not mean a recorded run was attached.
 
-| Handoff test | Required observation | What covers it | Gap |
+| Handoff test | Required observation | What covers it | Remaining boundary |
 |---|---|---|---|
-| Invalid pipeline | Rejected before workers start; actionable validation feedback | `PipelineCompilerTest` (codes, node id, repair text, null plan). `PipelineControllerTest.invalidPipelineReturnsValidationErrorsAndCannotBeSaved` (validate errors, save not called). `ValidationList.test.tsx`, `PipelineEditor.test.tsx` (Run disabled until validation succeeds). | The API test mocks the coordinator. It does not observe a live worker process staying down. |
-| Reference correctness | Distributed results match a trusted deterministic executor | `EngineMatchesReferenceIT` (3 workers, Kafka, Postgres, MinIO, compare `match`). `ReferenceExecutorTest` and `ResultComparatorTest` (single process and the comparator rules). `demo-e2e.sh` step 6. | The demo job does not fail `ci-e2e` while `continue-on-error` is set. No committed run log is in the repo. |
-| Duplicate source records | Behaviour matches the declared event deduplication policy | `PartitionPipelineTest.closesAtWatermarkEqualityDeduplicatesAndRejectsLateBeforeUpdatingWatermark`. `WorkloadGenerator` inserts 20 duplicates into the workload `EngineMatchesReferenceIT` replays, so a dedup mismatch fails `match`. `SimulationTest` checks the generator emits verbatim duplicates. | No assertion counts suppressed duplicates by itself. The integration test only requires the whole comparison to match. |
-| Out-of-order events | Window results match the configured watermark and late-data semantics | `PartitionPipelineTest` late-before-watermark and lexically-first late window. `EngineMatchesReferenceIT` requires at least one `LATE` dead letter. `demo-e2e.sh` step 4 expects a `LATE` dead letter after `lateByMs` 180000. | The integration test does not isolate out-of-order windows as its own assertion beyond the dead-letter count and the overall match. |
-| Worker termination | Work restores from a valid checkpoint and completes with the expected output | Unit: `CoordinatorTest.workerFailureRecoversFromLastCompletedCheckpointWithNewGeneration` (restore assignment from the last completed checkpoint, new generation). Script: `demo-e2e.sh` step 5, then step 6 compare. | Dedicated fault IT **(in progress)**. Unit test does not check sink rows. Demo is non-blocking in CI. |
-| Interrupted checkpoint | Incomplete checkpoint is never selected as the recovery point | `CoordinatorTest.incompleteCheckpointIsNeverChosenForRecovery` (restore uses checkpoint 1; 2 and 3 aborted; their manifests absent). `PostgresExecutionRepositoryIT` (`latestCompleted` stays on the completed id after an abort). | Dedicated fault IT against real stores **(in progress)**. |
-| Stale worker | Old execution generation cannot commit new output | `WorkerAdaptersIT.postgresSinkRejectsStaleGenerationWithoutInsertingOrOverwritingRows` and `generationBumpWaitsForInFlightSinkTransactionAndFencesItsNextBatch`. `TaskRuntimeTest.fencedSinkStopsRuntimeAndWritesNothingMore`. `CoordinatorTest.staleAckIsRejected`. | Integration coverage is the sink fence, not a leftover worker process after `KILL`. |
-| Slow sink | Buffers remain bounded and backpressure is observable | `TaskRuntimeTest.sinkDelayFillsQueuesAndBlocksSource` (queues at `QUEUE_CAPACITY`, `backpressured()`, emitted bound). `demo-e2e.sh` step 7 (API shows backpressure, then drain). `CoordinatorTest.chaosKillTargetsBusiestWorkerAndSinkDelayReachesNewWorkers` only checks the command is delivered. | No Testcontainers test delays a real Postgres sink. The unit bound is not a latency percentile. |
-| Rescale | No unsupported concurrent partition ownership; results remain correct | `CoordinatorTest.stableNewWorkerRebalancesAtCompletedCheckpointAndHonorsRecoveryAndRateLimit` reassigns the same partitions 0..5 with no overlapping lists in the assertions, at a completed checkpoint, and rejects another rebalance inside 30 seconds. | Not a partition-count change and not a reference comparison. `docs/architecture.md` marks rescaling planned. This criterion is a gap for result correctness. |
-| Coordinator restart | Single-coordinator baseline restores metadata and reconciles execution | `CoordinatorTest.coordinatorRestartRecoversAfterWorkersReRegister` (new coordinator object, same in-memory repository, `loadActiveExecutions()`, then re-register). | Not a killed coordinator process and not Postgres. No integration test restarts the coordinator JVM. |
-| Cross-organisation access | Authorisation denies another organisation's resources | None. | Gap. `docs/architecture.md` marks organisation roles and login as planned. They are not in the v1 API, and no test denies a cross-organisation call. |
-| Deployment | Running version matches the released image and smoke tests pass | The check is defined in `.github/workflows/cd.yml` and `infra/deploy/smoke-deploy.sh`: `/api/health` is `UP` and `/api/version` `.commit` equals the deployed SHA (nginx, port 8088). `ci-images` checks the OCI revision label equals `GITHUB_SHA` on images it built and did not push. | This document does not claim a deploy run passed. See `docs/ci-cd.md`. |
-| Incompatible savepoint | Restore is rejected with a useful explanation | None. | Gap. `docs/architecture.md` marks savepoints and the incompatible-restore checker as planned. v1 has periodic checkpoints and checkpoint 0 only. |
+| Invalid pipeline | Rejected with actionable validation feedback | `PipelineCompilerTest`, `PipelineControllerTest.invalidPipelineReturnsValidationErrorsAndCannotBeSaved`, and editor validation tests. | The API test mocks the coordinator; it does not observe a live worker process. |
+| Reference correctness | Distributed results match the deterministic executor | `EngineMatchesReferenceIT`, `ReferenceExecutorTest`, `ResultComparatorTest`, and `demo-e2e.sh` steps 6 and 9. | The browser Playwright suite also checks nonempty parity; `ci-ui-e2e` is advisory. |
+| Duplicate source records | Duplicate event behavior matches the declared policy | `PartitionPipelineTest`, seeded reference-oracle cases, `WorkloadGenerator`, and `SimulationTest`. | No assertion independently reports a suppressed-duplicate total. |
+| Out-of-order events | Windows and late-data behavior match watermark semantics | `PartitionPipelineTest`, reference seeded cases, `EngineMatchesReferenceIT`, and `demo-e2e.sh` step 4. | Distributed IT asserts the aggregate match and dead-letter floor, not an isolated late-window output. |
+| Worker termination | Work restores from a valid checkpoint and resumes correct output | `WorkerCrashRecoveryIT`, `CoordinatorTest`, `demo-e2e.sh` steps 5–6, and `ci-k8s` recovery smoke. | Compose and Kubernetes workflows exercise different deployment paths. |
+| Interrupted checkpoint | Recovery never selects the incomplete checkpoint | `IncompleteCheckpointIT`, `CoordinatorTest.incompleteCheckpointIsNeverChosenForRecovery`, and `PostgresExecutionRepositoryIT`. | The unit test uses in-memory stores; the IT uses real Postgres/MinIO. |
+| Stale worker | Old generation cannot commit output | `StaleWorkerFencingIT`, `WorkerAdaptersIT`, `TaskRuntimeTest`, and `CoordinatorTest.staleAckIsRejected`. | IT checks the worker's next nonempty sink transaction; it is not a process left running after the crash scenario. |
+| Slow sink | Buffers remain bounded and backpressure is observable | `TaskRuntimeTest.sinkDelayFillsQueuesAndBlocksSource` and `demo-e2e.sh` step 7. | No percentile/latency benchmark is asserted by this test. |
+| Rescale | Ownership remains unique and generation advances | `CoordinatorTest.stableNewWorkerRebalancesAtCompletedCheckpointAndHonorsRecoveryAndRateLimit`, `demo-e2e.sh` step 10. | It does not change partition count or compare the rescaled output with reference. |
+| Coordinator restart | Single-coordinator baseline reloads metadata and reconciles workers | `CoordinatorTest.coordinatorRestartRecoversAfterWorkersReRegister`. | In-memory repository; no killed coordinator JVM integration test is listed. |
+| Cross-organisation access | Another organization's resources are denied | `OrgAccessIT` and ownership checks in `OpsControllerTest`. | Contract coverage is limited to the exercised API routes. |
+| Deployment | Deployed stack is ready and serves the demo surface | `ci-k8s`, `ci-terraform`, and deployment smoke checks in `cd.yml`. | This document does not claim a deployment run passed. |
+| Savepoint restore | Restore uses the savepoint and produces matching output | `SavepointTest` and `demo-e2e.sh` step 9 (savepoint restore followed by reference comparison). | Compatibility rejection cases are unit-tested in `SavepointTest`. |
 
-Handoff section 10 also asks for recorded input counts, accepted and rejected records, output correctness, throughput, latency percentiles, checkpoint duration, and recovery time. `EngineMatchesReferenceIT` prints one `CompareResult` JSON line when it runs. `demo-e2e.sh` prints the recovery seconds and the matched count when it runs. Neither result is stored as a benchmark artifact in the repo. Do not fill those numbers in from a guess.
+The tests print benchmark/comparison details only when run; this document does not claim an observed run, input/output rates, throughput, latency percentiles, checkpoint duration, or recovery time.
