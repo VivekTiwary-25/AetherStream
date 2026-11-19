@@ -3,6 +3,7 @@ import { MockBadge } from './MockBadge'
 
 export function Footer() {
   const [version, setVersion] = useState<string | null>(null)
+  const [expoBuild, setExpoBuild] = useState<string | null>(null)
 
   useEffect(() => {
     let active = true
@@ -18,6 +19,19 @@ export function Footer() {
         if (active) setVersion('unknown')
       })
 
+    fetch('/expo-build.txt', { cache: 'no-store' })
+      .then((response) => {
+        if (!response.ok) throw new Error('Expo build request failed')
+        return response.text()
+      })
+      .then((text) => {
+        const counter = text.trim()
+        if (active && /^\d+$/.test(counter)) setExpoBuild(counter)
+      })
+      .catch(() => {
+        // Older/offline deployments may not have a demo counter.
+      })
+
     return () => {
       active = false
     }
@@ -26,6 +40,7 @@ export function Footer() {
   return (
     <footer className="app-footer" data-tour="devops">
       <span>Deployed version: {version ?? '…'}</span>
+      {expoBuild !== null && <span>Expo build #{expoBuild}</span>}
       <MockBadge />
     </footer>
   )

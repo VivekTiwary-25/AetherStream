@@ -10,6 +10,7 @@ on:
       - "boss/**"
       - "docs/**"
       - "**/*.md"
+      - "web/public/expo-build.txt"
   pull_request:
     branches:
       - main
