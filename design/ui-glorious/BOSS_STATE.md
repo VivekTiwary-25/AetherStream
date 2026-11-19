@@ -41,6 +41,11 @@ Fresh boss session: read swarm/BOSS.md, then design/ui-glorious/BOSS_PROMPT.md (
 - Grok watermark: crop it (b).
 - CORRECTION 03:40: vivek-pc workers stay ENABLED (disable reverted: main 1574ad8). Instead vivek-pc has "max_busy": 1 (main 1111cd1, listener caps concurrent tasks per machine). Boss session + live demo must never be starved; do not queue heavy work (builds/stacks) to vivek-pc yourself.
 
+## Progress 03:50
+- Preview :8089 now serves build #2 (task/t261120-0323-e100, from ui-glorious 8e84499): basemap renders with live trucks (map fix verified with live data). Old html kept in scratchpad\preview\html.old. Rejected 9f5b (build #1) and 4b72 (failed docker diag).
+- Watermark cropped + merged (t261120-0332-b2f9; verified corner clean). utkarsh disk task merged (C: 6.0 GB free; report design/ui-glorious/disk-utkarsh.md).
+- PIPELINES CHECKPOINT evidence (generation half): bridge on vivek-pc, vachana config, claude-haiku-5-5, 3 rehearsal prompts -> all source=ai, valid (local validator; live API lacks D1), 4.8-6.1 s. Runnable half still needs a full stack (D1 executor + Kafka).
+
 ## Running / queued — 03:33
 - t261120-0323-e100 vimlesh-pc/codex-luna  web build #2 artifact (after map fix) -> load into :8089 preview, re-check map with live data, then reject 9f5b + e100 (artifacts never merged)
 - t261120-0323-e480 vimlesh-pc/codex-sol   map polish (fit city, icons, overlap)
