@@ -29,13 +29,14 @@ Fresh boss session: read swarm/BOSS.md, then design/ui-glorious/BOSS_PROMPT.md (
 ## Running / queued (all --base ui-glorious). Task specs: design/ui-glorious/tasks/*.md
 - t261120-0128-ed5d  utkarsh-pc/codex-luna  PREVIEW (waits up to 20 min for Docker; Vivek asked at 01:28 to fix Docker Desktop on utkarsh-pc)
 - t261120-0130-4b05  utkarsh-pc/codex-sol   C1 worker-card bug (server-side recovery history) + Logs & Recovery window
-- t261120-0123-4e81  vimlesh-pc/claude      A0 truck sprite -> then t261120-0130-3142 D2 pipelines frontend
-- t261120-0124-4022  vimlesh-pc/codex-luna  C2 terminal commands -> then t261120-0130-5be9 B analytics
-- t261120-0130-3a5f  vimlesh-pc/codex-sol   A map
+- t261120-0123-4e81  vimlesh-pc/claude      A0 truck sprite -> then t261120-0139-e72a D2 pipelines frontend (requeued with node PATH note)
+- t261120-0139-4c1c  vimlesh-pc/codex-luna  B2: install portable Node (%USERPROFILE%\tools\node) + bring in Track B from branch task/t261120-0130-5be9 + lint/test/build/fix
+- t261120-0130-3a5f  vimlesh-pc/codex-sol   A map (started WITHOUT node -> will need a verify task like B2 afterwards)
 - t261120-0125-ae9a  upendra-pc/codex-sol   D1 pipeline backend (control-api)
 - t261120-0125-ed02  upendra-pc/codex-luna  D3 AI bridge
-- Merged into ui-glorious: audio strip, recon, preview scripts, SHELL (t261120-0111-1f98), boss fix 5cf9f62 (classic Playwright via storageState localStorage aether.ui=classic; main.tsx honours it; ?ui=glorious forces new UI).
-- Known: shell worker saw vitest timeouts unless `npm test -- --maxWorkers=2` (machine load); check in integration.
+- UNMERGED, keep until B2 merged then `swarm reject t261120-0130-5be9`: original Track B branch (unverified, vimlesh had no npm).
+- Merged into ui-glorious: audio strip, recon, preview scripts, SHELL, boss fix 5cf9f62 (classic Playwright via storageState aether.ui=classic), C2 terminal commands (scripts/expo, CHEATSHEET section; worker status verified read-only on live demo), 7633d6a ASCII ps1 fix.
+- Known: vitest needs --maxWorkers=2 on loaded PCs. vimlesh-pc had NO node/npm in agent PATH.
 
 ## Key recon decisions
 - Worker-card bug: killed worker restarts + re-registers before 4 s timeout, never DEAD server-side; old UI used client overlay only on its own button -> terminal kill invisible. C1 adds server-side recovery history (/api/recovery/history + WS).

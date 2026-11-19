@@ -1,0 +1,17 @@
+# Install Node on this PC (no admin) and verify + fix Track B analytics
+
+Files: web/src/glorious/analytics/** (bring in and fix). Do NOT read or describe swarm/. Do not touch other web/src/glorious folders.
+
+## 1. Node toolchain (this PC had no node/npm in the agent PATH)
+- First look for an existing install: `C:\Program Files\nodejs\node.exe`, `%LOCALAPPDATA%\Programs\nodejs`, `%APPDATA%\nvm`, `%USERPROFILE%\tools\node`. If found (Node >= 20), use it.
+- Else install a portable Node 22 LTS WITHOUT admin: read https://nodejs.org/dist/latest-v22.x/SHASUMS256.txt, download the `node-v22.*-win-x64.zip` listed there, verify its SHA256, extract to `%USERPROFILE%\tools\node` (so `%USERPROFILE%\tools\node\node.exe` and `npm.cmd` exist directly there). Add that folder to the USER Path permanently (`[Environment]::SetEnvironmentVariable('Path', ..., 'User')`, append only if missing) — do not touch the machine Path.
+- In this task's shell, prepend it: PowerShell `$env:PATH = "$env:USERPROFILE\tools\node;$env:PATH"`; bash `export PATH="$USERPROFILE/tools/node:$PATH"`. Confirm `node -v` and `npm -v`.
+
+## 2. Bring in the Track B code
+Another worker wrote Track B on branch `task/t261120-0130-5be9` but could not run any checks. Copy its analytics folder into this checkout WITHOUT changing branches or committing:
+`git fetch origin task/t261120-0130-5be9` then `git checkout FETCH_HEAD -- web/src/glorious/analytics` (that is all; do not merge).
+
+## 3. Verify and fix
+In web/: `npm ci`, then `npm run lint`, `npm test -- --maxWorkers=2`, `npm run build`, `npm run check:no-mock`. Fix every error/warning that comes from web/src/glorious/analytics (only that folder). Then read design/ui-glorious/tasks/tB-analytics.md (the original spec) and check the code against it: five windows, Truck Speeds row → chart in the same window with back arrow, honest empty states, real window length label, data-testids `analytics-truck-speeds`, `truck-row-<truckId>`, `truck-speed-chart`. Fix gaps you find (stay in the analytics folder).
+
+Report: node path/version, each command's result, what you fixed.
