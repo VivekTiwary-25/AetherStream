@@ -68,3 +68,17 @@ export function truckLabel(id: string): string {
   const match = /^truck-(\d+)$/.exec(id)
   return match ? `Truck T-${Number(match[1]).toString().padStart(2, '0')}` : id
 }
+
+/** Screen-space clearance includes the sprite and the label below it, even on shared roads. */
+export function placeMarker(x: number, y: number, placed: { x: number; y: number }[], index: number): void {
+  const position = placed[index]
+  position.x = x
+  position.y = y
+  for (let previous = 0; previous < index; previous++) {
+    const other = placed[previous]
+    if (Math.abs(position.x - other.x) < 90 && Math.abs(position.y - other.y) < 80) {
+      position.y = other.y - 80
+      previous = -1
+    }
+  }
+}
