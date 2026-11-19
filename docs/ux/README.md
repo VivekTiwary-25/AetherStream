@@ -1,6 +1,6 @@
 # AetherStream UX
 
-AetherStream's proposed interface helps pipeline authors build and validate stream-processing graphs, while operators and evaluators follow live logistics events, inspect engine state, inject controlled failures, and compare results with a reference. These documents are design proposals for a system that is still at the proposal/planning stage; they are not evidence of a built UI, user research, usability testing, or a Figma prototype.
+These documents combine implemented UI behavior with explicit design proposals. The implemented ops, scenarios, tour, editor and checkpoint-timeline surfaces are documented from `web/src/app/`; the existing live screenshots cover the deployed dashboard only, not these recently integrated panels. Personas and planned research remain assumptions, not user-study findings.
 
 ## Documents
 
@@ -10,7 +10,7 @@ AetherStream's proposed interface helps pipeline authors build and validate stre
 - [Usability decisions](usability-decisions.md) — principles behind interaction, feedback, accessibility, and motion.
 - [Design system](design-system.md) — proposed colour, typography, spacing, elevation, state, and component tokens.
 - [Figma plan](figma-plan.md) — frames, reusable components, variants, flows, and a build checklist.
-- [Visual QA of the live app](visual-qa.md) — findings for each screenshot (contrast, overlap, clipping, mobile layout), each with a severity and a suggested fix. This feeds the final polish task.
+- [Visual QA of the live app](visual-qa.md) — findings against deployed dashboard screenshots. These screenshots predate the editor, scenarios, ops panel, tour, and checkpoint timeline; they are not visual evidence for those components.
 
 ## Live screenshots
 

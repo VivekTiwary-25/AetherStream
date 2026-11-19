@@ -66,3 +66,18 @@ Check final rendered foreground/background pairs with a contrast analyser; token
 - Zoom and narrow layouts do not hide required actions or force horizontal scrolling for ordinary tasks.
 
 Review against the applicable WCAG version and assistive technologies during implementation; this document is not a conformance claim.
+
+## Decisions grounded in the integrated panels
+
+| Decision | Current implementation and rationale |
+|---|---|
+| Confirm before restoring a savepoint. | `OpsPanel` (`web/src/app/ops/OpsPanel.tsx`) asks `window.confirm('Restart the pipeline from this savepoint?')` before POST. Restore can restart execution from older state; cancellation avoids the request. This is a browser-native confirmation, not a custom dialog or detailed impact preview. |
+| Keep server conflict messages intact. | `editorApi.ts` and `opsApi.ts` parse an API error body's string `message` and surface it rather than replacing it with generic conflict copy. `PipelineEditor` places save/run failures in its feedback region; `OpsPanel` places failures in `role="alert"`. For 409 responses this preserves the server's wording and actionable context. If no message exists, each API wrapper uses a status or generic fallback. |
+| Make pending, empty, and failed states distinct where implemented. | Ops disables controls while requests are pending, says “No savepoints yet,” announces savepoint success, and alerts on failure. Scenarios disable controls and expose active selection; failures are alerts, while an unavailable scenario list can fall back to built-ins. Editor disables the example picker while loading, reports load/validation/run outcomes in feedback, and uses a demo fallback only for a 404. Timeline says “Waiting” without execution and shows refresh failure; its empty state is otherwise implicit. Do not document these as a uniform state framework: there is no shared loading treatment across these components. |
+| Make scenario choice observable. | `ScenarioPanel` uses a native labelled truck `<select>` for Breakdown and `aria-pressed` on scenario buttons; active state is also written in the panel header. The control descriptions disclose workload changes before selection, but no confirmation is shown. |
+| Keep guided-tour navigation operable without the spotlight. | `TourOverlay` provides titled non-modal dialog content and labelled Close/Back/Next/Finish buttons plus arrow/Escape key handling. Spotlight is decorative and absent when a target selector fails. Current code does not trap or restore focus; do not claim it does. |
+| Pair timeline graphics with event status text. | `CheckpointTimeline` labels checkpoint/recovery details, generation, restored checkpoint and publishes the latest event through a visually hidden live region. Its chart is scrollable and marked `role="img"`; a text event table is not present, so further assistive-technology equivalence remains a validation need. |
+
+## Error copy and scope
+
+The current code's “verbatim” behavior applies to the API's string `message`, not the full JSON response: `editorApi.ts` and `opsApi.ts` extract only that field. Scenario API errors are deliberately converted to user-facing connection/selection/server messages in `scenariosApi.ts`; they are not verbatim. Preserve these distinctions in help text. Keep status text visible alongside colour, and never claim the panel's local action success means execution has completed unless the returned state proves it.

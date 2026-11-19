@@ -101,3 +101,27 @@ Record task completion, missteps, help requests, time as descriptive data, and p
 ### SUS questionnaire
 
 After tasks, administer the standard 10-item System Usability Scale (SUS) with the original response wording and 5-point agree/disagree scale. Alternate positive and negative item scoring as specified by the SUS method, convert the total to the 0–100 SUS score, and report the sample size and method. SUS is not a percentage and five participants do not establish a population score. Do not fill in scores before data collection.
+
+## Design thinking tied to repository artefacts
+
+This section records the design rationale visible in implemented components and existing QA material; it is not a report of participant research.
+
+### Empathise
+
+The proto-personas in [personas.md](personas.md) frame a pipeline author needing actionable errors, an operator needing trustworthy recovery status, and an evaluator needing inspectable evidence. They are assumptions, not interviews. The live captures in [visual-qa.md](visual-qa.md) (`docs/ux/screenshots/desktop-04-recovering-viewport.png`, `mobile-04-recovering-panels.png`, and worker-panel before/after-kill images) expose confusion from conflicting recovery labels and stale-looking worker health. That evidence is limited to the deployed dashboard on 2026-11-19; the QA report says editor, chaos, and comparison controls were not mounted then.
+
+### Define
+
+For savepoint actions, the risk is confusing a restart-from-savepoint with a harmless inspect action. For scenario controls, it is not knowing which workload will change or which truck is selected. For the tour, it is relying on a spotlight that cannot resolve a target or on motion the user has requested to reduce. For authoring, it is being unable to locate compiler/API feedback in a multi-node graph. For recovery, it is mistaking a checkpoint marker for a completed recovery. These are problem statements inferred from current controls and the stated roles, not measured user pain.
+
+### Ideate
+
+The implemented choices answer those risks in bounded ways: native confirmation before restore (`OpsPanel.tsx`); explanatory scenario descriptions and selected state (`ScenarioPanel.tsx`); text-led tour steps with optional spotlight (`TourOverlay.tsx`, `tourSteps.ts`); validation codes and “Show me” graph navigation (`PipelineEditor.tsx`, `ValidationList.tsx`); and a two-minute checkpoint/recovery timeline with generation and restored checkpoint labels (`CheckpointTimeline.tsx`). Alternatives such as a bespoke restore impact dialog, a scenario confirmation step, a text event table, and editor click-to-add were not implemented and must not be described as existing.
+
+### Prototype
+
+The repository's `docs/ux/visual-qa.md` and linked screenshots are deployed-dashboard artifacts, not prototypes for the five panels described above. Component sources are the implementation artefacts: `web/src/app/ops/`, `scenarios/`, `tour/`, `editor/`, and `timeline/`. A future visual prototype should cover restore cancellation/acceptance, scenario loading/error, editor 409 and validation feedback, unresolved tour targets, and timeline empty/refresh-failure states without marking simulated results as live.
+
+### Test
+
+Existing visual QA is a screenshot review, not usability testing; no participant findings or SUS scores are asserted. The present screenshot set does not establish appearance, contrast, focus order, or task success for these integrated components. Validate with keyboard-only and screen-reader use, reduced-motion settings, narrow viewport, empty/loading/error/API-conflict states, and measured contrast; record observations only after the checks are actually performed.
