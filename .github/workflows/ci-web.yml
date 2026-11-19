@@ -28,6 +28,15 @@ jobs:
       - run: npm run lint
       - run: npm run test
       - run: npm run build
+      - run: npm run check:no-mock
+      - name: Verify mock-enabled build is rejected
+        run: |
+          VITE_USE_MOCK=1 npm run build -- --outDir dist-mock
+          if npm run check:no-mock -- dist-mock; then
+            echo "Mock-enabled build unexpectedly passed the production check"
+            exit 1
+          fi
+          echo "Mock-enabled build correctly rejected"
       - uses: actions/upload-artifact@v7
         with:
           name: web-dist
