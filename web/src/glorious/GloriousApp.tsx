@@ -1,3 +1,4 @@
+import { useCallback } from 'react'
 import { DashboardProvider } from '../app/state/store'
 import { Home } from './home/Home'
 import { LiveWorld } from './map/LiveWorld'
@@ -12,8 +13,11 @@ import './shell/shell.css'
 
 export function GloriousApp() {
   const { screen, navigate, enteringLive } = useScreen()
+  const onWindowOpen = useCallback((id: string) => {
+    if (id.startsWith('analytics.') || id.startsWith('settings.')) navigate('live')
+  }, [navigate])
   return <div className={`glorious-app${screen === 'home' ? ' glorious-app--home' : ''}`}>
-    <DashboardProvider><WindowManager>
+    <DashboardProvider><WindowManager onOpen={onWindowOpen}>
       {screen === 'editor' ? <EditorPage /> : <>
         {screen === 'home' && <Home />}
         {screen !== 'home' && <main className={`gl-screen${enteringLive ? ' gl-screen--enter' : ''}`} key={screen}>

@@ -49,6 +49,10 @@ standalone new-tab editor (no sidebar). Tracks replace the named placeholder
 exports without editing the router. Vite dev/preview and production nginx
 already support SPA fallback. `?ui=classic` selects the untouched old `<App />`.
 Home video and fonts are local. Reduced motion shows the poster and fades only.
+Selecting Analytics or Settings, or opening any `analytics.*` / `settings.*` window,
+navigates to `/live` without reloading or closing existing windows. Sidebar
+sub-options stay selected. From Home this uses the usual slide-up; reduced motion
+uses a fade instead.
 
 ## Classic Playwright limitation
 
