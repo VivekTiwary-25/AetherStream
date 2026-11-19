@@ -223,11 +223,12 @@ def _commit_and_push(tid, title, worker, wt):
     return True, ""
 
 
-def _cleanup(tid):
+def _cleanup(tid, keep_branch=False):
     try:
         with gitops.git_lock():
-            gitops.remove_worktree(tid)
-            gitops.git("branch", "-D", "task/" + tid)
+            gitops.remove_worktree(tid, keep_branch=keep_branch)
+            if not keep_branch:
+                gitops.git("branch", "-D", "task/" + tid)
     except Exception as e:
         util.log("listener", "cleanup of %s failed: %s" % (tid, e))
 
@@ -240,6 +241,7 @@ def run_task(worker, path, holder=None):
     if tid in done_ids() or tid in gitops.remote_task_branches():
         return _result("skipped", tid, title)
     machine = config.machine()
+    keep_branch = False
     try:
         with gitops.git_lock():
             wt = gitops.add_worktree(tid, task.get("base") or "main")
@@ -262,6 +264,12 @@ def run_task(worker, path, holder=None):
             report.write_text(_report_fallback(res), encoding="utf-8", newline="\n")
         ok, err = _commit_and_push(tid, title, worker, wt)
         if not ok:
+            if err.startswith("push failed"):
+                # The commit exists locally: keep task/<id> and let the listener retry the push.
+                from . import upkeep
+                keep_branch = True
+                upkeep.remember_unpushed(tid)
+                err += " (commit kept; the swarm retries the push automatically)"
             return _result("error", tid, title, err)
         mark_done({"id": tid, "worker": "%s/%s" % (machine, worker["name"]),
                    "ok": what is None, "ts": util.now()})
@@ -274,4 +282,4 @@ def run_task(worker, path, holder=None):
         util.log("listener", "run_task %s crashed: %r" % (tid, e))
         return _result("error", tid, title, repr(e))
     finally:
-        _cleanup(tid)
+        _cleanup(tid, keep_branch)

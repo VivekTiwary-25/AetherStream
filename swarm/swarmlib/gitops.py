@@ -334,14 +334,15 @@ def _rmtree_force(path):
     shutil.rmtree(path, onerror=on_error)
 
 
-def remove_worktree(task_id):
+def remove_worktree(task_id, keep_branch=False):
     path = worktree_path(task_id)
     with git_lock():
         git("worktree", "remove", "--force", str(path))
         if path.exists():
             _rmtree_force(path)
         git("worktree", "prune")
-        git("branch", "-D", "task/" + task_id)
+        if not keep_branch:
+            git("branch", "-D", "task/" + task_id)
 
 
 def push_branch(task_id, cwd):

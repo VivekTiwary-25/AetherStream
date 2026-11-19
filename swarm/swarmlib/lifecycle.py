@@ -93,6 +93,23 @@ def fix(args=None):
         ok, msg = heal.ladder(msg, lambda: gitops.sync_main()[0])
     print("Sync with GitHub: %s" % ("ok" if ok else "FAILED - " + str(msg)))
     problems += 0 if ok else 1
+    from . import upkeep
+    for tid in upkeep.recover_orphans():
+        print("Recovered unpushed commit of task %s" % tid)
+    for tid in upkeep.retry_unpushed():
+        print("Pushed task %s (its earlier push had failed)" % tid)
+    left = upkeep.unpushed()
+    if left:
+        print("Still unpushed (will retry): %s" % ", ".join(left))
+        problems += 1
+    if util.instance_running("listener"):
+        names, size = upkeep.sweep_work(set(), dry_run=True)
+        print("Disk free: %.1f GB. Finished task folders the listener will sweep: %d (%.1f GB)"
+              % (upkeep.free_gb(), len(names), size / 1e9))
+    else:
+        names, size = upkeep.sweep_work(set())
+        print("Disk free: %.1f GB after removing %d finished task folder(s) (%.1f GB)"
+              % (upkeep.free_gb(), len(names), size / 1e9))
     if util.instance_running("listener"):
         print("Listener is running (it pushes heartbeats itself).")
     else:

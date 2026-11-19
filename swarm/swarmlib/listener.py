@@ -264,6 +264,21 @@ def _task_thread(w, path, st):
     _finish_task(w, st, result or {})
 
 
+def _upkeep(now):
+    """Recover orphaned task commits once, retry failed task pushes every loop, sweep
+    finished task worktrees every 10 minutes (never a running one)."""
+    from . import upkeep
+    if not CTX.get("orphans_checked"):
+        CTX["orphans_checked"] = True
+        # git fsck can take minutes: never block the heartbeat loop on it.
+        threading.Thread(target=lambda: _step("recover orphans", upkeep.recover_orphans), daemon=True).start()
+    upkeep.retry_unpushed()
+    if now - CTX.get("last_sweep", 0) >= 600:
+        CTX["last_sweep"] = now
+        running = {st["task"]["id"] for st in STATES.values() if st.get("task")}
+        upkeep.sweep_work(running)
+
+
 def _finish_task(w, st, result):
     if st.get("shutdown"):
         return
@@ -437,6 +452,7 @@ def _loop_once(me):
         _step("usage", lambda: _refresh_usage(me, workers, settings, now))
     _step("usage blocks", lambda: _apply_usage(workers, settings.get("low_usage_pct", 3), now))
     if net:
+        _step("upkeep", lambda: _upkeep(now))
         _step("retry", lambda: _retry_blocked(workers, now))
         _step("moves", lambda: _handle_moves(me, workers, heartbeats, now, net))
         _step("dispatch", lambda: _dispatch(me, workers, routing))
