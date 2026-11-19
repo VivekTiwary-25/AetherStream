@@ -41,6 +41,9 @@ jobs:
               --tests io.aetherstream.tests.PostgresExecutionRepositoryIT
               --tests io.aetherstream.tests.WorkerAdaptersIT
               --tests io.aetherstream.tests.OrgAccessIT
+          - group: backpressure
+            tests: >-
+              --tests io.aetherstream.tests.BackpressureIT
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-java@v6
