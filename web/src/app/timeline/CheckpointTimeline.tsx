@@ -3,7 +3,7 @@ import { getCheckpoints, getCurrentExecution } from '../../api/client'
 import type { CheckpointInfo, ExecutionEvent, ExecutionInfo, WebSocketMessage, WorkerInfo } from '../../api/types'
 import { useAetherMessages } from '../../api/ws'
 import { GlassPanel } from '../ui/GlassPanel'
-import { buildTimelineModel, formatApiDuration, humanState, type TimedExecutionEvent } from './timelineModel'
+import { buildTimelineModel, formatApiDuration, humanState, spacedLabels, type TimedExecutionEvent } from './timelineModel'
 
 const WINDOW_MS = 120_000
 const TRACK_WIDTH = 720
@@ -14,6 +14,29 @@ function addEvent(events: TimedExecutionEvent[], event: TimedExecutionEvent) {
 
 function timePosition(timestamp: number, now: number) {
   return Math.max(0, Math.min(100, ((timestamp - (now - WINDOW_MS)) / WINDOW_MS) * 100))
+}
+
+/** Text anchored at a track position, kept inside the track near either edge. */
+function edgeTransform(position: number) {
+  return position > 88 ? 'translateX(-100%)' : position < 12 ? 'none' : 'translateX(-50%)'
+}
+
+/**
+ * The server only labels RECOVERING/RECOVERED when it saw the worker die; a fast worker restart can hide the death, and
+ * then only the execution state moves RECOVERING -> RUNNING. Derive the missing entries from that transition, so the
+ * band and the Recovered marker always appear after a kill (rehearsal-1 #11).
+ */
+function derivedRecoveryEvent(previous: ExecutionInfo | null, next: ExecutionInfo, ts: number, eventName?: string): TimedExecutionEvent | null {
+  if (!previous || previous.id !== next.id) return null
+  if (next.state === 'RECOVERING' && previous.state !== 'RECOVERING' && eventName !== 'RECOVERING') {
+    // Recovery restores the latest completed checkpoint; a restoredFromCheckpoint left over from an earlier recovery is stale.
+    const restored = next.restoredFromCheckpoint !== previous.restoredFromCheckpoint ? next.restoredFromCheckpoint : null
+    return { ...next, event: 'RECOVERING', checkpointId: restored ?? previous.lastCompletedCheckpoint, generation: previous.generation, ts }
+  }
+  if (previous.state === 'RECOVERING' && next.state === 'RUNNING' && eventName !== 'RECOVERED') {
+    return { ...next, event: 'RECOVERED', durationMs: null, ts }
+  }
+  return null
 }
 
 export function CheckpointTimeline() {
@@ -33,6 +56,8 @@ export function CheckpointTimeline() {
       try {
         const current = await getCurrentExecution()
         if (!active) return
+        const derived = current ? derivedRecoveryEvent(executionRef.current, current, Date.now()) : null
+        if (derived) setEvents((events) => addEvent(events, derived))
         executionRef.current = current
         setExecution(current)
         if (current) setCheckpoints(await getCheckpoints(current.id, 20))
@@ -79,9 +104,10 @@ export function CheckpointTimeline() {
     }
     if (lastMessage.type === 'execution' && lastMessage.data != null && typeof lastMessage.data === 'object') {
       const data = lastMessage.data as ExecutionEvent
+      const derived = derivedRecoveryEvent(executionRef.current, data, lastMessage.ts, data.event as string | undefined)
       executionRef.current = data
       setExecution(data)
-      setEvents((current) => addEvent(current, { ...data, ts: lastMessage.ts }))
+      setEvents((current) => addEvent(derived ? addEvent(current, derived) : current, { ...data, ts: lastMessage.ts }))
     }
     // Truck frames (every 250 ms) carry nothing for the timeline; the 1 s clock below keeps it moving.
     if (lastMessage.type !== 'trucks') setNow(lastMessage.ts)
@@ -106,6 +132,11 @@ export function CheckpointTimeline() {
   const restored = execution?.restoredFromCheckpoint ?? model.recoveries.at(-1)?.checkpointId
   const latestCheckpoint = checkpoints.find((checkpoint) => checkpoint.checkpointId === execution?.lastCompletedCheckpoint)
   const recoveredMessage = model.recovered.at(-1)
+  const recoveredBand = model.recoveries.filter((band) => band.closed).at(-1)
+  const recoveredText = recoveredMessage?.durationMs != null
+    ? `Recovered in ${formatApiDuration(recoveredMessage.durationMs)}`
+    : recoveredBand ? `Recovered from checkpoint #${recoveredBand.checkpointId}` : 'Recovered'
+  const labels = spacedLabels(model.checkpoints, now, WINDOW_MS, TRACK_WIDTH)
 
   return (
     <GlassPanel title="Checkpoint & recovery timeline" status={<span style={{ color: statusColor }}>{status}</span>}>
@@ -115,7 +146,7 @@ export function CheckpointTimeline() {
           {requestError && <span role="status" style={{ color: '#fca5a5' }}>Timeline refresh failed</span>}
         </div>
         <div ref={trackRef} style={{ overflowX: 'auto', marginTop: 18, paddingBottom: 8 }}>
-          <div aria-label="Checkpoint and recovery events, last two minutes" role="img" style={{ position: 'relative', width: '100%', minWidth: TRACK_WIDTH, height: 94, borderBottom: '1px solid #475569' }}>
+          <div aria-label="Checkpoint and recovery events, last two minutes" role="img" style={{ position: 'relative', width: '100%', minWidth: TRACK_WIDTH, height: 110, borderBottom: '1px solid #475569' }}>
             {model.recoveries.map((band, index) => {
               const left = timePosition(band.start, now)
               const right = timePosition(band.end, now)
@@ -127,9 +158,13 @@ export function CheckpointTimeline() {
               if (timestamp < now - WINDOW_MS || timestamp > now) return null
               return <span key={`aborted-${checkpoint.checkpointId}`} title={`Checkpoint #${checkpoint.checkpointId} · ABORTED`} aria-label={`Aborted checkpoint #${checkpoint.checkpointId}`} style={{ position: 'absolute', left: `${timePosition(timestamp, now)}%`, top: 47, height: 24, borderLeft: '3px solid #94a3b8', zIndex: 1 }} />
             })}
-            {model.workerDeaths.map((death, index) => <span key={`dead-${death.timestamp}-${index}`} title={`${death.workerId} lost`} style={{ position: 'absolute', left: `${timePosition(death.timestamp, now)}%`, top: 32, zIndex: 2, color: '#f87171', fontSize: 11, whiteSpace: 'nowrap', transform: 'translateX(-50%)' }}>✕ {death.workerId} lost</span>)}
-            {model.recovered.map((marker, index) => <span key={`recovered-${marker.timestamp}-${index}`} title={`Recovered in ${formatApiDuration(marker.durationMs)}`} style={{ position: 'absolute', left: `${timePosition(marker.timestamp, now)}%`, top: 73, zIndex: 2, color: '#4ade80', fontSize: 11, whiteSpace: 'nowrap', transform: 'translateX(-50%)' }}>✓ Recovered in {formatApiDuration(marker.durationMs)}</span>)}
-            {model.checkpoints.map(({ checkpoint, timestamp }) => <span key={`label-${checkpoint.checkpointId}`} style={{ position: 'absolute', left: `${timePosition(timestamp, now)}%`, top: 72, color: '#c4b5fd', fontSize: 11, whiteSpace: 'nowrap', transform: 'translateX(-50%)' }}>#{checkpoint.checkpointId}</span>)}
+            {model.workerDeaths.map((death, index) => <span key={`dead-${death.timestamp}-${index}`} title={`${death.workerId} lost`} style={{ position: 'absolute', left: `${timePosition(death.timestamp, now)}%`, top: 32, zIndex: 2, color: '#f87171', fontSize: 11, whiteSpace: 'nowrap', transform: edgeTransform(timePosition(death.timestamp, now)) }}>✕ {death.workerId} lost</span>)}
+            {/* Recovered markers sit on their own row under the checkpoint labels, so the two never overlap. */}
+            {model.recovered.map((marker, index) => {
+              const text = marker.durationMs === null ? 'Recovered' : `Recovered in ${formatApiDuration(marker.durationMs)}`
+              return <span key={`recovered-${marker.timestamp}-${index}`} title={text} style={{ position: 'absolute', left: `${timePosition(marker.timestamp, now)}%`, top: 90, zIndex: 2, color: '#4ade80', fontSize: 11, whiteSpace: 'nowrap', transform: edgeTransform(timePosition(marker.timestamp, now)) }}>✓ {text}</span>
+            })}
+            {labels.map(({ checkpoint, timestamp }) => <span key={`label-${checkpoint.checkpointId}`} style={{ position: 'absolute', left: `${timePosition(timestamp, now)}%`, top: 72, color: '#c4b5fd', fontSize: 11, whiteSpace: 'nowrap', transform: 'translateX(-50%)' }}>#{checkpoint.checkpointId}</span>)}
           </div>
         </div>
         <div aria-live="polite" aria-atomic="true" style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: '4px 18px' }}>
@@ -137,7 +172,7 @@ export function CheckpointTimeline() {
           <span>Last checkpoint #{execution?.lastCompletedCheckpoint ?? '—'}{latestCheckpoint ? ` (${formatApiDuration(latestCheckpoint.durationMs, 'ms')})` : ''}</span>
           <span>Restored from {restored == null ? '—' : `#${restored}`}</span>
           {recovering && <span style={{ color: '#fbbf24' }}>Recovering from checkpoint #{execution?.restoredFromCheckpoint ?? model.recoveries.at(-1)?.checkpointId ?? 0}</span>}
-          {!recovering && recoveredMessage && <span style={{ color: '#4ade80' }}>Recovered in {formatApiDuration(recoveredMessage.durationMs)}</span>}
+          {!recovering && recoveredMessage && <span style={{ color: '#4ade80' }}>{recoveredText}</span>}
         </div>
         <div aria-live="polite" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clipPath: 'inset(50%)' }}>
           {events.length ? `${events.at(-1)?.event?.toLowerCase().replace('_', ' ')} at ${new Date(events.at(-1)!.ts).toLocaleTimeString()}` : ''}

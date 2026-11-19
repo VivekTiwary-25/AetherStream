@@ -6,7 +6,47 @@ import { isRebalanced, useDashboard } from './store'
 export const RECOVERY_HOLD_MS = 3000
 const CHECKPOINT_FLASH_MS = 1500
 
+/** How long the banner keeps "Recovered …" after a recovery, whatever checkpoint events follow (rehearsal-1 #3). */
+export const RECOVERED_SHOW_MS = 10_000
+/** A worker killed from the UI shows as killed for at least this long, and at most KILL_MARK_MAX_MS (rehearsal-1 #12). */
+export const KILL_MARK_MIN_MS = 3_000
+export const KILL_MARK_MAX_MS = 20_000
+
 export type ExecutionStatus = StatusState | 'stopped'
+
+/** Re-renders once at `until` (epoch ms) and returns the current time; no timer when `until` is null or past. */
+export function useNowUntil(until: number | null) {
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    if (until === null) return
+    const remaining = until - Date.now()
+    if (remaining <= 0) return
+    const timer = window.setTimeout(() => setNow(Date.now()), remaining + 20)
+    return () => window.clearTimeout(timer)
+  }, [until])
+  return Math.max(now, Date.now())
+}
+
+/** The last finished recovery while it is still recent enough to show, else null. */
+export function useRecentRecovery(showMs = RECOVERED_SHOW_MS) {
+  const { lastRecovery } = useDashboard()
+  const until = lastRecovery ? lastRecovery.at + showMs : null
+  const now = useNowUntil(until)
+  return lastRecovery && until !== null && now < until ? lastRecovery : null
+}
+
+/** Worker ids killed from the UI that should still show as killed. */
+export function useKilledWorkers(): Set<string> {
+  const { killedWorkers, lastRecovery } = useDashboard()
+  const ends = Object.values(killedWorkers).flatMap((at) => [at + KILL_MARK_MIN_MS, at + KILL_MARK_MAX_MS])
+  const now = useNowUntil(ends.filter((end) => end > Date.now()).sort((a, b) => a - b)[0] ?? null)
+  return new Set(Object.entries(killedWorkers).filter(([, at]) => {
+    const age = now - at
+    if (age < 0 || age >= KILL_MARK_MAX_MS) return false
+    // Once a recovery finished after the kill (and the minimum has passed), the worker is back.
+    return !(lastRecovery && lastRecovery.at > at && age >= KILL_MARK_MIN_MS)
+  }).map(([workerId]) => workerId))
+}
 
 /**
  * One source of truth for the header badge and the execution banner (visual QA X3): both derive their state from
