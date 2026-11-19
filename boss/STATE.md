@@ -1,6 +1,6 @@
 # Boss STATE (single source of truth)
 
-Updated: 19 Nov 07:30 IST. M1 + M2 DONE. M3 (12:30) in progress: T92 shell integration (redo T26) + T93 restored compare running.
+Updated: 19 Nov 07:45 IST. M1 + M2 DONE. M3 (12:30) in progress: T92 shell integration (redo T26) + T93 restored compare running.
 
 ## Plain-language update for Vivek (newest first)
 - 07:30 Boss back after the 03:51-07:10 usage-limit gap. Reviewed the 10 finished tasks: merged 8 (docs refresh, live
@@ -40,21 +40,18 @@ Updated: 19 Nov 07:30 IST. M1 + M2 DONE. M3 (12:30) in progress: T92 shell integ
   operator runtime, coordinator, simulator, control-api core and the first city UI are merged. Deploy runner
   `vivek-pc-deploy` is online. cloudflared at C:\Users\Arena\bin\cloudflared.exe.
 
-## Task board (07:30)
-main CI 07:28: ci-java green again (b3e5f3e); ci-integration running.
-merged 07:15: T66 T91 T81 T86 T84 T61 T72 T80 · rejected (salvaged): T75 -> T75b, T78 -> T78b
+## Task board (07:45)
+merged since 07:10: T66 T91 T81 T86 T84 T61 T72 T80 T99 T93 (restored compare, E2E_EXTENDED=1) T92 (shell: ops/scenario/tour mounted,
+  ci-ui-e2e blocking) T95 (DEMO.md) T101 (CI evidence + badges) T97 (no-mock guard)
+waiting review: T78b soak (harness OK; found engine bug -> T105; re-run soak after T105) · T100 demo-ready (ci-e2e running)
 running / queued:
-- vivek-pc/vachana-claude: T92 shell integration (redo T26: mount ops/scenario/tour, timeline API durations, ci-ui-e2e blocking) -> T98 Claude polish pass
-- vivek-pc/codex-sol: T93 compare for restored executions + E2E_EXTENDED=1 (step 9: engine 30 vs ref 27 = reference ignores savepoint state)
-- utkarsh-pc/codex-sol: T75b restart/rescale/savepoint ITs + split ci-integration into 2 jobs
-- upendra-pc/codex-sol: T78b soak green (failed before T81: worker-3 not RUNNING after gen 3)
-- upendra-pc/codex-luna: T97 CI guard no mock in prod web build
-- vivek-pc/grok: T95 DEMO.md minute-by-minute + presentation outline
-- vivek-pc/codex-luna: T99 MERGED 07:24 -> T101 CI/CD evidence page + README badges
-- upendra-pc/codex-sol: T78b done (ci-soak running on branch, review when green) -> T100 demo-ready self-heal script (in ci-e2e)
-- vimlesh-pc back 07:29: claude T102 city polish + visual QA (web/src/city only) · codex-sol T103 compiler+reference tests · codex-luna T104 project report
-- requeued 07:29 (push failures): T89 web coverage -> utkarsh-luna, T97 mock-off guard -> upendra-luna
-next ideas: after T92 -> T98 polish; after T93 -> extended e2e on main; M4 = final README/architecture check, FINAL.md.
+- vivek-pc/vachana-claude: T98 Claude polish pass (requeued after T92)
+- vivek-pc/codex-sol: T105 engine bug: worker not RUNNING after 3rd kill (soak run 44440052641)
+- vivek-pc/codex-luna: T109 architecture.md update · vivek-pc/grok: T108 README final pass
+- upendra-pc/codex-sol: T110 RECOVERED durationMs · upendra-pc/codex-luna: T107 ci-ui-e2e on task branches
+- utkarsh-pc/codex-sol: T75b ITs + split ci-integration · utkarsh-pc/codex-luna: T89 web coverage (retry)
+- vimlesh-pc/claude: T102 city polish · codex-sol: T103 compiler/reference tests · codex-luna: T104 project report
+watch: ci-ui-e2e on main is now blocking (T92) - if red, fix first. M3 left: T98 polish, T102 city, T105, T110. M4: T108/T109/T104 docs, FINAL.md.
 
 ## Lanes
 1 engine: coordinator merged; worker T14 running · 2 compiler/reference: ops+compiler merged; T13 running ·
