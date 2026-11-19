@@ -133,6 +133,8 @@ export interface ExecutionEvent extends ExecutionInfo {
   event: 'STARTED' | 'CHECKPOINT_COMPLETED' | 'WORKER_DEAD' | 'RECOVERING' | 'RECOVERED' | 'STOPPED'
   checkpointId?: number
   workerId?: string
+  /** Server-measured milliseconds from WORKER_DEAD detection to RECOVERED; absent if unseen. */
+  durationMs?: number | null
 }
 
 export interface SnapshotMessage {

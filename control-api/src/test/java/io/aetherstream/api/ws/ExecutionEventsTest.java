@@ -7,11 +7,14 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.NullNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import org.junit.jupiter.api.Test;
 
 class ExecutionEventsTest {
     private final ObjectMapper mapper = new ObjectMapper();
-    private final ExecutionEvents tracker = new ExecutionEvents(mapper);
+    private final AtomicLong clockNanos = new AtomicLong();
+    private final ExecutionEvents tracker = new ExecutionEvents(mapper, clockNanos::get);
 
     @Test void initialRunningAndCreatedEmitStartedWithoutHistoricalCheckpointEvents() {
         ObjectNode execution = execution("RUNNING", 1, null, 7L);
@@ -80,6 +83,78 @@ class ExecutionEventsTest {
         assertEvents(tracker.observe(execution("RUNNING", 2, 7L, 7L), workers()), "RECOVERED");
         assertEvents(tracker.observe(execution("RUNNING", 2, 8L, 7L), workers()), "RECOVERED");
         assertEvents(tracker.observe(execution("RUNNING", 3, 8L, 7L), workers()), "RECOVERED");
+    }
+
+    @Test void recoveredDurationStartsAtFirstWorkerDeathNotRecoveryEntryOrLaterDeaths() {
+        tracker.observe(execution("RUNNING", 1, null, 7L),
+                workers(worker("w-1", true), worker("w-2", true)));
+        clockNanos.set(TimeUnit.MILLISECONDS.toNanos(1_000));
+        assertEvents(tracker.observe(execution("RUNNING", 1, null, 7L),
+                workers(worker("w-2", true))), "WORKER_DEAD");
+
+        clockNanos.set(TimeUnit.MILLISECONDS.toNanos(2_000));
+        tracker.observe(execution("RECOVERING", 2, 7L, 7L), workers(worker("w-2", true)));
+        clockNanos.set(TimeUnit.MILLISECONDS.toNanos(3_000));
+        tracker.observe(execution("RECOVERING", 3, 7L, 7L), workers());
+        clockNanos.set(TimeUnit.MILLISECONDS.toNanos(7_000));
+        List<ObjectNode> recovered = tracker.observe(execution("RUNNING", 3, 7L, 7L), workers());
+
+        assertEvents(recovered, "RECOVERED");
+        assertThat(recovered.getFirst().path("durationMs").asLong()).isEqualTo(6_000);
+        assertThat(tracker.observe(execution("RUNNING", 4, 7L, 7L), workers()).getFirst()
+                .has("durationMs")).isFalse();
+
+        tracker.observe(execution("RUNNING", 4, 7L, 7L), workers(worker("w-3", true)));
+        clockNanos.set(TimeUnit.MILLISECONDS.toNanos(8_000));
+        tracker.observe(execution("RECOVERING", 5, 7L, 7L), workers());
+        clockNanos.set(TimeUnit.MILLISECONDS.toNanos(10_000));
+        assertThat(tracker.observe(execution("RUNNING", 5, 7L, 7L), workers()).getFirst()
+                .path("durationMs").asLong()).isEqualTo(2_000);
+    }
+
+    @Test void recoveredWithoutObservedDeathOmitsDurationIncludingAfterReset() {
+        tracker.observe(execution("RECOVERING", 2, 7L, 7L), workers());
+        assertThat(tracker.observe(execution("RUNNING", 2, 7L, 7L), workers()).getFirst()
+                .has("durationMs")).isFalse();
+
+        tracker.observe(execution("RUNNING", 2, 7L, 7L), workers(worker("w-1", true)));
+        tracker.observe(execution("RECOVERING", 3, 7L, 7L), workers());
+        tracker.reset();
+        clockNanos.set(TimeUnit.SECONDS.toNanos(6));
+        tracker.observe(execution("RECOVERING", 3, 7L, 7L), workers());
+        assertThat(tracker.observe(execution("RUNNING", 3, 7L, 7L), workers()).getFirst()
+                .has("durationMs")).isFalse();
+    }
+
+    @Test void recoveryCompletedInDeathObservationHasZeroDuration() {
+        tracker.observe(execution("RUNNING", 1, null, 7L), workers(worker("w-1", true)));
+        List<ObjectNode> events = tracker.observe(execution("RUNNING", 2, 7L, 7L), workers());
+
+        assertEvents(events, "WORKER_DEAD", "RECOVERED");
+        assertThat(events.get(0).has("durationMs")).isFalse();
+        assertThat(events.get(1).path("durationMs").asLong(-1)).isZero();
+    }
+
+    @Test void replacingExecutionDiscardsPreviousRecoveryTiming() {
+        tracker.observe(execution("RUNNING", 1, null, 7L), workers(worker("w-1", true)));
+        tracker.observe(execution("RECOVERING", 2, 7L, 7L), workers());
+        clockNanos.set(TimeUnit.SECONDS.toNanos(6));
+        tracker.observe(execution("RECOVERING", 2, 7L, 7L).put("id", "exec-2"), workers());
+        assertThat(tracker.observe(execution("RUNNING", 2, 7L, 7L).put("id", "exec-2"),
+                workers()).getFirst().has("durationMs")).isFalse();
+    }
+
+    @Test void stoppingOrFailingDiscardsRecoveryTiming() {
+        for (String state : List.of("STOPPED", "FAILED")) {
+            tracker.reset();
+            tracker.observe(execution("RUNNING", 1, null, 7L), workers(worker("w-1", true)));
+            tracker.observe(execution("RECOVERING", 2, 7L, 7L), workers());
+            tracker.observe(execution(state, 2, 7L, 7L), workers());
+            clockNanos.addAndGet(TimeUnit.SECONDS.toNanos(6));
+            tracker.observe(execution("RECOVERING", 3, 7L, 7L), workers());
+            assertThat(tracker.observe(execution("RUNNING", 3, 7L, 7L), workers()).getFirst()
+                    .has("durationMs")).isFalse();
+        }
     }
 
     @Test void initialRecoveringAndTerminalStatesAreReported() {

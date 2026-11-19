@@ -1,5 +1,6 @@
 import { cleanup, render, screen } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { ExecutionEvent, WebSocketMessage } from '../../../api/types'
 import { CheckpointTimeline } from '../CheckpointTimeline'
 
 
@@ -9,7 +10,7 @@ vi.mock('../../../api/client', () => ({
 }))
 
 // One stable socket state: a fresh lastMessage object per render would re-trigger the component's effect forever.
-const socketState = vi.hoisted(() => ({
+const socketState = vi.hoisted<{ lastMessage: WebSocketMessage<ExecutionEvent> }>(() => ({
   lastMessage: {
     type: 'execution',
     ts: 1_800_000_000_000,
@@ -20,6 +21,12 @@ const socketState = vi.hoisted(() => ({
     },
   },
 }))
+
+const recoveringMessage = socketState.lastMessage
+
+beforeEach(() => {
+  socketState.lastMessage = recoveringMessage
+})
 
 vi.mock('../../../api/ws', () => ({
   useAetherSocket: () => socketState,
@@ -34,5 +41,22 @@ describe('CheckpointTimeline', () => {
   it('renders the checkpoint used during recovery', () => {
     render(<CheckpointTimeline />)
     expect(screen.getAllByText(/Recovering from checkpoint #12/).length).toBeGreaterThan(0)
+  })
+
+  it.each([true, false])('renders the server duration with prior RECOVERING = %s', (withRecoveryEntry) => {
+    const recoveredMessage: WebSocketMessage<ExecutionEvent> = {
+      type: 'execution',
+      ts: recoveringMessage.ts + 1_000,
+      data: { ...recoveringMessage.data, state: 'RUNNING', event: 'RECOVERED', durationMs: 6_000 },
+    }
+    if (!withRecoveryEntry) socketState.lastMessage = recoveredMessage
+    const view = render(<CheckpointTimeline />)
+    if (withRecoveryEntry) {
+      socketState.lastMessage = recoveredMessage
+      view.rerender(<CheckpointTimeline />)
+    }
+
+    expect(screen.getByTitle('Recovered in 6.0 s').textContent).toBe('✓ Recovered in 6.0 s')
+    expect(screen.getByText('Recovered in 6.0 s').textContent).toBe('Recovered in 6.0 s')
   })
 })
