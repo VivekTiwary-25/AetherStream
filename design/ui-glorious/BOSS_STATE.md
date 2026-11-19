@@ -41,6 +41,12 @@ Fresh boss session: read swarm/BOSS.md, then design/ui-glorious/BOSS_PROMPT.md (
 - Grok watermark: crop it (b).
 - CORRECTION 03:40: vivek-pc workers stay ENABLED (disable reverted: main 1574ad8). Instead vivek-pc has "max_busy": 1 (main 1111cd1, listener caps concurrent tasks per machine). Boss session + live demo must never be starved; do not queue heavy work (builds/stacks) to vivek-pc yourself.
 
+## Docker + live tests chain on utkarsh-pc (queued 04:08-04:11, Vivek: TOP PRIORITY)
+- utkarsh-pc/codex-luna: t261120-0408-c1a7 Docker up (start DD, fix safely, prune; report exact click if human needed) -> then t261120-0411-0830 pipelines live test (3 examples via API, Ask AI->Run, editor Validate/Run, screenshots in design/ui-glorious/proof/pipelines/)
+- utkarsh-pc/codex-sol: t261120-0409-2aa3 full stack (preview-up.ps1, :8089 + tunnel, glorious + classic Playwright) -> then t261120-0410-1e14 REAL kill test (worker kill 2 + 1, timed screenshots, recovery history JSON, events late) -> proof in design/ui-glorious/proof/kill/
+- If any reports a needed human click: tell Vivek exactly (he calls Utkarsh). Never test against vivek-pc live demo.
+- Merged 03:56-04:00: map polish (t261120-0323-e480), contract fix (t261120-0355-12e2).
+
 ## Watcher + tasks 04:00
 - Idle-worker watcher (Vivek's rules): scratchpad\watcher\watcher.py, READ-ONLY, reads only ~/.swarm/state/view.json, every 15 s, lock port 47991, log capped 200 KB, alerts -> scratchpad\watcherlerts.txt (DOWN/DEAD/IDLE-no-reason). Boss reads ONLY alerts.txt (Monitor tail) and clears it after acting. Restart if dead: `python -I watcher.py` in that folder (single instance). `--once` prints a classification.
 - AVOID list in watcher: vivek-pc/grok (12%), vivek-pc/vachana-claude (reserved for Ask AI, no kinds). vivek-pc max_busy=1.

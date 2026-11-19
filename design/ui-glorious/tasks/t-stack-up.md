@@ -1,0 +1,11 @@
+# Full ui-glorious stack on utkarsh-pc (port 8089 + tunnel) and run the test suites
+
+Files: scripts/preview/** (fix only if a bug blocks you), design/ui-glorious/proof/stack/ (new: outputs, screenshots). Do NOT read or describe swarm/; never stop, restart or change the swarm. Every command needs a timeout; nothing may wait for input. Never touch vivek-pc or its live demo.
+
+Precondition: Docker. Run `docker info` (20 s timeout) every 30 s for up to 20 minutes (another task is starting Docker on this PC right now). If it never works, report and stop.
+1. Check free disk (`Get-PSDrive C`). Then run `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/preview/preview-up.ps1` (clones/updates C:\aether-preview to origin/ui-glorious, compose project aether-preview, web on http://localhost:8089, cloudflared quick tunnel URL in C:\aether-preview\.preview\url.txt). If the build fails for disk space, report the error and the free space.
+2. Verify: all services healthy (`docker compose -p aether-preview ps`), `curl http://localhost:8089/api/health`, 6 trucks in `/api/simulator/state` (SIM_INITIAL_TRUCKS=6), an execution RUNNING in `/api/executions/current` (if none, start the demo pipeline the way DEMO.md / docs/expo/CHEATSHEET.md describe, e.g. infra/scripts/demo-ready.sh or the API), 3 workers with partitions in `/api/workers`, `/api/recovery/history` answers, `/api/glorious/pipelines/fields` answers.
+3. Tests (Node: if not on PATH install portable Node 22 to %USERPROFILE%\tools\node, no admin). From tests/ui/: `npm install --package-lock=false --no-audit --no-fund`, `npx playwright install chromium`, then the new UI suite: `GLORIOUS_URL=http://localhost:8089 npx playwright test -c playwright.glorious.config.ts`. Classic suite against http://localhost:8089: playwright.config.ts uses baseURL 8088 — use a temporary copy of the config outside the repo or a CLI override, do NOT edit the committed config; set EXPECT_SHA as tests/ui/README.md says, or skip that one check honestly.
+4. Leave the stack RUNNING when you finish (other tasks use it).
+
+Report: tunnel URL, service list, each test result (pass/fail with the failing assertion), anything broken.
