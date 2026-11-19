@@ -19,9 +19,11 @@ From the repository root, add the commands to this session's PATH:
 Then run `worker status` (one line per worker: ID, alive/state, partitions), `worker kill 2`, or `events late` (`events late 10` sends a chosen count). A successful Bash kill prints `Killed worker-2 (engine will recover; watch Settings → Logs & Recovery)`; PowerShell prints the same message with `Settings -> Logs & Recovery`. Late events prints the sent count and where to look in Analytics → Failed Records, if classified late. Set `AETHER_URL` to override the default `http://localhost:8088`. If a command fails, use the classic UI at `?ui=classic`, which retains the buttons.
 
 
-Analytics and Settings switch to **Live World**; their submenu choices open floating windows. Escape closes the front window and restores opener focus. The lazy-loaded map, Pipelines, or editor screen briefly shows **Loading…**. The map’s **Simulate breakdown** action currently sends immediately; there is no confirmation dialog.
+Analytics and Settings switch to **Live World**; their submenu choices open floating windows. Escape closes the front window and restores opener focus. The lazy-loaded map, Pipelines, or editor screen briefly shows **Loading…**. In both the map menu and **Settings → Truck breakdown**, **Simulate breakdown** opens: **“Simulate a breakdown of Truck {truckId}? It stops for about 15 simulated minutes and resumes by itself.”** Choose **Confirm** or **Cancel**.
 
-For the 06:00 checkpoint, set `PIPELINES_MODE` in `web/src/glorious/pipelines/mode.ts`: `'full'` (Ask AI + editor), `'editor'` (editor only), or `'hidden'` (no Pipelines screen).
+Run `scripts/expo/preflight` (Bash) or `scripts/expo/preflight.cmd` (Windows) before the slot. It makes GET-only checks of the app, API health/current execution, workers, simulator, recovery, Pipelines, and AI bridge; FAIL needs fixing, WARN may need attention.
+
+For the 06:00 checkpoint, set `PIPELINES_MODE` in `web/src/glorious/pipelines/mode.ts`: `'full'` shows Ask AI + editor; `'editor'` shows only Open Editor and its description; `'hidden'` removes Pipelines navigation and redirects its routes to Home.
 
 
 ## Before / after the slot
