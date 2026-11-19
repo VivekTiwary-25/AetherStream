@@ -9,7 +9,7 @@ fi
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$repo_root"
 export AETHER_TAG="$1"
-compose=(docker compose -p aether -f docker-compose.yml -f infra/deploy/docker-compose.deploy.yml)
+compose=(docker compose -p aether -f docker-compose.yml -f infra/deploy/docker-compose.deploy.yml --profile monitoring)
 
 if ! pull_output="$("${compose[@]}" pull 2>&1)"; then
   printf '%s\n' "$pull_output" >&2

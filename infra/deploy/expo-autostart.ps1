@@ -8,7 +8,7 @@ $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '../..')).Path
 $logPath = 'C:/Users/Arena/aether-autostart.log'
 $bashPath = 'C:/Users/Arena/AppData/Local/Programs/Git/bin/bash.exe'
 $demoUrl = 'http://localhost:8088'
-$composeArgs = @('compose', '-p', 'aether', '-f', 'docker-compose.yml', '-f', 'infra/deploy/docker-compose.deploy.yml')
+$composeArgs = @('compose', '-p', 'aether', '-f', 'docker-compose.yml', '-f', 'infra/deploy/docker-compose.deploy.yml', '--profile', 'monitoring')
 $offlineFile = Join-Path $repoRoot 'docker-compose.offline.yml'
 $tagFile = Join-Path $PSScriptRoot '.last-deployed'
 

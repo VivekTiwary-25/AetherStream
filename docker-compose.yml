@@ -277,6 +277,7 @@ services:
   prometheus:
     image: prom/prometheus:v3.5.0
     profiles: ["monitoring"]
+    mem_limit: 512m
     logging: *logging
     ports:
       - "19090:9090"
@@ -288,6 +289,7 @@ services:
   grafana:
     image: grafana/grafana:12.1.0
     profiles: ["monitoring"]
+    mem_limit: 256m
     logging: *logging
     ports:
       - "13000:3000"
