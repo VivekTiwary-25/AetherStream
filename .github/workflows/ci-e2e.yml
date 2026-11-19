@@ -77,3 +77,12 @@ jobs:
           trap 'docker compose down -v' EXIT
           docker compose up -d
           bash infra/scripts/demo-ready.sh http://localhost:18080
+      - name: Reset expo and verify demo readiness again
+        env:
+          GIT_SHA: ${{ github.sha }}
+          EXPECT_SHA: ${{ github.sha }}
+        run: |
+          trap 'docker compose down -v' EXIT
+          docker compose up -d --wait
+          bash infra/scripts/expo-reset.sh --api http://localhost:18080
+          bash infra/scripts/demo-ready.sh http://localhost:18080

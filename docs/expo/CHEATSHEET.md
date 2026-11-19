@@ -26,6 +26,8 @@ Click only these labels. No **MOCK DATA** badge. Do not push to `main`. Do not r
 4. No `docker compose restart` of `web` or `control-api` is written here. Page up, no data: `curl -fsS http://localhost:18080/api/ready`
 5. `docs/EXPO_OFFLINE.md` is not here. No internet, images already local: `docker compose -p aether up --build -d --wait` (`--build` cannot fetch a cold cache)
 
+Clean demo between visitor groups: `bash infra/scripts/expo-reset.sh` (preview: `--dry-run`; alternate API: `--api URL`; erase pipeline/execution history too: `--hard`).
+
 ## Backup
 
 Recording folder: `docs/expo/backup/` (not in this checkout). Screenshots that exist: `docs/ux/screenshots/`.
