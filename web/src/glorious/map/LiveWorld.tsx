@@ -17,6 +17,14 @@ let protocolUsers = 0
 const protocol = new Protocol()
 // Bundle the module entry as a standalone .js worker, not a raw .mjs asset requiring server MIME support.
 maplibregl.setWorkerUrl(mapWorkerUrl)
+const cardIcons = {
+  speed: 'M4 15a8 8 0 1 1 16 0M12 15l4-5M7 15h.01M17 15h.01',
+  route: 'M6 5a2 2 0 1 0 0 .01M18 17a2 2 0 1 0 0 .01M6 7v4a4 4 0 0 0 4 4h6',
+  assignment: 'm3 7 9-4 9 4-9 4ZM3 12l9 4 9-4M3 17l9 4 9-4',
+}
+function CardIcon({ d }: { d: string }) {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={d} /></svg>
+}
 const stopped = (status: string) => ['STOPPED', 'IDLE', 'UNLOADING'].includes(status.toUpperCase())
 const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
@@ -338,16 +346,21 @@ export function LiveWorld() {
     </div>
     {active && <div ref={card} className="gl-live-world__card" id="gl-truck-card" tabIndex={-1} aria-label={`${truckLabel(active.truckId)} details`}>
       <GlassSurface strong>
-        <div className="gl-live-world__card-title"><h2>{truckLabel(active.truckId)}</h2><button aria-label="Close truck details" onClick={closeCard}>×</button></div>
-        <img className="gl-live-world__photo" src="/glorious/truck-photo.jpg" alt="Fleet truck" onError={(event) => { event.currentTarget.hidden = true }} />
-        <dl>
-          <div><dt>Truck</dt><dd>{active.truckId}</dd></div>
-          <div><dt>Status</dt><dd><span className={`gl-live-world__status gl-live-world__status--${stopped(active.status) ? 'stopped' : 'moving'}`}>{active.status}</span></dd></div>
-          <div><dt>Speed</dt><dd>{active.speedKmh.toFixed(1)} km/h</dd></div>
-          <div><dt>Route ID</dt><dd>{active.routeId ?? 'Not provided'}</dd></div>
-          <div><dt>Display path</dt><dd>{route ? `${route.from} → ${route.to}` : 'Loading routes'}</dd></div>
-          <div><dt>Assignment</dt><dd>Partition {partition} · {owner ? `Worker ${owner.workerId.replace(/^worker-/, 'W')}` : 'reassigning'}</dd></div>
-        </dl>
+        <div className="gl-live-world__card-body">
+          <img className="gl-live-world__photo" src="/glorious/truck-photo.jpg" alt="Fleet truck" onError={(event) => { event.currentTarget.hidden = true }} />
+          <div className="gl-live-world__card-main">
+            <div className="gl-live-world__card-title">
+              <h2>{truckLabel(active.truckId)}</h2>
+              <span className={`gl-live-world__status gl-live-world__status--${stopped(active.status) ? 'stopped' : 'moving'}`} title={`Status: ${active.status}`}>{active.status}</span>
+              <button aria-label="Close truck details" onClick={closeCard}>×</button>
+            </div>
+            <dl>
+              <div><dt><CardIcon d={cardIcons.speed} /><span className="gl-sr-only">Speed</span></dt><dd>{active.speedKmh.toFixed(1)} km/h</dd></div>
+              <div><dt><CardIcon d={cardIcons.route} /><span className="gl-sr-only">Display path</span></dt><dd>{route ? `${route.from} → ${route.to}` : 'Loading routes'}<small>Route ID {active.routeId ?? 'not provided'} · {active.truckId}</small></dd></div>
+              <div><dt><CardIcon d={cardIcons.assignment} /><span className="gl-sr-only">Assignment</span></dt><dd>Partition {partition} · {owner ? `Worker ${owner.workerId.replace(/^worker-/, 'W')}` : 'reassigning'}</dd></div>
+            </dl>
+          </div>
+        </div>
         <p className="gl-live-world__mapping">Geographic path is a display mapping; telemetry is real.</p>
         {contextMenu && <div role="menu" aria-label={`${truckLabel(active.truckId)} actions`} className="gl-live-world__actions">
           <button ref={actionButton} role="menuitem" disabled={active.status.toUpperCase() === 'STOPPED' || pending !== null} onClick={() => { void breakdown() }}>{pending === active.truckId ? 'Requesting…' : 'Simulate breakdown'}</button>
