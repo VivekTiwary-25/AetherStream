@@ -9,6 +9,7 @@ import { PipelineReview } from './PipelineReview'
 import { useRunPipeline } from './useRunPipeline'
 import { ExternalIcon } from './ExternalIcon'
 import { openEditor } from './links'
+import { PIPELINES_MODE } from './mode'
 import './pipelines.css'
 
 function Thinking() {
@@ -49,6 +50,8 @@ export function PipelinesPanel() {
     openEditor('?from=ai')
   }
 
+  if (PIPELINES_MODE === 'hidden') return null
+
   return <div className="gl-track-page gl-pipelines">
     <GlassSurface strong className="gl-pipelines__panel">
       <section data-testid="pipelines-panel" aria-labelledby={`${promptId}-title`}>
@@ -58,6 +61,7 @@ export function PipelinesPanel() {
             <ExternalIcon /><span>Open Editor</span><span className="gl-sr-only"> (opens in a new tab)</span>
           </button>
         </header>
+        {PIPELINES_MODE === 'editor' ? <p className="gl-muted">Build and run a pipeline manually in the editor.</p> : <>
 
         <h2 className="gl-pipelines__sub">Ask AI</h2>
         <label htmlFor={promptId} className="gl-label">Describe what you want to see from the live truck stream</label>
@@ -88,6 +92,7 @@ export function PipelinesPanel() {
           {handoffError && <p className="gl-alert gl-alert--error" role="alert">{handoffError}</p>}
           {runner.error && <ErrorList error={runner.error} />}
         </div>}
+        </>}
       </section>
     </GlassSurface>
   </div>
