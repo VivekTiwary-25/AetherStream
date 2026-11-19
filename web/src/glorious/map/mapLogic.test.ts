@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { advanceDistance, facingLeft, prepareRoute, sampleRoute, truckLabel, type RouteFeature } from './mapLogic'
+import { advanceDistance, facingLeft, placeMarker, prepareRoute, sampleRoute, truckLabel, type RouteFeature } from './mapLogic'
 
 // Isolated metric path for numerical assertions, not fleet/demo data.
 const feature: RouteFeature = {
@@ -53,5 +53,23 @@ describe('live road motion', () => {
   it('labels actual truck IDs without replacing unknown IDs', () => {
     expect(truckLabel('truck-006')).toBe('Truck T-06')
     expect(truckLabel('special-truck')).toBe('special-truck')
+  })
+
+  it('keeps all six truck sprites and labels separate on a shared road', () => {
+    const positions = Array.from({ length: 6 }, () => ({ x: 0, y: 0 }))
+    for (let index = 0; index < positions.length; index++) placeMarker(400, 600, positions, index)
+    for (let index = 0; index < positions.length; index++) {
+      for (let previous = 0; previous < index; previous++) {
+        expect(Math.abs(positions[index].y - positions[previous].y)).toBeGreaterThanOrEqual(80)
+      }
+    }
+  })
+
+  it('rechecks earlier labels after separating a collision and leaves distant trucks on their roads', () => {
+    const positions = [{ x: 400, y: 400 }, { x: 400, y: 480 }, { x: 0, y: 0 }, { x: 0, y: 0 }]
+    placeMarker(410, 490, positions, 2)
+    expect(positions[2]).toEqual({ x: 410, y: 320 })
+    placeMarker(600, 490, positions, 3)
+    expect(positions[3]).toEqual({ x: 600, y: 490 })
   })
 })

@@ -1,24 +1,38 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import * as maplibregl from 'maplibre-gl'
 import mapWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
 import { Protocol } from 'pmtiles'
 import { useDashboard } from '../../app/state/store'
 import { partitionForTruck } from '../../city/cityLogic'
 import { GlassSurface } from '../shell/GlassSurface'
-import { advanceDistance, facingLeft, prepareRoute, sampleRoute, truckLabel, type PreparedRoute, type RouteFeature } from './mapLogic'
+import { advanceDistance, facingLeft, placeMarker, prepareRoute, sampleRoute, truckLabel, type PreparedRoute, type RouteFeature } from './mapLogic'
 import { useLiveFleet } from './useLiveFleet'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import './LiveWorld.css'
 
 type Landmark = { name: string; lon: number; lat: number; source: string }
 type Motion = { route: PreparedRoute; distance: number; point: { lon: number; lat: number; dx: number; dy: number } }
-const INITIAL_BOUNDS: [number, number, number, number] = [76.55, 12.23, 76.75, 12.42]
+const MYSURU_BOUNDS: [number, number, number, number] = [76.55, 12.23, 76.75, 12.42]
 let protocolUsers = 0
 const protocol = new Protocol()
 // Bundle the module entry as a standalone .js worker, not a raw .mjs asset requiring server MIME support.
 maplibregl.setWorkerUrl(mapWorkerUrl)
 const stopped = (status: string) => ['STOPPED', 'IDLE', 'UNLOADING'].includes(status.toUpperCase())
 const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+function fitRoutes(instance: maplibregl.Map, bounds: maplibregl.LngLatBounds, duration: number) {
+  const element = instance.getContainer()
+  const sidebar = parseFloat(getComputedStyle(element).getPropertyValue('--gl-sidebar-width')) || 240
+  const padding = { left: sidebar + 64, right: 88, top: element.clientWidth <= 800 ? 220 : 164, bottom: 100 }
+  // Bounds constraints must use the same visible viewport as the fit calculation.
+  instance.setPadding(padding)
+  instance.fitBounds(bounds, {
+    padding,
+    maxZoom: 14.5,
+    absolutePadding: true,
+    duration,
+  })
+}
 
 export function LiveWorld() {
   const fleet = useLiveFleet()
@@ -46,6 +60,12 @@ export function LiveWorld() {
   const [notice, setNotice] = useState<string | null>(null)
   const trucks = fleet.trucks
 
+  const routeBounds = useMemo(() => {
+    if (!routes.length) return null
+    const bounds = new maplibregl.LngLatBounds()
+    for (const route of routes) for (const coordinate of route.coordinates) bounds.extend(coordinate)
+    return bounds
+  }, [routes])
   useEffect(() => {
     live.current = fleet
   }, [fleet])
@@ -65,8 +85,11 @@ export function LiveWorld() {
     const instance = new maplibregl.Map({
       container: container.current,
       style: '/glorious/map/style.json',
-      bounds: INITIAL_BOUNDS,
-      fitBoundsOptions: { padding: 70 },
+      center: [76.64, 12.318],
+      zoom: 12,
+      maxBounds: MYSURU_BOUNDS,
+      minZoom: 10,
+      maxZoom: 18,
       attributionControl: { compact: true },
       maxPitch: 0,
       dragRotate: false,
@@ -106,12 +129,17 @@ export function LiveWorld() {
   }, [])
 
   useEffect(() => {
+    if (ready && map.current && routeBounds) fitRoutes(map.current, routeBounds, 0)
+  }, [ready, routeBounds])
+
+  useEffect(() => {
     const instance = map.current
     if (!ready || !instance || !routes.length) return
     instance.addSource('fleet-display-routes', { type: 'geojson', data: { type: 'FeatureCollection', features: routes.map((route) => route.feature) } })
     instance.addLayer({
       id: 'fleet-display-routes', type: 'line', source: 'fleet-display-routes',
-      paint: { 'line-color': '#c09b50', 'line-width': 3, 'line-opacity': 0.42 },
+      layout: { 'line-cap': 'round', 'line-join': 'round' },
+      paint: { 'line-color': '#cfb782', 'line-width': 2, 'line-opacity': 0.28 },
     })
     return () => {
       if (map.current === instance && instance.getStyle()) {
@@ -126,6 +154,7 @@ export function LiveWorld() {
     let frame = 0
     let previous = 0
     const scratch = new maplibregl.LngLat(0, 0)
+    const placed = Array.from({ length: 6 }, () => ({ x: 0, y: 0 }))
     function animate(now: number) {
       const elapsed = previous ? now - previous : 0
       previous = now
@@ -150,9 +179,10 @@ export function LiveWorld() {
         scratch.lat = motion.point.lat
         const position = instance.project(scratch)
         const length = Math.hypot(motion.point.dx, motion.point.dy) || 1
-        const offset = (index - 2.5) * 5
+        const offset = (index - 2.5) * 18
         const x = position.x - motion.point.dy / length * offset
-        const y = position.y - motion.point.dx / length * offset
+        placeMarker(x, position.y - motion.point.dx / length * offset, placed, index)
+        const y = placed[index].y
         const marker = markers.current.get(truck.truckId)
         if (marker) {
           marker.style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%)`
@@ -265,9 +295,14 @@ export function LiveWorld() {
       </GlassSurface>
     </div>
     <div className="gl-live-world__controls"><GlassSurface strong>
-      <button aria-label="Recenter Mysuru map" onClick={() => map.current?.fitBounds(INITIAL_BOUNDS, { padding: 70, duration: reducedMotion() ? 0 : 700 })}>⌖</button>
-      <button aria-label="Zoom in" onClick={() => map.current?.zoomIn({ duration: reducedMotion() ? 0 : 250 })}>+</button>
-      <button aria-label="Zoom out" onClick={() => map.current?.zoomOut({ duration: reducedMotion() ? 0 : 250 })}>−</button>
+      <button aria-label="Recenter Mysuru map" onClick={() => { if (map.current && routeBounds) fitRoutes(map.current, routeBounds, reducedMotion() ? 0 : 700) }}>
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true" focusable="false">
+          <circle cx="12" cy="12" r="7" /><circle cx="12" cy="12" r="2" />
+          <path d="M12 2v3m0 14v3M2 12h3m14 0h3" strokeLinecap="round" />
+        </svg>
+      </button>
+      <button aria-label="Zoom in" onClick={() => map.current?.zoomIn({ duration: reducedMotion() ? 0 : 250 })}><span aria-hidden="true">+</span></button>
+      <button aria-label="Zoom out" onClick={() => map.current?.zoomOut({ duration: reducedMotion() ? 0 : 250 })}><span aria-hidden="true">−</span></button>
     </GlassSurface></div>
     <div className="gl-live-world__markers">
       {trucks.map((truck) => {
