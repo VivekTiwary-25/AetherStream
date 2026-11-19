@@ -62,7 +62,7 @@ public class LiveHub extends TextWebSocketHandler {
     private final AtomicBoolean trucksRunning = new AtomicBoolean();
     private final AtomicBoolean clusterRunning = new AtomicBoolean();
     private final AtomicBoolean resultsRunning = new AtomicBoolean();
-    private final NewRowsTracker windows = new NewRowsTracker();
+    private final NewRowsTracker windows = new NewRowsTracker(true);
     private final NewRowsTracker alerts = new NewRowsTracker();
     private final NewRowsTracker deadLetters = new NewRowsTracker();
     private volatile JsonNode latestCluster;

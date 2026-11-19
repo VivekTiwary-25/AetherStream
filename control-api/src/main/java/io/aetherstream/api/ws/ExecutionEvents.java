@@ -30,9 +30,9 @@ import java.util.function.LongSupplier;
  * observations are ignored; missing worker observations preserve the last known live worker set.
  *
  * <p>RECOVERED includes durationMs from the first observed worker death, using a monotonic server
- * clock. Timing is cleared on recovery, termination, replacement or reset. REBALANCED carries
- * oldGeneration/newGeneration and the worker most recently joining or gaining partitions (null
- * when unavailable). A recovering baseline cannot identify an earlier death or generation change.
+ * clock. Timing expires after 10 s without entering recovery and is cleared on recovery, rebalance,
+ * termination, replacement or reset. REBALANCED carries oldGeneration/newGeneration and the worker
+ * most recently joining or gaining partitions (null when unavailable).
  */
 public final class ExecutionEvents {
     private final ObjectMapper mapper;
@@ -74,6 +74,10 @@ public final class ExecutionEvents {
         Set<String> observedAlive = workers != null && workers.isArray()
                 ? liveWorkers(workers) : aliveWorkers;
         boolean workerDied = !observedAlive.containsAll(aliveWorkers);
+        if (recoveryPending && !baseline && "RUNNING".equals(previous.state())
+                && nanoTime.getAsLong() - workerDeadAt > TimeUnit.SECONDS.toNanos(10)) {
+            recoveryPending = false;
+        }
         // A fast same-id restart can leave membership unchanged between polls. Preserve known
         // rejoins as rebalances; restore metadata cannot identify which unchanged id restarted.
         boolean inferredDeath = !baseline && !workerDied && !recoveryPending
@@ -87,7 +91,7 @@ public final class ExecutionEvents {
             workerDeadAt = nanoTime.getAsLong();
             recoveryPending = true;
         }
-        String stateEvent = stateEvent(current, baseline);
+        String stateEvent = stateEvent(current, baseline, workerDied);
         Long oldGeneration = baseline ? null : previous.generation();
         previous = current;
 
@@ -129,6 +133,7 @@ public final class ExecutionEvents {
                 payload.put("oldGeneration", oldGeneration);
                 payload.put("newGeneration", current.generation());
                 payload.remove("durationMs");
+                recoveryPending = false;
                 assignmentWorkerId = null;
             }
             events.add(payload);
@@ -153,7 +158,7 @@ public final class ExecutionEvents {
         recoveryPending = false;
     }
 
-    private String stateEvent(Snapshot current, boolean baseline) {
+    private String stateEvent(Snapshot current, boolean baseline, boolean workerDied) {
         boolean stateChanged = baseline || !Objects.equals(previous.state(), current.state());
         boolean generationChanged = !baseline
                 && !Objects.equals(previous.generation(), current.generation());
@@ -167,7 +172,8 @@ public final class ExecutionEvents {
                     : generationChanged ? "REBALANCED" : null;
             case "RUNNING" -> {
                 if (baseline || "CREATED".equals(previous.state())) yield "STARTED";
-                if (recoveryPending && ("RECOVERING".equals(previous.state()) || recoveryChanged)) {
+                if (recoveryPending && ("RECOVERING".equals(previous.state())
+                        || (workerDied && recoveryChanged))) {
                     yield "RECOVERED";
                 }
                 yield generationChanged ? "REBALANCED" : null;

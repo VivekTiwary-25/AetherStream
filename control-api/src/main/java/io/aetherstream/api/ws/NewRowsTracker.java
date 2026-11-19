@@ -12,14 +12,22 @@ import java.util.TreeMap;
 
 /**
  * Polls one minute behind the maximum written_at to include transactions committed out of order.
- * Retains timestamp/primary-key pairs throughout that inclusive overlap; reset on execution changes.
+ * By default retains timestamp/primary-key pairs throughout that inclusive overlap. Window feeds
+ * retain primary keys until reset so checkpoint replays cannot emit old windows with new timestamps.
  */
 public class NewRowsTracker {
     private static final Duration OVERLAP = Duration.ofMinutes(1);
     private Instant maximum = Instant.EPOCH;
     private final NavigableMap<Instant, Set<List<Object>>> keysByTimestamp = new TreeMap<>();
+    private final Set<List<Object>> primaryKeys;
 
-    public NewRowsTracker() {}
+    public NewRowsTracker() {
+        this(false);
+    }
+
+    NewRowsTracker(boolean deduplicatePrimaryKeys) {
+        primaryKeys = deduplicatePrimaryKeys ? new HashSet<>() : null;
+    }
 
     public synchronized Instant since() {
         Instant lowerBound = maximum.minus(OVERLAP);
@@ -27,8 +35,8 @@ public class NewRowsTracker {
     }
 
     /**
-     * Returns unseen timestamp/key pairs in input order. The starting boundary stays fixed for an
-     * unordered batch; history is evicted only after the maximum and overlap boundary advance.
+     * Returns unseen rows in input order, using primary keys alone when configured. The starting
+     * boundary stays fixed for an unordered batch; timestamp history is evicted after it advances.
      */
     public synchronized List<Row> fresh(List<Row> rows) {
         if (rows.isEmpty()) {
@@ -41,7 +49,9 @@ public class NewRowsTracker {
             if (timestamp.isBefore(lowerBound)) {
                 continue;
             }
-            if (keysByTimestamp.computeIfAbsent(timestamp, ignored -> new HashSet<>()).add(row.key())) {
+            boolean unseen = primaryKeys != null ? primaryKeys.add(row.key())
+                    : keysByTimestamp.computeIfAbsent(timestamp, ignored -> new HashSet<>()).add(row.key());
+            if (unseen) {
                 fresh.add(row);
             }
             if (timestamp.isAfter(maximum)) {
@@ -55,5 +65,6 @@ public class NewRowsTracker {
     public synchronized void reset() {
         maximum = Instant.EPOCH;
         keysByTimestamp.clear();
+        if (primaryKeys != null) primaryKeys.clear();
     }
 }
