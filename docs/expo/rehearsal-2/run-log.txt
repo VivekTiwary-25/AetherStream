@@ -1,0 +1,71 @@
+[    1.7s] P5: version (200, '{"builtAt":"","commit":"15ed205a77b59aedfda46990e271e86625ab5273"}')
+[   21.8s] P5: ready (-1, 'The read operation timed out')
+[   22.6s] P5: current (200, '{"id":"exec-ad96d2d2-5c15-4def-ac5d-e91753c4c9e8","pipelineId":"logistics-demo","pipelineVersion":4,"state":"RUNNING","generation":23,"restoredFromCheckpoint":361,"lastCompletedCheckpoint":368,"createdAt":"2026-11-19T04:17:43.007Z"}')
+[   22.6s] P5 version: took 22.1s
+[   25.0s] P3: Skip visible at +0.8s: True
+[   55.1s] P3 load: FAILED TimeoutError: Locator.click: Timeout 30000ms exceeded.
+Call log:
+  - waiting for get_by_role("button", name="Skip").first
+    - locator resolved to <button type="button" class="clay-button clay-button--ghost">Skip</button>
+  - attempting click action
+    - waiting for element to be visible, enabled and stable
+   
+[   55.1s] P3 load: took 32.5s
+[   55.1s] P4: Start demo pipeline present: 0
+[   56.7s] P4: after Breakdown click (select default): panel=City scenarios / Active: Breakdown / Rush hour /  / Heavy traffic across the city. /  / Truck / truck-001 / truck-002 / truck-003 / truck-004 / truck-005 / truck-006 / truck-007 / truck-008 / Breakdown /  / A truck breaks down during its route. /  / Surge /  / A surge of additional delivery traffic. /  / Reset /  / Reset the simulator to its normal scenario.
+[   57.2s] P4: sim state head {"running":true,"timeScale":10.0,"simTime":1795518985720,"emitted":4985,"scenario":"breakdown","trucks":[{"truckId":"truck-001","x":799.4,"y":0.0,"speedKmh":0.0,"heading":180.0,"routeId":"r-001-2","st
+[   60.6s] P4: after select truck-007 (no click): scenario=scenario":"breakdown","trucks":[{"truckI
+[   62.4s] P4: after second Breakdown click: panel=City scenarios / Active: Breakdown / Rush hour /  / Heavy traffic across the city. /  / Truck / truck-001 / truck-002 / truck-003 / truck-004 / truck-005 / truck-006 / truck-007 / truck-008 / Breakdown /  / A truck breaks down during its route. /  / Surge /  / A surge of additional delivery traffic. /  / Reset /  / Reset the simulator to its normal scenario.
+[   62.7s] P4 breakdown: took 7.6s
+[   63.5s] P4: stopped trucks ('breakdown', [('truck-004', 'UNLOADING'), ('truck-006', 'UNLOADING'), ('truck-007', 'STOPPED')])
+[  131.6s] P4: alert wait 66s: panel=Alerts / 1 / truck-007 has not moved for 10 min / since 11:28 · just now; api=[{"message":"truck-007 has not moved for 10 min","alertId":"stuck|truck-007|1795519620000","eventTime":1795519680000,"key":"truck-007","ruleId":"stuck-truck"}]; stopped=('breakdown', [('truck-002', 'UNLOADING'), ('truck-005', 'UNLOADING'), ('truck-007', 'STOPPED'), ('truck-008', 'UNLOADING')])
+[  134.1s] P6: /grafana/ title=AetherStream (tunnel only exposes the web app)
+[  134.3s] P6 grafana: took 2.4s
+[  134.4s] S2: speed Speed windows /  / Avg km/h · last 10 one-minute windows · sim time /  / truck-001 / 11.3 km/h / 11:29 / truck-002 / 19.7 km/h / 11:29 / truck-003 / 29.9 km/h / 11:29 / truck-004 / 21.3 km/h / 11:29 /
+[  134.4s] S2: deliveries Deliveries / min /  / 2 / deliveries in the last completed sim minute /  / 11:13 / sim minute · latest highlighted / 11:29
+[  134.4s] S2: workers Workers / 3 alive / worker-1 / Running / Partitions 0, 3 · 20.1 records/s / Source queue / 0/32 / Sink queue / 0/32 / worker-2 / Running / Partitions 1, 4 · 10.0 records/s / Source queue / 0/32 / Sink queue / 0/32 / worker-3 / Running / Partitions 2, 5 · 9.9 records/s / Source queue / 0/32 / Sink queue / 0/32
+[  134.6s] S2 panels: took 0.3s
+[  136.4s] S3: examples ['Choose an example…', 'Truck city: speed, deliveries, stuck trucks', 'Speeding alerts', 'Fleet activity', 'Broken logistics demo']
+[  137.6s] S3: Run disabled before validate: True
+[  137.6s] S3: hint present: 1
+[  139.7s] S3: errors TYPE_MISMATCH / Sink 'alertSink' (Alert results) needs a Window before it. Connect it to a Window's output. / alertSink / Show me / DANGLING_NODE / Filter 'del' (Delivery events) has no output connection. Connect it to a downstream block ending in a Sink. / del / Show me / TYPE_MISMATCH / Window 'speed1m' (1-minute speed window) needs a Key-by before it. Add a Key-by block between Filter 'pos' (Po
+[  139.8s] S3: Show me count=3 visible=3 last_box={'x': 1295.4000244140625, 'y': 833.4000244140625, 'width': 76, 'height': 32} errs_box={'x': 45.60000228881836, 'y': 720.4000244140625, 'width': 1333.6000709533691, 'height': 152.79998779296875}
+[  145.1s] S3: valid line ['Valid - 11 operators, 6 partitions']
+[  145.1s] S3: react-flow nodes visible: 11
+[  145.1s] S3: Run enabled after validate: True
+[  146.2s] S3 editor: took 11.6s
+[  147.8s] S4: chaos Chaos controls / Healthy / Send late events / Send duplicates (20) / Send malformed (5) / Slow down output / Off / 50 ms per record / 200 ms per record / Kill worker /  / 20 late events sent
+[  148.4s] S4: late tab Late (20)
+[  151.8s] S4: Backpressured after 3.07385516166687; hint=Output slowed: queues fill up (bounded at 32) and the engine pushes back. | Output slowed to 200 ms per record.
+[  154.3s] S4: confirm text Kill worker worker-1? It will crash without warning.; Confirm kill box={'x': 461.6000061035156, 'y': 486.6000061035156, 'width': 113.60000610351562, 'height': 41.600006103515625} (viewport h=900)
+[  154.5s] S4: +  0.0s banner='Running / Checkpoint #381 saved / ● / Live' workers='Workers / 3 alive / worker-1 / Running / Partitions 0, 3 · 22.0 records/s / Source queue / 0/32 / Sink queue / 0/32 / wo'
+[  155.1s] S4: +  0.5s banner='Running / Checkpoint #381 saved / ● / Live' workers='Workers / 2 alive / worker-1 / ! / Killed · restarting / Partitions 0, 3 · 22.0 records/s / Source queue / 0/32 / Sink q'
+[  157.3s] S4: +  2.8s banner='! / Recovering / Recovering from checkpoint #381 / ● / Live' workers='Workers / 2 alive / worker-2 / Running / Partitions 1, 4 · 10.0 records/s / Source queue / 0/32 / Sink queue / 0/32 / wo'
+[  158.4s] S4: +  3.8s banner='! / Recovering / Recovering from checkpoint #381 / ● / Live' workers='Workers / 2 alive / worker-1 / ! / Killed · restarting / Partitions 0, 3 · 0.0 records/s / Source queue / 0/32 / Sink qu'
+[  159.6s] S4: +  5.1s banner='! / Recovering / Recovering from checkpoint #381 / ● / Live' workers='Workers / 3 alive / worker-1 / Running / Partitions 0, 3 · 0.0 records/s / Source queue / 0/32 / Sink queue / 0/32 / wor'
+[  160.6s] S4: +  6.1s banner='Running / Recovered in 2.0 s / ● / Live' workers='Workers / 3 alive / worker-1 / Running / Partitions 0, 3 · 12.4 records/s / Source queue / 0/32 / Sink queue / 0/32 / wo'
+[  170.4s] S4: + 15.9s banner='Checkpointing / Checkpoint #382 saved / ● / Live' workers='Workers / 3 alive / worker-1 / Running / Partitions 0, 3 · 19.6 records/s / Source queue / 0/32 / Sink queue / 0/32 / wo'
+[  172.0s] S4: + 17.4s banner='Running / Checkpoint #382 saved / ● / Live' workers='Workers / 3 alive / worker-1 / Running / Partitions 0, 3 · 20.5 records/s / Source queue / 0/32 / Sink queue / 0/32 / wo'
+[  180.5s] S4: + 26.0s banner='Checkpointing / Checkpoint #383 saved / ● / Live' workers='Workers / 3 alive / worker-1 / Running / Partitions 0, 3 · 19.9 records/s / Source queue / 0/32 / Sink queue / 0/32 / wo'
+[  182.1s] S4: + 27.5s banner='Running / Checkpoint #383 saved / ● / Live' workers='Workers / 3 alive / worker-1 / Running / Partitions 0, 3 · 20.0 records/s / Source queue / 0/32 / Sink queue / 0/32 / wo'
+[  190.5s] S4: + 36.0s banner='Checkpointing / Checkpoint #384 saved / ● / Live' workers='Workers / 3 alive / worker-1 / Running / Partitions 0, 3 · 19.6 records/s / Source queue / 0/32 / Sink queue / 0/32 / wo'
+[  192.0s] S4: + 37.5s banner='Running / Checkpoint #384 saved / ● / Live' workers='Workers / 3 alive / worker-1 / Running / Partitions 0, 3 · 19.9 records/s / Source queue / 0/32 / Sink queue / 0/32 / wo'
+[  199.8s] S4: timeline Checkpoint & recovery timeline / Running / Last 2 minutes · oldest ← newest / Recovering from checkpoint #381 (generation 24 → 25) / ✕ worker lost / ✓ Recovered / ✓ Recovered in 2.0 s / #375 / #376 / #377 / #378 / #379 / #380 / #381 / #382 / #383 / #384 / Generation 24 / Last checkpoint #384 (767 ms) / Restored from #381 / Recovered in 2.0 s / checkpoint completed at 10:55:25
+[  200.2s] S4 chaos: took 54.1s
+[  204.8s] S5: compare after 4.5s: Reference comparison / Healthy / Compare with reference /  / The reference is a single-process executor running the same operators on the same Kafka events. /  / 626 / 626 results match /  / Checked up to checkpoint #385 - replayed 371,511 events in 3,681 ms
+[  205.0s] S5 compare: took 4.8s
+[  207.6s] S6: after savepoint Operations / Running / Take savepoint / Rescale /  / Pauses at the next checkpoint, moves partitions, resumes - a controlled pause, not live migration. /  / Savepoint sp-exec-ad96d2d2-5c15-4def-ac5d-e91753c4c9e8-386 at checkpoint #386 /  / sp-exec-ad96d2d2-5c15-4def-ac5d-e91753c4c9e8-386 · checkpoint #386 / Restore / sp-exec-38e74bc1-2b8f-4fa1-84e9-5bf398657057-35 · checkpoint #35 / Restore / sp-e
+[  208.7s] S6: restore confirm Operations / Running / Take savepoint / Rescale /  / Pauses at the next checkpoint, moves partitions, resumes - a controlled pause, not live migration. /  / Savepoint sp-exec-ad96d2d2-5c15-4def-ac5d-e91753c4c9e8-386 at checkpoint #386 /  / sp-exec-ad96d2d2-5c15-4def-ac5d-e91753c4c9e8-386 · checkpoint #386 /  / Restart the pipeline from this savepoint? /  / Confirm restore / Cancel / sp-exec-38e74b
+[  212.0s] S6: after restore Operations / Running / Take savepoint / Rescale /  / Pauses at the next checkpoint, moves partitions, resumes - a controlled pause, not live migration. /  / sp-exec-ad96d2d2-5c15-4def-ac5d-e91753c4c9e8-386 · checkpoint #386 / Restore / sp-exec-38e74bc1-2b8f-4fa1-84e9-5bf398657057-35 · checkpoint #35 / Restore / sp-exec-725f2388-c43b-459d-a75d-b51eac49336e-25 · checkpoint #25 / Restore; banner Running / Running / ● / Live
+[  212.9s] S6: current (200, '{"id":"exec-25ea1ee8-dc6e-4a55-82c2-4583d9addbb8","pipelineId":"logistics-demo","pipelineVersion":4,"state":"RUNNING","generation":1,"restoredFromCheckpoint":386,"lastCompletedCheckpoint":0,"createdAt":"2026-11-19T05:25:44.969Z"}')
+[  219.6s] S6: after rescale Operations / Running / Take savepoint / Rescale /  / Pauses at the next checkpoint, moves partitions, resumes - a controlled pause, not live migration. /  / Refused (409 CONFLICT): execution exec-25ea1ee8-dc6e-4a55-82c2-4583d9addbb8 does not need a rebalance /  / sp-exec-ad96d2d2-5c15-4def-ac5d-e91753c4c9e8-386 · checkpoint #386 / Restore / sp-exec-38e74bc1-2b8f-4fa1-84e9-5bf398657057-35 · checkpo
+[  219.9s] S6 ops: took 14.8s
+[  222.3s] S7: Rush hour: City scenarios / Active: Rush hour / Rush hour /  / Heavy traffic across the city. /  / Truck / truck-001 / truck-002 / ; sim scenario rush-hour
+[  224.3s] S7: Reset: City scenarios / Active: Reset / Rush hour /  / Heavy traffic across the city. /  / Truck / truck-001 / truck-002 / truc; sim scenario none
+[  224.6s] S7 scenarios: took 4.7s
+[  232.5s] S8: tour ['STEP 1 OF 8 /  / The city /  / Every truck in this city is a live data source. Each one se', 'STEP 2 OF 8 /  / The stream into the engine /  / The glowing stream is those events flowin', 'STEP 3 OF 8 /  / Live panels /  / Every number here is computed by the engine: speed per t', 'STEP 4 OF 8 /  / Pipeline editor /  / Build the pipeline from blocks. Validate runs the co', 'STEP 5 OF 8 /  / Chaos /  / Send late events and slow down the output. Bounded queues fill', 'STEP 6 OF 8 /  / Kill a worker /  / Kill the busiest worker. The engine recovers from chec', 'STEP 7 OF 8 /  / Compare with reference /  / A simple single-process reference replays the', 'STEP 8 OF 8 /  / DevOps /  / The commit in the footer is the exact version deployed by Git']
+[  232.9s] S8: footer Deployed version: 15ed205 / Expo build #0 vs (200, '{"builtAt":"","commit":"15ed205a77b59aedfda46990e271e86625ab5273"}')
+[  233.1s] S8 tour: took 8.6s
+[  233.6s] P4: alerts (200, '[]') (170s after breakdown)
+[  233.7s] P4: alerts panel Alerts / 1 / truck-007 has not moved for 10 min / since 11:28 · 17 min ago
+[  233.9s] total: browser run 233.9s

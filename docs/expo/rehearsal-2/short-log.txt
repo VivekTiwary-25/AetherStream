@@ -1,0 +1,13 @@
+[   8.3s] Skip not clickable in 5s: Locator.click: Timeout 5000ms exceeded.
+[  18.3s] Skip force click failed: Locator.click: Timeout 10000ms exceeded.
+[  21.6s] 0:00 dashboard
+[  26.2s] editor: ['Valid - 11 operators, 6 partitions']
+[  27.7s] kill + 0.3s banner='Running / Checkpoint #14 saved / ● / Live' workers='Workers / 3 alive / worker-1 / Running / Partitions 0, 3 · 20.3 record'
+[  31.6s] kill + 4.2s banner='! / Recovering / Recovering from checkpoint #14 / ● / Live' workers='Workers / 2 alive / worker-1 / ! / Killed · restarting / Partitions 0,'
+[  34.8s] kill + 7.3s banner='Running / Recovered in 2.0 s / ● / Live' workers='Workers / 3 alive / worker-1 / Running / Partitions 0, 3 · 17.3 record'
+[  44.5s] kill +17.0s banner='Checkpointing / Checkpoint #16 saved / ● / Live' workers='Workers / 3 alive / worker-1 / Running / Partitions 0, 3 · 20.2 record'
+[  46.1s] kill +18.6s banner='Running / Checkpoint #16 saved / ● / Live' workers='Workers / 3 alive / worker-1 / Running / Partitions 0, 3 · 20.3 record'
+[  46.1s] banner 11s after Recovered: 'Running / Checkpoint #16 saved / ● / Live'
+[  50.1s] compare: ecutor running the same operators on the same Kafka events. /  / 293 / 293 results match /  / Checked up to checkpoint #16 - replayed 378,552 events in 3,678 ms
+[  50.1s] footer: Deployed version: 15ed205 / Expo build #0
+[  50.3s] short version browser time 50.3s
