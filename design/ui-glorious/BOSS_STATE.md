@@ -46,6 +46,11 @@ Fresh boss session: read swarm/BOSS.md, then design/ui-glorious/BOSS_PROMPT.md (
 - ONLY thing to protect: the boss session's tokens (ran out briefly tonight). Keep context lean, delegate, warn Vivek early if low.
 - GOTCHA: pushing swarm .py code while long tasks run stalls dispatch on that PC until they finish (_first_runnable waits for restart). Config JSON pushes are safe.
 
+## 04:56
+- Merged since 04:45: code-split (a603, --base!) + boss lazy classic (main chunk 1.7 MB -> 311 kB), guarded recovery spec (c064), pipelines mode switch (28c9: web/src/glorious/pipelines/mode.ts full|editor|hidden), deploy parity (c972: k8s SIM_INITIAL_TRUCKS 6), recovery test fix (39d4: real race; full web suite 256 pass).
+- ANDROID STRETCH queued but HOLD MERGE until demo path is green (kill test + pipelines live pass) and before 07:00: t261120-0455-5796 vimlesh/sol shell mobile; t261120-0455-2db4 upendra/sol map+pipelines mobile. Desktop must be pixel-identical (proof/mobile/).
+- Running: utkarsh stack 2aa3 + pipelines-live 0830 (waits for stack); kill test 1e14 queued after stack; vimlesh claude visual polish 933d; vimlesh luna preflight a41a; upendra luna demo doc round 2 28b4; vivek luna gap10 25bb; vivek sol full test rehearsal 3a95.
+
 ## 04:45
 - DOCKER UP on utkarsh-pc (t261120-0408-c1a7 merged; ~21 min, wsl --shutdown + restart, no human click). C: only 4.63 GB free after prune -> stack build may hit disk; stack task t261120-0409-2aa3 reports.
 - Preview :8089 now serves build #3 (ui-glorious 8679754: map polish + watermark). VERIFIED LIVE: Live World with 6 real trucks moving on polished city map, Running ~40 ev/s (screenshot sent to Vivek).
