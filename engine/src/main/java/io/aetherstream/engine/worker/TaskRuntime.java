@@ -53,9 +53,11 @@ public final class TaskRuntime {
     private final CoordinatorClient coordinator;
     private final LongSupplier sinkDelayMs;
     private final Listener listener;
+    private final int queueCapacity;
+    private final LongSupplier nanoTime;
 
-    private final ArrayBlockingQueue<Item> sourceQueue = new ArrayBlockingQueue<>(QUEUE_CAPACITY);
-    private final ArrayBlockingQueue<Item> sinkQueue = new ArrayBlockingQueue<>(QUEUE_CAPACITY);
+    private final ArrayBlockingQueue<Item> sourceQueue;
+    private final ArrayBlockingQueue<Item> sinkQueue;
     // Guarded by pendingBarriers; retain only the two newest requests not yet in sourceQueue.
     private final TreeSet<Long> pendingBarriers = new TreeSet<>();
     private long highestCheckpointRequested;
@@ -81,6 +83,20 @@ public final class TaskRuntime {
     public TaskRuntime(String workerId, Command.Assign assign, RecordSourceFactory sourceFactory, ResultSink sink,
                        CheckpointStore store, CoordinatorClient coordinator, LongSupplier sinkDelayMs,
                        Listener listener) {
+        this(workerId, assign, sourceFactory, sink, store, coordinator, sinkDelayMs, listener,
+                QUEUE_CAPACITY, System::nanoTime);
+    }
+
+    TaskRuntime(String workerId, Command.Assign assign, RecordSourceFactory sourceFactory, ResultSink sink,
+                CheckpointStore store, CoordinatorClient coordinator, LongSupplier sinkDelayMs,
+                Listener listener, int queueCapacity, LongSupplier nanoTime) {
+        if (queueCapacity < 1 || queueCapacity > QUEUE_CAPACITY) {
+            throw new IllegalArgumentException("worker queue capacity must be between 1 and " + QUEUE_CAPACITY);
+        }
+        this.queueCapacity = queueCapacity;
+        this.nanoTime = nanoTime;
+        this.sourceQueue = new ArrayBlockingQueue<>(queueCapacity);
+        this.sinkQueue = new ArrayBlockingQueue<>(queueCapacity);
         this.workerId = workerId;
         this.assign = assign;
         List<Integer> ps = new ArrayList<>(assign.partitions() == null ? List.of() : assign.partitions());
@@ -410,10 +426,10 @@ public final class TaskRuntime {
                 if (item != null) {
                     long delay = sinkDelayMs.getAsLong();
                     if (delay > 0) {
-                        long until = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(delay);
-                        while (running && System.nanoTime() < until) {
+                        long until = nanoTime.getAsLong() + TimeUnit.MILLISECONDS.toNanos(delay);
+                        while (running && nanoTime.getAsLong() < until) {
                             Thread.sleep(Math.min(50, Math.max(1,
-                                    TimeUnit.NANOSECONDS.toMillis(until - System.nanoTime()))));
+                                    TimeUnit.NANOSECONDS.toMillis(until - nanoTime.getAsLong()))));
                         }
                     }
                     if (item instanceof Item.OutputBatch batch) {
@@ -529,7 +545,7 @@ public final class TaskRuntime {
 
     /** True when either queue is at least 90% full. */
     public boolean backpressured() {
-        int threshold = QUEUE_CAPACITY * 9 / 10;
+        int threshold = (queueCapacity * 9 + 9) / 10;
         return sourceQueue.size() >= threshold || sinkQueue.size() >= threshold;
     }
 
