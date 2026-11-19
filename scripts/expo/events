@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+set -u
+base=${AETHER_URL:-http://localhost:8088}
+base=${base%/}
+if [[ ${1-} != late || $# -gt 2 ]]; then
+  echo 'Usage: events late [count]' >&2
+  exit 2
+fi
+count=${2:-20}
+if [[ ! $count =~ ^[1-9][0-9]*$ ]]; then
+  echo 'Usage: events late [count] (count must be a positive integer)' >&2
+  exit 2
+fi
+body=$(printf '{"count":%s,"lateByMs":180000}' "$count")
+if ! response=$(curl -sS --max-time 10 -X POST -H 'Content-Type: application/json' --data "$body" -w '\n%{http_code}' "$base/api/chaos/late-events"); then
+  exit 1
+fi
+status=${response##*$'\n'}
+response=${response%$'\n'*}
+if [[ ! $status =~ ^2 ]]; then
+  if command -v jq >/dev/null 2>&1; then
+    message=$(jq -r '.message // .error // empty' <<<"$response" 2>/dev/null)
+    [[ -n $message ]] && response=$message
+  fi
+  echo "$response" >&2
+  exit 1
+fi
+echo "Sent $count late events (they appear in Analytics → Failed Records if the engine classifies them late)"

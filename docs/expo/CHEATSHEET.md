@@ -8,6 +8,18 @@ Click only these labels. No **MOCK DATA** badge. Do not push to `main`. Do not r
 - API: <http://localhost:18080> — footer **Deployed version:** is the first 7 characters of `GET /api/version`
 - Grafana: <http://localhost:13000> — dashboards **AetherStream engine** and **AetherStream Demo** (<http://localhost:13000/d/aetherstream-demo/aetherstream-demo>); anonymous, read-only. Prometheus, if asked: <http://localhost:19090>
 - Actions: <https://github.com/VivekTiwary-25/AetherStream/actions> — if slow, do not wait; show [run 44440449358](https://github.com/VivekTiwary-25/AetherStream/actions/runs/44440449358)
+## New UI (`ui-glorious`)
+
+From the repository root, add the commands to this session's PATH:
+
+- cmd: `set PATH=%CD%\scripts\expo;%PATH%`
+- PowerShell: `$env:PATH = "$PWD\scripts\expo;$env:PATH"`
+- Bash: `export PATH="$PWD/scripts/expo:$PATH"`
+
+Then run `worker status` (one line per worker: ID, alive/state, partitions), `worker kill 2`, or `events late` (`events late 10` sends a chosen count). A successful kill prints `Killed worker-2 (engine will recover; watch Settings → Logs & Recovery)`; late events prints the sent count and where to look in Analytics → Failed Records, if classified late. Set `AETHER_URL` to override the default `http://localhost:8088`. If a command fails, use the classic UI at `?ui=classic`, which retains the buttons.
+
+The scripts are in `scripts/expo/`; Bash users can alternatively run `./worker status`, `./worker kill 2`, and `./events late`. The kill is an API request, not a Docker command; do not repeat it while recovery is underway.
+
 
 ## Before / after the slot
 
