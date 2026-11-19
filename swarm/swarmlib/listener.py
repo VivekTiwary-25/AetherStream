@@ -330,7 +330,12 @@ def _start_task(w, st, path):
 
 def _dispatch(me, workers, routing):
     skip = None
+    # Optional per-machine cap ("max_busy" in its machine cfg), e.g. vivek-pc runs at most 1 task
+    # so the boss session and the live demo keep their RAM/CPU.
+    cap = _step("max_busy", lambda: config.machine_cfg(me).get("max_busy"), default=None)
     for w in workers:
+        if cap is not None and _busy_count() >= int(cap):
+            break
         st = STATES[w["name"]]
         if st["state"] != "idle" or _is_never(w.get("model"), routing):
             continue

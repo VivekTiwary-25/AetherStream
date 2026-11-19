@@ -48,5 +48,6 @@
       "kinds": [],
       "enabled": true
     }
-  ]
+  ],
+  "max_busy": 1
 }
