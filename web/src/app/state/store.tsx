@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useReducer, type ReactNode } from 'react'
 import { getAlerts, getDeadLetters, getSummary, getWindows, getWorkers } from '../../api/client'
 import type { Alert, DeadLetter, ExecutionEvent, ExecutionInfo, Flow, SnapshotMessage, Summary, WebSocketMessage, WindowResult, WorkerInfo } from '../../api/types'
-import { useAetherSocket } from '../../api/ws'
+import { useAetherMessages } from '../../api/ws'
 
 export interface DashboardState {
   execution: ExecutionInfo | null
@@ -13,6 +13,11 @@ export interface DashboardState {
   summary: Summary | null
   flow: Flow | null
   simTime: number | null
+  /** Increments every time the execution enters recovery, so the UI can show it even if RECOVERED follows at once. */
+  recoveries: number
+  recoveryCheckpoint: number | null
+  /** Generation before the last REBALANCED event (contract 04: partitions moved without a WORKER_DEAD). */
+  rebalancedFromGeneration: number | null
   socketStatus: 'connecting' | 'connected' | 'disconnected'
 }
 
@@ -33,6 +38,9 @@ export const initialDashboardState: DashboardState = {
   summary: null,
   flow: null,
   simTime: null,
+  recoveries: 0,
+  recoveryCheckpoint: null,
+  rebalancedFromGeneration: null,
   socketStatus: 'connecting',
 }
 
@@ -70,7 +78,8 @@ export function dashboardReducer(state: DashboardState, action: Action): Dashboa
     case 'trucks': {
       if (typeof data !== 'object' || !('simTime' in data)) return state
       const simTime = data.simTime
-      return { ...state, simTime: typeof simTime === 'number' && Number.isFinite(simTime) ? simTime : state.simTime }
+      if (typeof simTime !== 'number' || !Number.isFinite(simTime) || simTime === state.simTime) return state
+      return { ...state, simTime }
     }
     case 'flow':
       return typeof data === 'object' ? { ...state, flow: data as Flow } : state
@@ -85,22 +94,43 @@ export function dashboardReducer(state: DashboardState, action: Action): Dashboa
     case 'execution': {
       if (typeof data !== 'object') return state
       const event = data as ExecutionEvent
-      return { ...state, execution: event, lastExecutionEvent: event }
+      if (isRebalanced(event)) {
+        // A rebalance (e.g. a killed worker rejoining) is not a recovery: never count it as one.
+        const extra = event as { previousGeneration?: unknown; oldGeneration?: unknown; fromGeneration?: unknown }
+        const reported = [extra.previousGeneration, extra.oldGeneration, extra.fromGeneration].find((value) => typeof value === 'number' && Number.isFinite(value)) as number | undefined
+        const before = state.execution?.generation
+        const from = reported ?? (typeof before === 'number' && before !== event.generation ? before : null)
+        return { ...state, execution: event, lastExecutionEvent: event, rebalancedFromGeneration: from }
+      }
+      const entersRecovery = event.event === 'RECOVERING' || (event.state === 'RECOVERING' && state.execution?.state !== 'RECOVERING')
+      if (!entersRecovery) return { ...state, execution: event, lastExecutionEvent: event }
+      const checkpoint = event.checkpointId ?? event.restoredFromCheckpoint ?? event.lastCompletedCheckpoint
+      return {
+        ...state,
+        execution: event,
+        lastExecutionEvent: event,
+        recoveries: state.recoveries + 1,
+        recoveryCheckpoint: typeof checkpoint === 'number' && Number.isFinite(checkpoint) ? checkpoint : state.recoveryCheckpoint,
+      }
     }
     default:
       return state
   }
 }
 
+/** Contract 04 REBALANCED (additive event; api/types.ts does not list it yet). */
+export function isRebalanced(event: { event?: unknown } | null | undefined): boolean {
+  return (event?.event as string | undefined) === 'REBALANCED'
+}
+
 export const DashboardContext = createContext<DashboardState>(initialDashboardState)
 
 export function DashboardProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(dashboardReducer, initialDashboardState)
-  const { status, lastMessage } = useAetherSocket()
+  // Every frame is dispatched in arrival order; React applies all queued actions through the reducer, so frames that
+  // land in the same batch (e.g. RECOVERING immediately followed by RECOVERED) are never dropped.
+  const status = useAetherMessages((message) => dispatch({ type: 'message', message }))
   useEffect(() => dispatch({ type: 'socket', status }), [status])
-  useEffect(() => {
-    if (lastMessage) dispatch({ type: 'message', message: lastMessage })
-  }, [lastMessage])
   useEffect(() => {
     let active = true
     getWorkers().then((workers) => { if (active) dispatch({ type: 'hydrate', data: { workers } }) }).catch(() => undefined)
