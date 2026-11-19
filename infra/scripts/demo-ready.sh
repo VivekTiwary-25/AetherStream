@@ -20,6 +20,12 @@ trap 'fail "Unexpected failure at line $LINENO"' ERR
 for tool in curl jq; do
   command -v "$tool" >/dev/null || fail "Required command missing: $tool"
 done
+
+# Native jq.exe otherwise adds CRLF under Git Bash, corrupting captured IDs.
+jq() {
+  command jq --binary "$@"
+}
+
 BODY_FILE="$(mktemp)"
 trap 'rm -f "$BODY_FILE"' EXIT
 
@@ -157,7 +163,9 @@ if [[ "$RESTART" == true ]]; then
   require_request POST /api/pipelines "$PIPELINE"
   PIPELINE_ID="$(jq -er '.id | select(type == "string" and length > 0) | @uri' <<< "$RESPONSE")" \
     || fail 'Saved demo pipeline response has no id'
-  IDEMPOTENCY_KEY="$(cat /proc/sys/kernel/random/uuid)"
+  # Git Bash has /dev/urandom but not Linux's /proc/sys/kernel/random/uuid.
+  RANDOM_HEX="$(od -An -N16 -tx1 /dev/urandom | tr -d '[:space:]')"
+  IDEMPOTENCY_KEY="${RANDOM_HEX:0:8}-${RANDOM_HEX:8:4}-4${RANDOM_HEX:13:3}-8${RANDOM_HEX:17:3}-${RANDOM_HEX:20:12}"
   require_request POST "/api/pipelines/$PIPELINE_ID/executions" \
     "$(jq -nc --arg key "$IDEMPOTENCY_KEY" '{idempotencyKey: $key}')"
   jq -e '.state == "RUNNING"' <<< "$RESPONSE" >/dev/null || fail 'Demo execution did not start RUNNING'
