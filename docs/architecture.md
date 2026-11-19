@@ -80,7 +80,7 @@ The control API is the only process the browser calls. It stores pipeline versio
 
 **Recovery coordination.** The coordinator is not on the record path. It decides who owns which partitions, when a checkpoint starts, when it is complete, and what to do when a worker disappears. Checkpoint bytes live in MinIO. The decision of which checkpoint is safe to restore lives in the Postgres `checkpoints` row, and only after the manifest upload succeeds.
 
-A metrics stack (Prometheus, Grafana) was proposed in the handoff and is **planned**. v1 exposes health endpoints, queue depths, lag, and records-per-second on the heartbeat and on the WebSocket. Those fields exist so an operator can see backpressure. This document does not treat any sample value as a measurement.
+The optional Compose monitoring profile provides Prometheus and Grafana. Prometheus scrapes coordinator and worker metrics; the provisioned Grafana dashboard is **AetherStream engine**. Start it with `docker compose --profile monitoring up -d`; it is not part of a plain Compose startup. Monitoring is checked by `ci-monitoring`. This document does not treat any sample value as a measurement.
 
 ### Services and ports
 
@@ -451,7 +451,7 @@ Kubernetes manifests in `infra/kubernetes/` are a single-node demo, checked by `
 
 ### Workflows
 
-Contract 00 defines one workflow file per concern. Most CI workflows run on push to `main` and to `task/**`, and on pull request to `main`. `ci-web`, `ci-k8s`, `ci-terraform`, `bench`, and `ci-ui-e2e` also use path filters, so a docs-only push does not start them. A task is accepted only when CI on its `task/<id>` branch is green. A green workflow file in the repo is the design of the check. It is not, by itself, a measured performance result. Trigger detail is in `docs/ci-cd.md`.
+Contract 00 defines one workflow file per concern. CI includes Java, web, integration, mock, image, Compose, e2e, Kubernetes, Terraform, monitoring, soak, benchmark, UI e2e, and CD workflows. Trigger detail is in `docs/report/ci-cd-evidence.md`.
 
 | File | Job | What it runs |
 |---|---|---|
@@ -465,7 +465,9 @@ Contract 00 defines one workflow file per concern. Most CI workflows run on push
 | `.github/workflows/ci-k8s.yml` | `ci-k8s` | Render and kubeconform-check `infra/kubernetes`, build four images, create the kind cluster, deploy, smoke, delete pod `worker-1`, and always run `kubectl get pods -A -o wide`. |
 | `.github/workflows/ci-terraform.yml` | `ci-terraform` | `terraform -chdir=infra/terraform fmt -check`, `init`, `validate`, `apply`, readiness checks, and `destroy`. |
 | `.github/workflows/bench.yml` | `benchmark` | `./gradlew :tests:benchmarkTest`. Uploads reports. This document does not quote benchmark numbers. |
-| `.github/workflows/ci-ui-e2e.yml` | `ui-e2e` | Playwright demo in `tests/ui` against Compose. The job is `continue-on-error: true` until the editor, chaos, and compare surfaces are mounted in the shell. A green workflow can hide a failed browser job. |
+| `.github/workflows/ci-ui-e2e.yml` | `ui-e2e` | Playwright demo in `tests/ui` against Compose. The job is `continue-on-error: true`, so a green workflow can hide a failed browser job. |
+| `.github/workflows/ci-monitoring.yml` | `monitoring` | Starts the monitoring profile and verifies Prometheus targets/metrics, Grafana health/dashboard, and dashboard metric names. |
+| `.github/workflows/ci-soak.yml` | `ci-soak` | Scheduled/manual and task-branch workflow; runs a 15-minute chaos soak and publishes a summary/artifact. |
 | `.github/workflows/cd.yml` | `publish`, `deploy` | Push to `main` only for publish and deploy. Publish images to GHCR tagged with the commit SHA. Deploy on the self-hosted runner labelled `aether-deploy`. |
 
 `infra/scripts/demo-e2e.sh` starts the demo pipeline, injects late events, kills a Compose worker, and exercises sink delay. That is a functional check, not a throughput result. `bench.yml` runs a separate benchmark task. Do not copy numbers out of a benchmark report into this document. Rescale is a controlled pause at a completed checkpoint, then reassignment. It is not interruption-free scaling, and it does not change the Kafka partition count.

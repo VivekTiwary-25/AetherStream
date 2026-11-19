@@ -18,6 +18,8 @@ Typical durations are approximate planning ranges, not guarantees; runtime varie
 | `ci-ui-e2e.yml` (`ci-ui-e2e`) | Push/PR to `main` for web, control-api, engine, UI tests, or this workflow; manual dispatch | Runs a six-step Playwright demo against Compose and uploads browser/Compose evidence. Advisory only: the job has `continue-on-error: true`. | ~10–35 min | [Runs](https://github.com/VivekTiwary-25/AetherStream/actions/workflows/ci-ui-e2e.yml) |
 | `ci-k8s.yml` (`ci-k8s`) | Push to `main` or `task/**` and PR to `main` when Kubernetes/Docker/workflow paths match; manual dispatch | Renders and validates manifests, builds images, deploys to kind, checks readiness/demo processing and worker recovery, and collects diagnostics. | ~5–40 min | [Runs](https://github.com/VivekTiwary-25/AetherStream/actions/workflows/ci-k8s.yml) |
 | `ci-terraform.yml` (`ci-terraform`) | Push to `main` or `task/**` for `infra/terraform/**` or this workflow; PR to `main` | Formats/validates Terraform, builds local images, applies real Docker infrastructure, checks readiness and services, then destroys and verifies teardown. | ~5–30 min | [Runs](https://github.com/VivekTiwary-25/AetherStream/actions/workflows/ci-terraform.yml) |
+| `ci-monitoring.yml` (`ci-monitoring`) | Push to `main` or `task/**` except ignored `swarm/**`, `boss/**`, `docs/**`, and Markdown paths; PR to `main` | Starts the monitoring profile and verifies Prometheus targets/metrics, Grafana health/dashboard, and dashboard metric names. | ~5–30 min | [Runs](https://github.com/VivekTiwary-25/AetherStream/actions/workflows/ci-monitoring.yml) |
+| `ci-soak.yml` (`ci-soak`) | Scheduled, manual dispatch, or task-branch changes to this workflow/soak script | ShellChecks and runs a 15-minute chaos soak; uploads summary and Compose logs. | ~15–40 min | [Runs](https://github.com/VivekTiwary-25/AetherStream/actions/workflows/ci-soak.yml) |
 | `bench.yml` (`bench`) | Push to `main` or `task/**` for its listed Java/benchmark paths; PR to `main`; manual dispatch | Runs `:tests:benchmarkTest`, appends any generated benchmark report to the job summary, and uploads reports/results. | ~2–30 min | [Runs](https://github.com/VivekTiwary-25/AetherStream/actions/workflows/bench.yml) |
 | `cd.yml` (`cd`) | Push to `main` except ignored `swarm/**`, `boss/**`, `docs/**`, and Markdown paths; manual dispatch (optional SHA) | Lints deployment scripts; on main push publishes four GHCR images tagged with the commit SHA and deploys that SHA on the self-hosted `aether-deploy` runner. | ~5–30 min | [Runs](https://github.com/VivekTiwary-25/AetherStream/actions/workflows/cd.yml) |
 
@@ -30,7 +32,7 @@ Typical durations are approximate planning ranges, not guarantees; runtime varie
 
 ### Dated run snapshot
 
-Latest run per workflow on `main` at the API query time, 2026-11-19. `In progress` is not a passing conclusion. Run links lead to the individual logs.
+Latest run snapshot for the 12 workflows queried on `main` at the API query time, 2026-11-19. `In progress` is not a passing conclusion. Run links lead to the individual logs. The newer `ci-monitoring` and `ci-soak` definitions were not included in this snapshot.
 
 | Workflow | Last conclusion/status | Run |
 |---|---|---|
@@ -46,5 +48,7 @@ Latest run per workflow on `main` at the API query time, 2026-11-19. `In progres
 | `ci-terraform` | success | [Run 44395471523](https://github.com/VivekTiwary-25/AetherStream/actions/runs/44395471523) |
 | `ci-ui-e2e` | in progress | [Run 44440449360](https://github.com/VivekTiwary-25/AetherStream/actions/runs/44440449360) |
 | `ci-web` | success | [Run 44440449457](https://github.com/VivekTiwary-25/AetherStream/actions/runs/44440449457) |
+| `ci-monitoring` | not included in snapshot | — |
+| `ci-soak` | not included in snapshot | — |
 
-Workflow inventory checked against the local `.github/workflows/` directory: all 12 listed workflow files exist.
+Workflow inventory checked against the local `.github/workflows/` directory: all 14 listed workflow files exist.

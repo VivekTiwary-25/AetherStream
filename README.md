@@ -121,7 +121,7 @@ npm test
 
 ## CI/CD
 
-`.github/workflows/` has one workflow per concern: Java unit tests (`./gradlew build --console=plain`), web lint/test/build, Testcontainers integration, the dev mock smoke (`cd web/mock && npm install && node smoke.mjs`), image builds, Compose smoke (`docker compose up -d --build` then `bash infra/scripts/smoke.sh`), the full-system demo (`bash infra/scripts/demo-e2e.sh`), a Playwright UI demo, kind, Terraform, benchmarks (`./gradlew :tests:benchmarkTest --console=plain`), and CD. On a push to `main`, `cd.yml` publishes the engine, simulator, control-api, and web images to GHCR tagged with the commit SHA, then deploys that SHA on the self-hosted runner labelled `aether-deploy`. A workflow file is not a green run.
+`.github/workflows/` has one workflow per concern: Java unit tests (`./gradlew build --console=plain`), web lint/test/build, Testcontainers integration, the dev mock smoke (`cd web/mock && npm install && node smoke.mjs`), image builds, Compose smoke (`docker compose up -d --build` then `bash infra/scripts/smoke.sh`), the full-system demo (`bash infra/scripts/demo-e2e.sh`), the Playwright UI demo, kind, Terraform, monitoring, the scheduled/manual chaos soak (`bash infra/scripts/soak.sh`), benchmarks (`./gradlew :tests:benchmarkTest --console=plain`), and CD. On a push to `main`, `cd.yml` publishes the engine, simulator, control-api, and web images to GHCR tagged with the commit SHA, then deploys that SHA on the self-hosted runner labelled `aether-deploy`. A workflow file is not a green run.
 
 [CI/CD workflow definitions and run evidence](docs/report/ci-cd-evidence.md)
 
