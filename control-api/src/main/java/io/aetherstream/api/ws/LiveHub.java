@@ -36,7 +36,8 @@ import org.springframework.web.util.UriComponentsBuilder;
 /**
  * One idle-until-connected timer dispatches single-flight polls to virtual threads.
  * Socket writes are isolated from both polling and other sessions, with a 2 s / 512 KiB limit.
- * Reconnects replay the retained feed before a fresh snapshot; polling survives browser disconnects.
+ * Reconnects replay the retained feed before a fresh snapshot, or resync when replay exceeds half
+ * the send budget (reserving room for the snapshot/live cutover); polling survives disconnects.
  */
 @Component
 public class LiveHub extends TextWebSocketHandler {
@@ -110,7 +111,12 @@ public class LiveHub extends TextWebSocketHandler {
         synchronized (publication) {
             if (!sessions.contains(peer)) return;
             if (since != null) {
-                if (since > sequence || (!history.isEmpty() && since < history.getFirst().seq() - 1)) {
+                long replayBytes = 0;
+                for (Retained retained : history) {
+                    if (retained.seq() > since) replayBytes += retained.message().getPayloadLength();
+                }
+                if (since > sequence || (!history.isEmpty() && since < history.getFirst().seq() - 1)
+                        || replayBytes > SEND_BUFFER_LIMIT / 2) {
                     Retained resync = encode("resync", null);
                     if (resync != null) enqueue(peer, resync.message());
                 } else {

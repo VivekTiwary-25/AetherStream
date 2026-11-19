@@ -144,6 +144,9 @@ button {
   box-shadow: var(--shadow-panel);
 }
 .execution-banner__label { font-variant-numeric: tabular-nums; }
+/* "Recovered in X s" stays green for 10 s after a recovery (rehearsal-1 #3). Text carries the meaning, colour adds it. */
+.execution-banner--recovered { border-color: rgb(74 222 128 / 45%); }
+.execution-banner--recovered .execution-banner__label { color: var(--color-green); }
 .execution-banner__short { display: none; }
 .execution-banner__connection {
   display: inline-flex;

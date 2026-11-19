@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -105,6 +107,44 @@ class LiveHubReplayTest {
             assertThat(snapshot.path("seq").longValue()).isEqualTo(503);
             feed.publish("RECOVERED");
             assertThat(browser.next().path("seq").longValue()).isEqualTo(504);
+        }
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {32_000, 64_000})
+    void oversizedReplayResyncsWithoutPartialReplayOrBufferClosure(int payloadCharacters) throws Exception {
+        try (Feed feed = new Feed()) {
+            // Three UTF-8 bytes per character: exercise both the half-budget threshold and a
+            // history larger than the whole send buffer, without one oversized individual frame.
+            String payload = "\u20ac".repeat(payloadCharacters);
+            for (int i = 0; i < 3; i++) feed.publish(payload);
+            Browser browser = new Browser("reconnect", "?since=0");
+            CountDownLatch sending = new CountDownLatch(1);
+            CountDownLatch release = new CountDownLatch(1);
+            doAnswer(invocation -> {
+                sending.countDown();
+                assertThat(release.await(5, TimeUnit.SECONDS)).isTrue();
+                browser.messages.add(((TextMessage) invocation.getArgument(0)).getPayload());
+                return null;
+            }).when(browser.session).sendMessage(any());
+            feed.hub.afterConnectionEstablished(browser.session);
+            try {
+                assertThat(sending.await(5, TimeUnit.SECONDS)).isTrue();
+            } finally {
+                release.countDown();
+            }
+            JsonNode resync = browser.next();
+            assertThat(resync.path("type").asText()).isEqualTo("resync");
+            assertThat(resync.path("seq").longValue()).isEqualTo(4);
+            assertThat(resync.path("data").isNull()).isTrue();
+            JsonNode snapshot = browser.next();
+            assertThat(snapshot.path("type").asText()).isEqualTo("snapshot");
+            assertThat(snapshot.path("seq").longValue()).isEqualTo(5);
+            feed.publish("RECOVERED");
+            JsonNode live = browser.next();
+            assertThat(live.path("data").path("event").asText()).isEqualTo("RECOVERED");
+            assertThat(live.path("seq").longValue()).isEqualTo(6);
+            verify(browser.session, never()).close(any(CloseStatus.class));
         }
     }
 

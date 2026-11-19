@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import './panels.css'
 import { createPipeline, getDemoPipeline, startExecution } from '../../api/client'
 import type { Alert, DeadLetter, WindowResult, WorkerInfo } from '../../api/types'
-import { useExecutionStatus, type ExecutionStatus } from '../state/executionStatus'
+import { useExecutionStatus, useKilledWorkers, useRecentRecovery, type ExecutionStatus } from '../state/executionStatus'
 import { isRebalanced, useDashboard } from '../state/store'
 import { formatApiDuration, humanState } from '../timeline/timelineModel'
 import { ClayButton } from '../ui/ClayButton'
@@ -134,15 +134,18 @@ function queuePercent(size: number, capacity: number) {
 
 export function WorkersPanel() {
   const { workers, socketStatus } = useDashboard()
+  const killed = useKilledWorkers()
   const displayable = workers.filter((worker) => worker && Number.isFinite(worker.sourceQueue?.size) && Number.isFinite(worker.sourceQueue?.capacity) && Number.isFinite(worker.sinkQueue?.size) && Number.isFinite(worker.sinkQueue?.capacity))
-  const alive = displayable.filter((worker) => worker.alive).length
+  // A worker killed from the Chaos panel shows as killed at once, even while the cluster still reports it alive.
+  const alive = displayable.filter((worker) => worker.alive && !killed.has(worker.workerId)).length
   return <GlassPanel title="Workers" status={<span className="panel-count">{number.format(alive)} alive</span>}><div className="panel-list panel-list--workers">{displayable.length ? displayable.map((worker: WorkerInfo) => {
-    const state: StatusState = !worker.alive ? 'failed' : worker.state === 'RESTORING' ? 'recovering' : worker.backpressured ? 'backpressured' : worker.state === 'RUNNING' ? 'running' : 'paused'
-    const label = !worker.alive ? 'Dead' : worker.state === 'RESTORING' ? 'Recovering' : worker.state === 'RUNNING' ? 'Running' : 'Idle'
+    const wasKilled = worker.alive && killed.has(worker.workerId)
+    const state: StatusState = !worker.alive || wasKilled ? 'failed' : worker.state === 'RESTORING' ? 'recovering' : worker.backpressured ? 'backpressured' : worker.state === 'RUNNING' ? 'running' : 'paused'
+    const label = !worker.alive ? 'Dead' : wasKilled ? 'Killed · restarting' : worker.state === 'RESTORING' ? 'Recovering' : worker.state === 'RUNNING' ? 'Running' : 'Idle'
     const recordsPerSec = Number.isFinite(worker.recordsPerSec) ? worker.recordsPerSec.toFixed(1) : '—'
     const partitions = worker.partitions ?? []
-    return <div className={`worker-row${worker.alive ? '' : ' worker-row--dead'}`} key={worker.workerId}>
-      <div className="worker-row__heading"><strong>{worker.workerId}</strong><StatusPill state={state === 'backpressured' ? 'running' : state} label={label} />{worker.alive && worker.backpressured && <StatusPill state="backpressured" />}</div>
+    return <div className={`worker-row${worker.alive && !wasKilled ? '' : ' worker-row--dead'}`} key={worker.workerId}>
+      <div className="worker-row__heading"><strong>{worker.workerId}</strong><StatusPill state={state === 'backpressured' ? 'running' : state} label={label} />{worker.alive && !wasKilled && worker.backpressured && <StatusPill state="backpressured" />}</div>
       {partitions.length
         ? <span className="worker-row__meta">Partitions {partitions.map((partition) => number.format(partition)).join(', ')} · {recordsPerSec} records/s</span>
         : <span className="worker-row__meta worker-row__meta--idle">{worker.alive ? 'Idle (no partitions)' : 'No partitions'}</span>}
@@ -159,22 +162,28 @@ function QueueBar({ label, size, capacity }: { label: string; size: number; capa
 export function ExecutionBanner() {
   const { execution, lastExecutionEvent, socketStatus, rebalancedFromGeneration } = useDashboard()
   const { status, isRecovering, recoveringCheckpoint } = useExecutionStatus()
+  const recentRecovery = useRecentRecovery()
   const [starting, setStarting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const checkpointRef = useRef<HTMLElement>(null)
   const completedCheckpoint = Math.max(lastExecutionEvent?.event === 'CHECKPOINT_COMPLETED' ? lastExecutionEvent.checkpointId ?? 0 : 0, execution?.lastCompletedCheckpoint ?? 0)
   // Contract 04: RECOVERED events carry the server-measured durationMs.
-  const recoveredMs = (lastExecutionEvent as { durationMs?: unknown } | null)?.durationMs
+  const eventMs = (lastExecutionEvent as { durationMs?: unknown } | null)?.durationMs
+  const recoveredMs = lastExecutionEvent?.event === 'RECOVERED' && typeof eventMs === 'number' ? eventMs : recentRecovery?.durationMs
+  const recoveredCheckpoint = recentRecovery?.checkpointId ?? (lastExecutionEvent?.event === 'RECOVERED' ? lastExecutionEvent.checkpointId ?? execution?.restoredFromCheckpoint : null)
   let label = !execution ? 'No execution' : humanState(execution.state)
   let shortLabel: string | null = null
   if (isRecovering) {
     label = `Recovering from checkpoint #${number.format(recoveringCheckpoint)}`
     shortLabel = `Recovering · #${number.format(recoveringCheckpoint)}`
+  } else if (execution?.state === 'RUNNING' && (recentRecovery || lastExecutionEvent?.event === 'RECOVERED')) {
+    // Shown for RECOVERED_SHOW_MS after the recovery, even when checkpoint events follow at once (rehearsal-1 #3).
+    label = typeof recoveredMs === 'number' ? `Recovered in ${formatApiDuration(recoveredMs)}`
+      : typeof recoveredCheckpoint === 'number' ? `Recovered from checkpoint #${number.format(recoveredCheckpoint)}` : 'Recovered'
   } else if (lastExecutionEvent?.event === 'WORKER_DEAD') label = `Worker ${lastExecutionEvent.workerId ?? 'unknown'} lost`
   else if (isRebalanced(lastExecutionEvent)) label = rebalancedFromGeneration !== null
     ? `Rebalanced (gen ${number.format(rebalancedFromGeneration)} → ${number.format(lastExecutionEvent?.generation ?? 0)})`
     : `Rebalanced (gen ${number.format(lastExecutionEvent?.generation ?? 0)})`
-  else if (lastExecutionEvent?.event === 'RECOVERED') label = typeof recoveredMs === 'number' ? `Recovered in ${formatApiDuration(recoveredMs)}` : 'Recovered'
   else if (completedCheckpoint > 0 && execution?.state === 'RUNNING') label = `Checkpoint #${number.format(completedCheckpoint)} saved`
   const startDemo = async () => {
     setStarting(true)
@@ -195,7 +204,8 @@ export function ExecutionBanner() {
     }
   }, [lastExecutionEvent])
   const connected = socketStatus === 'connected'
-  return <section className={`execution-banner execution-banner--${status}`} aria-label="Execution status" aria-live="polite">
+  const recoveredBanner = !isRecovering && status !== 'failed' && label.startsWith('Recovered')
+  return <section className={`execution-banner execution-banner--${status}${recoveredBanner ? ' execution-banner--recovered' : ''}`} aria-label="Execution status" aria-live="polite">
     {/* Explicit spaces keep the banner's text readable as words ("Running Recovered in 2.0 s", not
         "RunningRecovered…") for screen readers, copy/paste and text-based checks. */}
     <ExecutionStatusPill status={status} label={status === 'backpressured' ? 'Running · Backpressured' : undefined} />{' '}

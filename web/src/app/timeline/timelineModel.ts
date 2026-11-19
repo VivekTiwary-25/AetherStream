@@ -80,6 +80,8 @@ export function buildTimelineModel(
     if (event.event === 'WORKER_DEAD') {
       workerDeaths.push({ timestamp: event.ts, workerId: event.workerId ?? 'worker' })
     } else if (event.event === 'RECOVERING') {
+      // A recovery already open (e.g. first seen from the execution state, then labelled by the server) stays one band.
+      if (recoveryStart) continue
       recoveryStart = event
       recoveries.push({
         start: event.ts,
@@ -92,6 +94,15 @@ export function buildTimelineModel(
     } else if (event.event === 'RECOVERED') {
       const durationMs = apiDuration(event)
       const band = recoveries.at(-1)
+      const previous = recovered.at(-1)
+      if (!recoveryStart && previous && event.ts - previous.timestamp < 10_000) {
+        // The same recovery reported twice (state transition, then the server's RECOVERED): keep one marker.
+        if (durationMs !== null && previous.durationMs === null) {
+          previous.durationMs = durationMs
+          if (band?.closed && band.end === previous.timestamp) band.durationMs = durationMs
+        }
+        continue
+      }
       if (band && band.start === recoveryStart?.ts) {
         band.end = event.ts
         band.closed = true
@@ -108,4 +119,20 @@ export function buildTimelineModel(
     workerDeaths,
     recovered,
   }
+}
+
+/**
+ * Keeps the newest checkpoint label and drops any older one closer than `gapPx` (at the track's minimum width) to the
+ * label kept after it, so neighbours never merge into one unreadable label ("#17" + "#18" -> "#1718", rehearsal-1 #11).
+ */
+export function spacedLabels<T extends { timestamp: number }>(ticks: T[], now: number, windowMs = 120_000, trackWidth = 720, gapPx = 30): T[] {
+  const kept: T[] = []
+  let lastX = Number.POSITIVE_INFINITY
+  for (const tick of [...ticks].sort((a, b) => b.timestamp - a.timestamp)) {
+    const x = Math.max(0, Math.min(1, (tick.timestamp - (now - windowMs)) / windowMs)) * trackWidth
+    if (lastX - x < gapPx) continue
+    kept.push(tick)
+    lastX = x
+  }
+  return kept.reverse()
 }

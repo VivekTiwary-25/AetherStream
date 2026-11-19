@@ -25,6 +25,10 @@ public final class Worker {
     private final int queueCapacity;
     private final AtomicLong sinkDelayMs = new AtomicLong();
 
+    // Serialize lifecycle changes without blocking status/metrics on runtime joins.
+    // Always acquire this lock before the Worker monitor, never the reverse.
+    private final Object lifecycleLock = new Object();
+
     private TaskRuntime runtime;          // null when idle
     private String executionId;           // execution of the latest accepted command
     private long generation;              // generation of the latest accepted command for executionId
@@ -86,18 +90,22 @@ public final class Worker {
             log.info("Sink delay set to {} ms", d.delayMs());
             return;
         }
-        synchronized (this) {
-            if (shuttingDown) {
-                return;
+        synchronized (lifecycleLock) {
+            synchronized (this) {
+                if (shuttingDown) {
+                    return;
+                }
             }
             if (command instanceof Command.Assign a) {
                 assign(a);
             } else if (command instanceof Command.Cancel c) {
                 cancel(c);
             } else if (command instanceof Command.TriggerCheckpoint t) {
-                if (runtime != null && !runtime.isStopped() && runtime.executionId().equals(t.executionId())
-                        && runtime.generation() == t.generation()) {
-                    runtime.triggerCheckpoint(t.checkpointId());
+                synchronized (this) {
+                    if (runtime != null && !runtime.isStopped() && runtime.executionId().equals(t.executionId())
+                            && runtime.generation() == t.generation()) {
+                        runtime.triggerCheckpoint(t.checkpointId());
+                    }
                 }
             }
         }
@@ -112,40 +120,61 @@ public final class Worker {
     }
 
     private void assign(Command.Assign a) {
-        if (stale(a.executionId(), a.generation())) {
-            log.info("Ignoring stale ASSIGN {} g{} (current g{})", a.executionId(), a.generation(), generation);
-            return;
+        synchronized (this) {
+            if (stale(a.executionId(), a.generation())) {
+                log.info("Ignoring stale ASSIGN {} g{} (current g{})", a.executionId(), a.generation(), generation);
+                return;
+            }
+            if (runtime != null && !runtime.isStopped() && runtime.executionId().equals(a.executionId())
+                    && runtime.generation() == a.generation()) {
+                return; // idempotent
+            }
         }
-        if (runtime != null && !runtime.isStopped() && runtime.executionId().equals(a.executionId())
-                && runtime.generation() == a.generation()) {
-            return; // idempotent
+        stopRuntime(false);
+        synchronized (this) {
+            executionId = a.executionId();
+            generation = a.generation();
+            lastCheckpointId = TaskRuntime.checkpointBaseline(a);
+            runtime = new TaskRuntime(workerId, a, sourceFactory, sink, store, coordinator, sinkDelayMs::get,
+                    this::onStoppedByItself, queueCapacity, System::nanoTime);
+            runtime.start();
         }
-        stopRuntime();
-        executionId = a.executionId();
-        generation = a.generation();
-        lastCheckpointId = TaskRuntime.checkpointBaseline(a);
-        runtime = new TaskRuntime(workerId, a, sourceFactory, sink, store, coordinator, sinkDelayMs::get,
-                this::onStoppedByItself, queueCapacity, System::nanoTime);
-        runtime.start();
     }
 
     private void cancel(Command.Cancel c) {
-        if (stale(c.executionId(), c.generation())) {
-            return;
+        boolean stop;
+        synchronized (this) {
+            if (stale(c.executionId(), c.generation())) {
+                return;
+            }
+            stop = runtime != null && runtime.executionId().equals(c.executionId());
         }
-        if (runtime != null && runtime.executionId().equals(c.executionId())) {
-            stopRuntime();
+        if (stop) {
+            stopRuntime(false);
         }
-        if (Objects.equals(executionId, c.executionId())) {
-            generation = Math.max(generation, c.generation());
+        synchronized (this) {
+            if (Objects.equals(executionId, c.executionId())) {
+                generation = Math.max(generation, c.generation());
+            }
         }
     }
 
-    private void stopRuntime() {
-        if (runtime != null) {
-            runtime.stop();
-            retainCounters(runtime);
-            runtime = null;
+    /** Called with lifecycleLock held; keep live counters visible until they can be retained atomically. */
+    private void stopRuntime(boolean graceful) {
+        TaskRuntime r;
+        synchronized (this) {
+            r = runtime;
+        }
+        if (r != null) {
+            if (graceful) {
+                r.shutdown();
+            } else {
+                r.stop();
+            }
+            synchronized (this) {
+                retainCounters(r);
+                runtime = null;
+            }
         }
     }
 
@@ -159,10 +188,13 @@ public final class Worker {
     private void onStoppedByItself(TaskRuntime r, String reason) {
         // Runs on a runtime thread: stop() the rest asynchronously so it never joins its caller.
         Thread t = new Thread(() -> {
-            synchronized (Worker.this) {
-                if (runtime == r) {
-                    stopRuntime();
+            synchronized (lifecycleLock) {
+                synchronized (Worker.this) {
+                    if (runtime != r) {
+                        return;
+                    }
                 }
+                stopRuntime(false);
             }
         }, "runtime-cleanup");
         t.setDaemon(true);
@@ -192,15 +224,15 @@ public final class Worker {
                 completedFenced + (r != null && r.isFenced() ? 1 : 0));
     }
 
-    public synchronized void shutdown() {
-        if (shuttingDown) {
-            return;
-        }
-        shuttingDown = true;
-        if (runtime != null) {
-            runtime.shutdown();
-            retainCounters(runtime);
-            runtime = null;
+    public void shutdown() {
+        synchronized (lifecycleLock) {
+            synchronized (this) {
+                if (shuttingDown) {
+                    return;
+                }
+                shuttingDown = true;
+            }
+            stopRuntime(true);
         }
     }
 }

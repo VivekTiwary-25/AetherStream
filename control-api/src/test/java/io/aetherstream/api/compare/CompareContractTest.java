@@ -3,6 +3,8 @@ package io.aetherstream.api.compare;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -17,6 +19,7 @@ import java.sql.ResultSet;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -80,9 +83,12 @@ class CompareContractTest {
             RowMapper rowMapper = invocation.getArgument(1);
             return rowMapper.mapRow(row(Map.of("source_offsets", "{\"0\":0}")), 0);
         });
-        when(reader.read("unused:9092", "truck-events", Map.of(0, 0L), Map.of(0, 2L)))
-                .thenReturn(Map.of(0, List.of(new RawRecord(0, 0, event("first", TIME, 10)),
-                        new RawRecord(0, 1, event("watermark", TIME + 65_000, 20)))));
+        doAnswer(invocation -> {
+            Consumer<RawRecord> sink = invocation.getArgument(4);
+            sink.accept(new RawRecord(0, 0, event("first", TIME, 10)));
+            sink.accept(new RawRecord(0, 1, event("watermark", TIME + 65_000, 20)));
+            return null;
+        }).when(reader).read(eq("unused:9092"), eq("truck-events"), eq(Map.of(0, 0L)), eq(Map.of(0, 2L)), any());
     }
 
     @Test void compareReplaysCompletedRangeAndSerializesMatchedResult() throws Exception {

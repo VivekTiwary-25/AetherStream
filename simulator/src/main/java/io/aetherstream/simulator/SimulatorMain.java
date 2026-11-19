@@ -27,7 +27,7 @@ import org.slf4j.LoggerFactory;
  * {@code POST /chaos/malformed}, and {@code POST /scenario}.
  * Scenarios use simulation time: {@code rush-hour} slows centre traffic by 40% for 10 minutes
  * (centre means both x and y in 600..1400 inclusive); {@code breakdown} stops a truck for
- * 12 minutes (default {@code truck-005}); {@code surge} adds six trucks over one minute.
+ * 15 minutes (default {@code truck-005}); {@code surge} adds six trucks over one minute.
  * {@code reset} restores the initial fleet and normal traffic without rewinding the clock
  * or reusing event IDs. Send {@code POST /scenario {"name":"breakdown","truckId":"truck-005"}};
  * {@code truckId} is optional, but when supplied must be textual and nonblank.

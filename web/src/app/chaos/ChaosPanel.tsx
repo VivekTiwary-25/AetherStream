@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import './chaos.css'
-import { useDashboard } from '../state/store'
+import { useDashboard, useMarkWorkerKilled } from '../state/store'
 import { ClayButton } from '../ui/ClayButton'
 import { GlassPanel } from '../ui/GlassPanel'
 import { StatusPill } from '../ui/StatusPill'
@@ -8,6 +8,11 @@ import { getWorkers, killWorker, sendDuplicates, sendLateEvents, sendMalformed, 
 export function ChaosPanel() {
   const { workers } = useDashboard()
   const backpressured = workers.some((worker) => worker?.alive && worker?.backpressured)
+  // The hint names the capacity the workers actually report, so it always matches the queue bars (rehearsal-1 #4).
+  const capacities = workers.map((worker) => worker?.sourceQueue?.capacity).filter((value): value is number => typeof value === 'number' && Number.isFinite(value) && value > 0)
+  const queueCapacity = capacities.length ? Math.max(...capacities) : 1000
+  const markKilled = useMarkWorkerKilled()
+  const confirmRef = useRef<HTMLDivElement>(null)
   const [pending, setPending] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
@@ -17,6 +22,11 @@ export function ChaosPanel() {
   const [confirmKill, setConfirmKill] = useState(false)
 
   const busiestWorker = useMemo(() => [...workerList].sort((a, b) => b.partitions.length - a.partitions.length)[0], [workerList])
+  // The confirm area opens at the bottom of the dock: bring it fully into view (rehearsal-1 #7).
+  useEffect(() => {
+    if (confirmKill) confirmRef.current?.scrollIntoView?.({ block: 'center', behavior: 'smooth' })
+  }, [confirmKill])
+
   const workerLabel = workerChoice === 'busiest' ? busiestWorker?.workerId ?? 'busiest' : workerChoice
 
   async function perform<T>(action: () => Promise<T>, success: (result: T) => string) {
@@ -65,6 +75,7 @@ export function ChaosPanel() {
   async function confirmWorkerKill() {
     await perform(() => killWorker(workerChoice === 'busiest' ? null : workerChoice), (result) => {
       setConfirmKill(false)
+      if (result.workerId) markKilled(result.workerId)
       return `Worker ${result.workerId} killed.`
     })
   }
@@ -91,13 +102,13 @@ export function ChaosPanel() {
             <option value={200}>200 ms per record</option>
           </select>
         </label>
-        {delayMs > 0 && <p className="chaos-panel__hint">Output slowed: queues fill up (bounded at 1,000) and the engine pushes back.</p>}
+        {delayMs > 0 && <p className="chaos-panel__hint">Output slowed: queues fill up (bounded at {queueCapacity.toLocaleString('en-US')}) and the engine pushes back.</p>}
         {!confirmKill ? (
           <ClayButton variant="danger" disabled={pending} onClick={() => void openKillConfirmation()}>
             Kill worker
           </ClayButton>
         ) : (
-          <div className="chaos-panel__confirm" aria-label="Confirm worker kill">
+          <div ref={confirmRef} className="chaos-panel__confirm" aria-label="Confirm worker kill">
             <p>Kill worker {workerLabel}? It will crash without warning.</p>
             <label>
               Worker

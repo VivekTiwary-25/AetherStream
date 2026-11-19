@@ -72,16 +72,28 @@ Counts below are source declarations: literal `@Test` occurrences in Java and `i
 | web (Vitest) | `city/__tests__/cityModel.test.ts` | 9 | City model produces consistent scene entities and derived model state. |
 | web (Vitest) | `city/__tests__/motion.test.ts` | 11 | Truck motion interpolation and timing behave consistently across updates. |
 | tests/ui (Playwright) | `demo.spec.ts` | 4 | Real-stack browser demo checks deployed UI/version, persisted engine speed, editor validation, rendered recovery, and nonempty reference parity. |
-| script | `infra/scripts/demo-e2e.sh` steps 1–11 | 11 | Compose readiness, start/results/late events, kill/recovery, reference compare, backpressure, SHA, savepoint restore/compare, rescale, and scenario reset; CI sets `E2E_EXTENDED=1`. |
 | script | `infra/scripts/demo-ready.sh` | 1 | Readiness/version plus running execution with new windows/checkpoint and nonempty exact reference compare. |
+| script | `infra/scripts/expo-proofs.sh` | 1 | Read-only Expo evidence checks for checkpoints, offsets, fencing, and recovery against the running Compose stack. |
+| script | `infra/scripts/expo-reset.sh` | 1 | Resets the local Compose demo and verifies its readiness within a bounded time. |
+| script | `infra/scripts/demo-push.sh` | 1 | Advances the Expo build counter, commits/pushes it to main, then waits for CD and the live deployed SHA. |
+| script | `infra/scripts/cold-start-timer.sh` | 1 | Measures time from cold Compose startup to demo readiness. |
+| script | `infra/scripts/kill-repeat.sh` | 1 | Repeats worker-kill and recovery checks 20 times, requiring successful progress each round. |
 | workflow check | `ci-soak` (`.github/workflows/ci-soak.yml`) | 1 job | Runs ShellCheck and `infra/scripts/soak.sh` for a 15-minute chaos soak, then uploads summary/log evidence. |
 | workflow check | `ci-monitoring` (`.github/workflows/ci-monitoring.yml`) | 1 job | Starts Prometheus/Grafana, checks coordinator/worker scrape targets, queries a metric, verifies Grafana/dashboard, and checks dashboard metric names. |
 | workflow check | `ci-k8s` (`.github/workflows/ci-k8s.yml`) | 1 job | Renders/validates Kubernetes manifests, deploys kind, verifies readiness/results, deletes a worker pod, and checks checkpoint recovery and subsequent progress. |
 | workflow check | `ci-terraform` (`.github/workflows/ci-terraform.yml`) | 1 job | Formats/validates Terraform, applies real Docker infrastructure, checks API/web/workers and backing services, then destroys and verifies cleanup. |
+| workflow check | `ci-offline` (`.github/workflows/ci-offline.yml`) | 1 job | Builds/caches images online, blocks runner/container egress, and verifies a cold Expo demo, browser live WebSocket UI, Grafana and no external requests. |
+| workflow check | `ci-kill-repeat` (`.github/workflows/ci-kill-repeat.yml`) | 2 jobs | ShellChecks the repeated-kill script and runs 20 worker-kill/recovery rounds against Compose. |
+| workflow check | `ci-coldstart` (`.github/workflows/ci-coldstart.yml`) | 1 job | Builds the Compose images and measures cold-start time to demo readiness. |
+| workflow check | `ci-docs` (`.github/workflows/ci-docs.yml`) | 1 job | Runs the Markdown link checker. |
+| workflow check | `release` (`.github/workflows/release.yml`) | 1 job | On a version tag, validates the release version, publishes versioned images and creates a GitHub Release; supports a dry run. |
+| workflow check | `cd` (`.github/workflows/cd.yml`) | 2 jobs | Publishes SHA/main GHCR images and deploys the SHA unless `DEMO_FREEZE` or the freeze file prevents deployment. |
+| integration (Testcontainers) | `ExactlyOnceSinkIT` | 1 | Terminates a real Postgres sink transaction during a worker failure; replay leaves windows equal to reference without duplicates or omissions. |
+| integration (Testcontainers) | `BackpressureIT` | 1 | With a delayed sink, bounded queues build consumer lag and later drain; checkpointed results still match reference. |
 
-Module totals (literal source occurrences): engine 56; compiler 28; reference 22; control-api 78; simulator 37; tests 13; web/Vitest 75; tests/ui 4. Overall: **313 test declarations**. Script/workflow checks are catalogued separately and are not included in this total.
+Module totals (literal source occurrences): engine 56; compiler 28; reference 22; control-api 78; simulator 37; tests 15; web/Vitest 75; tests/ui 4. Overall: **315 test declarations**. Script/workflow checks are catalogued separately and are not included in this total.
 
-Workflows: engine/compiler/reference/control-api/simulator unit tests run under `ci-java` (`./gradlew build`); `tests` integration-tagged ITs run under `ci-integration` (`./gradlew :tests:integrationTest`); `EngineBenchmarkIT` runs under `bench` (`./gradlew :tests:benchmarkTest`); Vitest runs under `ci-web`; Playwright runs under advisory `ci-ui-e2e`; `demo-e2e.sh` and its final `demo-ready.sh` run under `ci-e2e` (the e2e job is `continue-on-error`); `ci-k8s`, `ci-terraform`, `ci-monitoring`, and `ci-soak` are workflow checks above. `ci-mock` runs only the separate mock-server smoke command; it does not run these catalogued tests. The Compose worker-crash-and-compare check is also present in `ci-e2e`; it is not a Testcontainers IT.
+Workflows: engine/compiler/reference/control-api/simulator unit tests run under `ci-java` (`./gradlew build`); `tests` integration-tagged ITs run under `ci-integration` (`./gradlew :tests:integrationTest`); `EngineBenchmarkIT` runs under `bench` (`./gradlew :tests:benchmarkTest`); Vitest runs under `ci-web`; Playwright runs under advisory `ci-ui-e2e`; `demo-e2e.sh` and its final `demo-ready.sh` run under `ci-e2e` (the e2e job is `continue-on-error`); `ci-offline`, `ci-kill-repeat`, `ci-coldstart`, and `ci-docs` are workflow checks above. `ci-mock` runs only the separate mock-server smoke command; it does not run these catalogued tests. The Compose worker-crash-and-compare check is also present in `ci-e2e`; it is not a Testcontainers IT.
 
 Reproduce counts (from repository root):
 

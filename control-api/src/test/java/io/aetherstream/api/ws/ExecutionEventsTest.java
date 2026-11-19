@@ -85,6 +85,24 @@ class ExecutionEventsTest {
         assertEvents(tracker.observe(execution("RUNNING", 3, 8L, 7L), workers()), "REBALANCED");
     }
 
+    @Test void fastSameIdRestartInfersDeathAndMeasuresRecoveryWithoutMembershipLoss() {
+        ArrayNode unchangedWorkers = workers(worker("w-1", true), worker("w-2", true));
+        tracker.observe(execution("RUNNING", 1, null, 7L), unchangedWorkers);
+        clockNanos.set(TimeUnit.MILLISECONDS.toNanos(1_000));
+        ObjectNode recovering = execution("RECOVERING", 2, 7L, 7L);
+        List<ObjectNode> events = tracker.observe(recovering, unchangedWorkers);
+
+        assertEvents(events, "WORKER_DEAD", "RECOVERING");
+        assertThat(events.getFirst().path("workerId").isNull()).isTrue();
+        assertThat(events.get(1).path("checkpointId").asLong()).isEqualTo(7);
+        assertThat(tracker.observe(recovering, unchangedWorkers)).isEmpty();
+        clockNanos.set(TimeUnit.MILLISECONDS.toNanos(2_250));
+        List<ObjectNode> recovered = tracker.observe(execution("RUNNING", 2, 7L, 7L), unchangedWorkers);
+        assertEvents(recovered, "RECOVERED");
+        assertThat(recovered.getFirst().path("durationMs").asLong()).isEqualTo(1_250);
+        assertThat(tracker.observe(execution("RUNNING", 2, 7L, 7L), unchangedWorkers)).isEmpty();
+    }
+
     @Test void killRecoveryThenRejoinEmitsOneRebalanceWithoutReplacingTheIncidentDuration() {
         tracker.observe(execution("RUNNING", 1, null, 7L),
                 workers(worker("w-1", true), worker("w-2", true)));
@@ -262,7 +280,8 @@ class ExecutionEventsTest {
 
     @Test void executionChangesStillEmitWhenWorkersAreUnavailable() {
         tracker.observe(execution("RUNNING", 1, null, 7L), workers(worker("w-1", true)));
-        assertEvents(tracker.observe(execution("RECOVERING", 2, 7L, 7L), null), "REBALANCED");
+        assertEvents(tracker.observe(execution("RECOVERING", 2, 7L, 7L), null),
+                "WORKER_DEAD", "RECOVERING");
         assertEvents(tracker.observe(execution("RUNNING", 2, 7L, 7L), workers()),
                 "WORKER_DEAD", "RECOVERED");
     }

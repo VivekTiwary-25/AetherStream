@@ -110,3 +110,10 @@ jobs:
           for block in checkpoints manifest offsets fencing recovery; do
             grep -Fx "PROOF $block OK" expo-proofs.txt
           done
+      - name: Run presenter pre-demo checklist
+        env:
+          GIT_SHA: ${{ github.sha }}
+        run: |
+          trap 'docker compose down -v' EXIT
+          docker compose up -d
+          bash infra/scripts/expo-check.sh --ci http://localhost:18080

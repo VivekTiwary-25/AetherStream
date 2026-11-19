@@ -248,21 +248,20 @@ class SimulationTest {
     }
 
     @Test
-    void breakdownEmitsTwelveMinutesOfZeroSpeedAndResumes() throws Exception {
+    void breakdownHoldsDemoTruckPastAlertThresholdAndResumes() throws Exception {
         Simulation simulation = new Simulation(42, 8, 0, false);
-        simulation.step(START + 123_000);
-        simulation.applyScenario("breakdown", null);
-        JsonNode stopped = simulation.state(true, 10).path("trucks").get(4);
+        simulation.step(START + 1_300_000);
+        simulation.applyScenario("breakdown", "truck-007");
+        JsonNode stopped = simulation.state(true, 10).path("trucks").get(6);
         long first = -1;
         long last = -1;
-        int count = 0;
         boolean resumed = false;
-        for (Simulation.Emission record : simulation.step(START + 1_000_000)) {
+        for (Simulation.Emission record : simulation.step(START + 2_300_000)) {
             JsonNode event = Json.MAPPER.readTree(record.json());
-            if (!record.key().equals("truck-005") || !event.path("type").asText().equals("truck.position")) continue;
+            if (!record.key().equals("truck-007") || !event.path("type").asText().equals("truck.position")) continue;
             JsonNode payload = event.path("payload");
             long time = event.path("eventTime").asLong();
-            if (time < START + 843_000) {
+            if (time < START + 2_200_000) {
                 assertEquals(0, payload.path("speedKmh").asDouble());
                 assertEquals("STOPPED", payload.path("status").asText());
                 assertEquals(stopped.path("x"), payload.path("x"));
@@ -270,13 +269,11 @@ class SimulationTest {
                 if (first < 0) first = time;
                 if (last >= 0) assertEquals(2000, time - last);
                 last = time;
-                count++;
             } else if (payload.path("speedKmh").asDouble() > 0) {
                 resumed = true;
             }
         }
-        assertEquals(360, count);
-        assertTrue(last - first >= 10 * 60_000);
+        assertTrue(last - first > 10 * 60_000);
         assertTrue(resumed);
         assertEquals("none", simulation.state(true, 10).path("scenario").asText());
     }

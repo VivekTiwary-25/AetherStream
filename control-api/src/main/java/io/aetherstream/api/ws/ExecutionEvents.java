@@ -20,9 +20,9 @@ import java.util.function.LongSupplier;
  * <p>Events are ordered STARTED (for a replacement execution), WORKER_DEAD (in previous worker
  * order), the state/recovery event, then CHECKPOINT_COMPLETED. Independent transitions are never
  * collapsed: a worker death, recovery and checkpoint completion can share an observation. The first
- * checkpoint is a baseline, not a completion. Without an observed death, generation changes emit
- * one REBALANCED, not RECOVERING/RECOVERED. CREATED-to-RUNNING is STARTED; STOPPED and FAILED both
- * produce STOPPED.
+ * checkpoint is a baseline, not a completion. A changed restore checkpoint while RECOVERING also
+ * identifies a death when no worker join explains it (a fast same-id restart). Other generation
+ * changes emit REBALANCED. CREATED-to-RUNNING is STARTED; STOPPED and FAILED both produce STOPPED.
  *
  * <p>Only id, state, generation, restoredFromCheckpoint and lastCompletedCheckpoint participate in
  * execution change detection. Payloads contain the complete current execution, copied independently
@@ -74,10 +74,16 @@ public final class ExecutionEvents {
         Set<String> observedAlive = workers != null && workers.isArray()
                 ? liveWorkers(workers) : aliveWorkers;
         boolean workerDied = !observedAlive.containsAll(aliveWorkers);
+        // A fast same-id restart can leave membership unchanged between polls. Preserve known
+        // rejoins as rebalances; restore metadata cannot identify which unchanged id restarted.
+        boolean inferredDeath = !baseline && !workerDied && !recoveryPending
+                && assignmentWorkerId == null && aliveWorkers.containsAll(observedAlive)
+                && "RECOVERING".equals(current.state()) && current.restored() != null
+                && !Objects.equals(previous.restored(), current.restored());
         updateAssignmentWorker(workers, observedAlive, baseline);
         Set<String> previouslyAlive = aliveWorkers;
         aliveWorkers = observedAlive;
-        if (workerDied && !recoveryPending) {
+        if ((workerDied || inferredDeath) && !recoveryPending) {
             workerDeadAt = nanoTime.getAsLong();
             recoveryPending = true;
         }
@@ -98,6 +104,9 @@ public final class ExecutionEvents {
                     events.add(event(execution, "WORKER_DEAD").put("workerId", workerId));
                 }
             }
+        }
+        if (inferredDeath) {
+            events.add(event(execution, "WORKER_DEAD").putNull("workerId"));
         }
         if (stateEvent != null && !(started && "STARTED".equals(stateEvent))) {
             ObjectNode payload = event(execution, stateEvent);
