@@ -38,8 +38,5 @@
     "pratham-pc": [
       "*astra*"
     ]
-  },
-  "no_auto_pick_machines": [
-    "vivek-pc"
-  ]
+  }
 }
