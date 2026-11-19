@@ -6,7 +6,7 @@ Vivek drives; keep the browser on the new UI at `http://localhost:8088`. Use onl
 
 - From the repository root, start the host AI bridge in PowerShell. The bridge uses the Vachana Claude profile when present; set it explicitly for this launch:
   ```powershell
-  $env:CLAUDE_CONFIG_DIR = "$env:USERPROFILE\.swarm\profiles\vachana-claude"
+  $env:CLAUDE_CONFIG_DIR = "$env:USERPROFILE\.swarm\profiles\vachana-claude\claude"
   powershell -ExecutionPolicy Bypass -File scripts/ai-bridge/start.ps1
   ```
   Leave that terminal running. If that profile directory is absent, remove the assignment and use the launcher's configured login.

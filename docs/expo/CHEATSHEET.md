@@ -16,9 +16,9 @@ From the repository root, add the commands to this session's PATH:
 - PowerShell: `$env:PATH = "$PWD\scripts\expo;$env:PATH"`
 - Bash: `export PATH="$PWD/scripts/expo:$PATH"`
 
-Then run `worker status` (one line per worker: ID, alive/state, partitions), `worker kill 2`, or `events late` (`events late 10` sends a chosen count). A successful kill prints `Killed worker-2 (engine will recover; watch Settings → Logs & Recovery)`; late events prints the sent count and where to look in Analytics → Failed Records, if classified late. Set `AETHER_URL` to override the default `http://localhost:8088`. If a command fails, use the classic UI at `?ui=classic`, which retains the buttons.
+Then run `worker status` (one line per worker: ID, alive/state, partitions), `worker kill 2`, or `events late` (`events late 10` sends a chosen count). A successful Bash kill prints `Killed worker-2 (engine will recover; watch Settings → Logs & Recovery)`; PowerShell prints the same message with `Settings -> Logs & Recovery`. Late events prints the sent count and where to look in Analytics → Failed Records, if classified late. Set `AETHER_URL` to override the default `http://localhost:8088`. If a command fails, use the classic UI at `?ui=classic`, which retains the buttons.
 
-The scripts are in `scripts/expo/`; Bash users can alternatively run `./worker status`, `./worker kill 2`, and `./events late`. The kill is an API request, not a Docker command; do not repeat it while recovery is underway.
+The scripts are in `scripts/expo/`; from that directory, Bash users can alternatively run `./worker status`, `./worker kill 2`, and `./events late`. The kill is an API request, not a Docker command; do not repeat it while recovery is underway.
 
 
 ## Before / after the slot

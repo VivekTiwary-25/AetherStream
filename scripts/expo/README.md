@@ -1,6 +1,6 @@
 # Expo terminal commands
 
-From Bash, run `./worker kill 2`, `./worker status`, or `./events late [count]`.
+From Bash, in this directory, run `./worker kill 2`, `./worker status`, or `./events late [count]`.
 On Windows, run `worker kill 2`, `worker status`, or `events late [count]` from
 PowerShell or cmd in this directory. To enable those names for the current cmd
 session: `set PATH=%CD%\scripts\expo;%PATH%`; in PowerShell:
