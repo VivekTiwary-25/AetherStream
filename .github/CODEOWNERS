@@ -1,0 +1,13 @@
+# Contracts and module lanes
+/common/ @VivekTiwary-25
+/engine/ @VivekTiwary-25
+/compiler/ @VivekTiwary-25
+/reference/ @VivekTiwary-25
+/control-api/ @VivekTiwary-25
+/simulator/ @VivekTiwary-25
+/web/src/city/ @VivekTiwary-25
+/web/src/app/ @VivekTiwary-25
+/tests/ @VivekTiwary-25
+/infra/ @VivekTiwary-25
+/docs/ @VivekTiwary-25
+/.github/ @VivekTiwary-25

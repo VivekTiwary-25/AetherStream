@@ -1,0 +1,36 @@
+name: Feature request
+description: Propose a change or capability.
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: Check the contracts and existing issues before proposing a change.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem to solve
+      description: What user need or limitation motivates this request?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: Describe the desired behavior and affected area.
+    validations:
+      required: true
+  - type: textarea
+    id: contracts
+    attributes:
+      label: Contract impact
+      description: Identify applicable contracts or explain why none apply.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+    validations:
+      required: false
