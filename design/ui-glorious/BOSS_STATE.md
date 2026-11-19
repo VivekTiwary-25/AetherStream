@@ -34,17 +34,14 @@ Fresh boss session: read swarm/BOSS.md, then design/ui-glorious/BOSS_PROMPT.md (
 5. Rerun clean-checkout check after map+recovery merges (queued t261120-0229-b8ea).
 6. When stack is up: FIRST real kill test (worker kill 2 -> dead -> recovering -> rejoined, screenshots), THEN full demo-path pass.
 
-## Running / queued (all --base ui-glorious). Task specs: design/ui-glorious/tasks/*.md
-- t261120-0224-4b72  utkarsh-pc/codex-sol   Docker Desktop diagnose + safe fix
-- t261120-0229-dee9  upendra-pc/codex-sol   Docker probe + preview-up on upendra (RAM gate 6 GB)
-- t261120-0217-4cd6  utkarsh-pc/codex-luna  Home video seamless loop
-- t261120-0228-9f5b  vimlesh-pc/codex-sol   Build dist into task branch preview-dist/ (artifact only; NEVER merge; reject after use)
-- t261120-0229-b8ea  vimlesh-pc/claude      Integration check rerun
-- t261120-0125-ed02  upendra-pc/codex-luna  D3 AI bridge
-- Merged: all tracks' main code (shell, map, analytics, recovery UI+backend, pipelines FE+BE, terminal cmds, sprite), smoke tests tests/ui/glorious.spec.ts (+playwright.glorious.config.ts, GLORIOUS_URL default :8089).
-- Read-only screenshot fallback prepared (NOT started, needs Vivek OK): scratchpad\preview\nginx.conf — GET-only proxy to live API localhost:18080.
-- GOTCHA: root .gitignore `logs/` ignores any folder named logs.
-- Known: vitest needs --maxWorkers=2 on loaded PCs. vimlesh portable Node at %USERPROFILE%\tools\node. upendra Node 26 (NODE_OPTIONS=--no-experimental-webstorage for vitest). Main bundle 1.68 MB (maplibre not code-split; optional later).
+## Running / queued — 02:50
+- utkarsh-pc: DISK FULL ("No space left on device"); do NOT queue there. Docker task t261120-0224-4b72 failed at worktree add. Waiting for Utkarsh to run cleanup (commands sent to Vivek 02:50).
+- upendra-pc: heartbeat stale (asleep/stuck?). D3 AI bridge t261120-0125-ed02 push failed (HTTP 408); old swarm code deleted the local branch -> commit is an unreachable object in upendra's ~/.swarm/repo. No Docker installed on upendra.
+- vimlesh-pc: t261120-0229-b8ea integration rerun (claude). Docker engine down + 3 GB free RAM.
+- t261120-0228-9f5b DONE: preview-dist build artifact on branch task/t261120-0228-9f5b (NEVER merge; reject after use).
+- UNCOMMITTED swarm change in D:\projects\AetherStream (main working tree): upkeep.py (keep+retry failed pushes, recover orphaned task commits for OPEN tasks, sweep ~/.swarm/work: task dirs >30 min not running, scratch >6 h) + hooks in tasks/gitops/listener/lifecycle. Tested on vivek-pc (dry-run sweep: 94 folders 21.4 GB; recover_orphans ok, fsck 2 min -> runs in a thread). Commit+push to main was BLOCKED by the permission classifier at 02:45 -> needs Vivek's explicit OK.
+- Docker fallback: no worker PC has Docker -> asked Vivek (02:50) whether preview may read live data from vivek-pc's stack (read-only nginx GET-only on :8089, config in scratchpad\preview\nginx.conf).
+- Merged into ui-glorious: all tracks' main code + smoke tests + video crossfade loop (2.5 MB).
 
 ## Key recon decisions
 - Worker-card bug: killed worker restarts + re-registers before 4 s timeout, never DEAD server-side; old UI used client overlay only on its own button -> terminal kill invisible. C1 adds server-side recovery history (/api/recovery/history + WS).
