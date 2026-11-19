@@ -18,18 +18,57 @@ function initialStep(count: number): number {
   return Number.isInteger(stored) && stored >= 0 && stored < count ? stored : 0
 }
 
-function findTargetRect(selector: string | undefined): Rect | null {
+/** Splits "a, b[x="1,2"]" on top-level commas so alternatives can be tried in priority order. */
+function selectorAlternatives(selector: string): string[] {
+  const parts: string[] = []
+  let depth = 0
+  let quote: string | null = null
+  let start = 0
+  for (let i = 0; i < selector.length; i += 1) {
+    const char = selector[i]
+    if (quote) { if (char === quote) quote = null }
+    else if (char === '"' || char === "'") quote = char
+    else if (char === '[' || char === '(') depth += 1
+    else if (char === ']' || char === ')') depth -= 1
+    else if (char === ',' && depth === 0) { parts.push(selector.slice(start, i)); start = i + 1 }
+  }
+  parts.push(selector.slice(start))
+  return parts.map((part) => part.trim()).filter(Boolean)
+}
+
+function findTarget(selector: string | undefined): Element | null {
   if (!selector || typeof document === 'undefined') return null
+  for (const alternative of selectorAlternatives(selector)) {
+    try {
+      const element = document.querySelector(alternative)
+      if (element) return element
+    } catch {
+      // invalid selector: try the next alternative
+    }
+  }
+  return null
+}
+
+function findTargetRect(selector: string | undefined): Rect | null {
+  const element = findTarget(selector)
+  if (!element) return null
   try {
-    const element = document.querySelector(selector)
-    if (!element) return null
     const box = element.getBoundingClientRect()
     if (!box.width && !box.height) return null
     const pad = 8
     return { top: box.top - pad, left: box.left - pad, width: box.width + pad * 2, height: box.height + pad * 2 }
   } catch {
-    return null // invalid selector or detached node: just skip the spotlight
+    return null // detached node: just skip the spotlight
   }
+}
+
+function revealTarget(selector: string | undefined) {
+  const element = findTarget(selector)
+  if (!element || typeof (element as HTMLElement).scrollIntoView !== 'function') return
+  const box = element.getBoundingClientRect()
+  // Large targets (the full-screen city) are already "visible"; only scroll for elements off screen.
+  if (box.bottom > 0 && box.top < window.innerHeight) return
+  try { (element as HTMLElement).scrollIntoView({ block: 'center', inline: 'nearest' }) } catch { /* ignore */ }
 }
 
 export function TourOverlay({ open = true, onClose, steps = tourSteps }: TourOverlayProps) {
@@ -45,6 +84,12 @@ export function TourOverlay({ open = true, onClose, steps = tourSteps }: TourOve
   }, [steps.length])
 
   const close = useCallback(() => onClose?.(), [onClose])
+  const finish = useCallback(() => {
+    // A finished tour starts again from step 1 next time; closing early resumes where it stopped.
+    writeItem('localStorage', TOUR_STORAGE_KEY, '0')
+    setIndex(0)
+    onClose?.()
+  }, [onClose])
 
   useEffect(() => {
     if (!open) return
@@ -61,6 +106,7 @@ export function TourOverlay({ open = true, onClose, steps = tourSteps }: TourOve
   useLayoutEffect(() => {
     if (!open) return
     const update = () => setRect(findTargetRect(target))
+    revealTarget(target)
     update()
     window.addEventListener('resize', update)
     window.addEventListener('scroll', update, true)
@@ -90,7 +136,7 @@ export function TourOverlay({ open = true, onClose, steps = tourSteps }: TourOve
         <div className="tour-card__actions">
           <ClayButton variant="ghost" type="button" onClick={close}>Close</ClayButton>
           <ClayButton variant="ghost" type="button" onClick={() => go(index - 1)} disabled={index === 0}>Back</ClayButton>
-          <ClayButton type="button" onClick={() => (last ? close() : go(index + 1))}>{last ? 'Finish' : 'Next'}</ClayButton>
+          <ClayButton type="button" onClick={() => (last ? finish() : go(index + 1))}>{last ? 'Finish' : 'Next'}</ClayButton>
         </div>
       </section>
     </>

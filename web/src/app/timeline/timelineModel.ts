@@ -2,6 +2,20 @@ import type { CheckpointInfo, ExecutionEvent } from '../../api/types'
 
 export interface TimedExecutionEvent extends ExecutionEvent {
   ts: number
+  /** Recovery duration as reported by the API, if it sends one. Contract 04 defines none today, so this is usually absent. */
+  durationMs?: number | null
+}
+
+/** Formats a duration the API returned; "-" when it returned none. Never derived from client clocks. */
+export function formatApiDuration(durationMs: number | null | undefined, unit: 'ms' | 's' = 's'): string {
+  if (typeof durationMs !== 'number' || !Number.isFinite(durationMs) || durationMs < 0) return '-'
+  if (unit === 'ms') return `${Math.round(durationMs)} ms`
+  return durationMs > 0 && durationMs < 100 ? '< 0.1 s' : `${(durationMs / 1000).toFixed(1)} s`
+}
+
+function apiDuration(event: TimedExecutionEvent): number | null {
+  const value = event.durationMs
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : null
 }
 
 export interface CheckpointTick {
@@ -14,6 +28,9 @@ export interface RecoveryBand {
   end: number
   checkpointId: number
   generation: number
+  /** false while the recovery is still in progress. */
+  closed: boolean
+  /** API-reported recovery duration, or null when the API gave none. */
   durationMs: number | null
 }
 
@@ -24,7 +41,8 @@ export interface WorkerDeathMarker {
 
 export interface RecoveredMarker {
   timestamp: number
-  durationMs: number
+  /** API-reported recovery duration, or null when the API gave none. */
+  durationMs: number | null
 }
 
 export interface TimelineModel {
@@ -64,13 +82,15 @@ export function buildTimelineModel(
         end: now,
         checkpointId: event.checkpointId ?? event.restoredFromCheckpoint ?? 0,
         generation: event.generation,
+        closed: false,
         durationMs: null,
       })
     } else if (event.event === 'RECOVERED' && recoveryStart) {
-      const durationMs = Math.max(0, event.ts - recoveryStart.ts)
+      const durationMs = apiDuration(event)
       const band = recoveries.at(-1)
       if (band && band.start === recoveryStart.ts) {
         band.end = event.ts
+        band.closed = true
         band.durationMs = durationMs
       }
       recovered.push({ timestamp: event.ts, durationMs })

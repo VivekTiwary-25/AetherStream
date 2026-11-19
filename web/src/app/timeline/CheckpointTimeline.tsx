@@ -3,7 +3,7 @@ import { getCheckpoints, getCurrentExecution } from '../../api/client'
 import type { CheckpointInfo, ExecutionEvent, ExecutionInfo, WorkerInfo } from '../../api/types'
 import { useAetherSocket } from '../../api/ws'
 import { GlassPanel } from '../ui/GlassPanel'
-import { buildTimelineModel, type TimedExecutionEvent } from './timelineModel'
+import { buildTimelineModel, formatApiDuration, type TimedExecutionEvent } from './timelineModel'
 
 const WINDOW_MS = 120_000
 const TRACK_WIDTH = 720
@@ -117,25 +117,25 @@ export function CheckpointTimeline() {
             {model.recoveries.map((band, index) => {
               const left = timePosition(band.start, now)
               const right = timePosition(band.end, now)
-              return <div key={`recovery-${band.start}-${index}`} title={`Recovering from checkpoint #${band.checkpointId} (generation ${band.generation} → ${band.generation + 1})`} style={{ position: 'absolute', left: `${left}%`, width: `${Math.max(1, right - left)}%`, top: 5, bottom: 0, background: 'rgb(245 158 11 / 18%)', borderLeft: '2px solid #f59e0b', borderRight: band.durationMs === null ? undefined : '2px solid #f59e0b', color: '#fbbf24', fontSize: 11, padding: '3px 5px', overflow: 'hidden', whiteSpace: 'nowrap' }}>Recovering from checkpoint #{band.checkpointId} (generation {band.generation} → {band.generation + 1})</div>
+              return <div key={`recovery-${band.start}-${index}`} title={`Recovering from checkpoint #${band.checkpointId} (generation ${band.generation} → ${band.generation + 1})`} style={{ position: 'absolute', left: `${left}%`, width: `${Math.max(1, right - left)}%`, top: 5, bottom: 0, background: 'rgb(245 158 11 / 18%)', borderLeft: '2px solid #f59e0b', borderRight: band.closed ? '2px solid #f59e0b' : undefined, color: '#fbbf24', fontSize: 11, padding: '3px 5px', overflow: 'hidden', whiteSpace: 'nowrap' }}>Recovering from checkpoint #{band.checkpointId} (generation {band.generation} → {band.generation + 1})</div>
             })}
-            {model.checkpoints.map(({ checkpoint, timestamp }) => <span key={`checkpoint-${checkpoint.checkpointId}`} title={`Checkpoint #${checkpoint.checkpointId} · ${checkpoint.durationMs} ms · COMPLETED`} aria-label={`Completed checkpoint #${checkpoint.checkpointId}, ${checkpoint.durationMs} milliseconds`} style={{ position: 'absolute', left: `${timePosition(timestamp, now)}%`, top: 47, height: 24, borderLeft: '3px solid #a78bfa', zIndex: 1 }} />)}
+            {model.checkpoints.map(({ checkpoint, timestamp }) => <span key={`checkpoint-${checkpoint.checkpointId}`} title={`Checkpoint #${checkpoint.checkpointId} · ${formatApiDuration(checkpoint.durationMs, 'ms')} · COMPLETED`} aria-label={`Completed checkpoint #${checkpoint.checkpointId}, duration ${formatApiDuration(checkpoint.durationMs, 'ms')}`} style={{ position: 'absolute', left: `${timePosition(timestamp, now)}%`, top: 47, height: 24, borderLeft: '3px solid #a78bfa', zIndex: 1 }} />)}
             {checkpoints.filter((checkpoint) => checkpoint.state === 'ABORTED' && checkpoint.completedAt).map((checkpoint) => {
               const timestamp = Date.parse(checkpoint.completedAt!)
               if (timestamp < now - WINDOW_MS || timestamp > now) return null
               return <span key={`aborted-${checkpoint.checkpointId}`} title={`Checkpoint #${checkpoint.checkpointId} · ABORTED`} aria-label={`Aborted checkpoint #${checkpoint.checkpointId}`} style={{ position: 'absolute', left: `${timePosition(timestamp, now)}%`, top: 47, height: 24, borderLeft: '3px solid #94a3b8', zIndex: 1 }} />
             })}
             {model.workerDeaths.map((death, index) => <span key={`dead-${death.timestamp}-${index}`} title={`${death.workerId} lost`} style={{ position: 'absolute', left: `${timePosition(death.timestamp, now)}%`, top: 32, zIndex: 2, color: '#f87171', fontSize: 11, whiteSpace: 'nowrap', transform: 'translateX(-50%)' }}>✕ {death.workerId} lost</span>)}
-            {model.recovered.map((marker, index) => <span key={`recovered-${marker.timestamp}-${index}`} title={`Recovered in ${(marker.durationMs / 1000).toFixed(1)} s`} style={{ position: 'absolute', left: `${timePosition(marker.timestamp, now)}%`, top: 73, zIndex: 2, color: '#4ade80', fontSize: 11, whiteSpace: 'nowrap', transform: 'translateX(-50%)' }}>✓ Recovered in {(marker.durationMs / 1000).toFixed(1)} s</span>)}
+            {model.recovered.map((marker, index) => <span key={`recovered-${marker.timestamp}-${index}`} title={`Recovered in ${formatApiDuration(marker.durationMs)}`} style={{ position: 'absolute', left: `${timePosition(marker.timestamp, now)}%`, top: 73, zIndex: 2, color: '#4ade80', fontSize: 11, whiteSpace: 'nowrap', transform: 'translateX(-50%)' }}>✓ Recovered in {formatApiDuration(marker.durationMs)}</span>)}
             {model.checkpoints.map(({ checkpoint, timestamp }) => <span key={`label-${checkpoint.checkpointId}`} style={{ position: 'absolute', left: `${timePosition(timestamp, now)}%`, top: 72, color: '#c4b5fd', fontSize: 10, whiteSpace: 'nowrap', transform: 'translateX(-50%)' }}>#{checkpoint.checkpointId}</span>)}
           </div>
         </div>
         <div aria-live="polite" aria-atomic="true" style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: '4px 18px' }}>
           <span>Generation {execution?.generation ?? '—'}</span>
-          <span>Last checkpoint #{execution?.lastCompletedCheckpoint ?? '—'}{latestCheckpoint ? ` (${latestCheckpoint.durationMs} ms)` : ''}</span>
+          <span>Last checkpoint #{execution?.lastCompletedCheckpoint ?? '—'}{latestCheckpoint ? ` (${formatApiDuration(latestCheckpoint.durationMs, 'ms')})` : ''}</span>
           <span>Restored from {restored == null ? '—' : `#${restored}`}</span>
           {recovering && <span style={{ color: '#fbbf24' }}>Recovering from checkpoint #{execution?.restoredFromCheckpoint ?? model.recoveries.at(-1)?.checkpointId ?? 0}</span>}
-          {!recovering && recoveredMessage && <span style={{ color: '#4ade80' }}>Recovered in {(recoveredMessage.durationMs / 1000).toFixed(1)} s</span>}
+          {!recovering && recoveredMessage && <span style={{ color: '#4ade80' }}>Recovered in {formatApiDuration(recoveredMessage.durationMs)}</span>}
         </div>
         <div aria-live="polite" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clipPath: 'inset(50%)' }}>
           {events.length ? `${events.at(-1)?.event?.toLowerCase().replace('_', ' ')} at ${new Date(events.at(-1)!.ts).toLocaleTimeString()}` : ''}

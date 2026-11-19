@@ -14,13 +14,13 @@ export const tourSteps: TourStep[] = [
     id: 'city',
     title: 'The city',
     body: 'Every truck in this city is a live data source. Each one sends its position and deliveries as events.',
-    target: '[data-tour="city"], .city__canvas',
+    target: '[data-tour="city"] .city__canvas, [data-tour="city"]',
   },
   {
     id: 'stream',
     title: 'The stream into the engine',
     body: 'The glowing stream is those events flowing into the engine through Kafka, split across 6 partitions by truck.',
-    target: '[data-tour="stream"], .city__canvas',
+    target: '[data-tour="stream"], [data-tour="city"] .city__canvas, [data-tour="city"]',
   },
   {
     id: 'panels',
@@ -32,7 +32,7 @@ export const tourSteps: TourStep[] = [
     id: 'editor',
     title: 'Pipeline editor',
     body: 'Build the pipeline from blocks. Validate runs the compiler and shows any errors in plain English.',
-    target: '[data-tour="editor"], .pipeline-editor',
+    target: '.pipeline-editor, [data-tour="editor"]',
   },
   {
     id: 'chaos',
