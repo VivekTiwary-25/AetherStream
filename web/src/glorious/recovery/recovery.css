@@ -41,3 +41,8 @@
 .recovery-breakdown select { font: inherit; color: #20251f; background: #fffef9; border: 1px solid #777f6f; border-radius: 10px; padding: 10px; min-height: 44px; max-width: 100%; }
 .recovery-breakdown :focus-visible { outline: 3px solid var(--gl-focus, #365724); outline-offset: 3px; }
 .recovery-breakdown button:disabled { cursor: not-allowed; opacity: .65; }
+.recovery-confirm-backdrop { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 20px; background: #17201466; }
+.recovery-confirm { width: min(420px, 100%); padding: 20px; border: 1px solid #ffffffb8; border-radius: 18px; background: #f5f2e8ed; box-shadow: 0 16px 48px #17201455; }
+.recovery-confirm p { line-height: 1.5; }
+.recovery-confirm div { display: flex; justify-content: flex-end; gap: 10px; }
+.recovery-confirm button { min-height: 44px; padding: 8px 16px; border: 1px solid #777f6f; border-radius: 10px; background: #fffef9; color: #20251f; font: inherit; cursor: pointer; }

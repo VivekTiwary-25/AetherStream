@@ -1,8 +1,7 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
 import { getSimulatorState } from '../../api/client'
 import type { SimulatorTruck } from '../../api/types'
 import { useAetherMessages } from '../../api/ws'
-import { ClayButton } from '../shell/ClayButton'
 import { simulateBreakdown } from './useRecoveryFeed'
 import './recovery.css'
 
@@ -14,6 +13,9 @@ export function TruckBreakdown() {
   const [pending, setPending] = useState(false)
   const [result, setResult] = useState<string | null>(null)
   const [submitError, setSubmitError] = useState<string | null>(null)
+  const [confirming, setConfirming] = useState(false)
+  const trigger = useRef<HTMLButtonElement>(null)
+  const dialog = useRef<HTMLDivElement>(null)
   const revision = useRef(0)
   const submitting = useRef(false)
   const status = useAetherMessages((message) => {
@@ -40,9 +42,30 @@ export function TruckBreakdown() {
     return () => { active = false }
   }, [])
   const truckId = trucks.some((truck) => truck.truckId === selected) ? selected : trucks[0]?.truckId ?? ''
-  async function submit(event: FormEvent) {
+  function submit(event: FormEvent) {
     event.preventDefault()
-    if (!truckId || submitting.current) return
+    if (!truckId || pending) return
+    setConfirming(true)
+  }
+  function closeConfirmation() {
+    setConfirming(false)
+    requestAnimationFrame(() => trigger.current?.focus())
+  }
+  function trapFocus(event: KeyboardEvent<HTMLDivElement>) {
+    if (event.key === 'Escape') { event.preventDefault(); closeConfirmation() }
+    if (event.key !== 'Tab') return
+    const items = dialog.current?.querySelectorAll<HTMLElement>('button:not(:disabled)')
+    if (!items?.length) return
+    const first = items[0]!
+    const last = items[items.length - 1]!
+    if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus() }
+    else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus() }
+  }
+  useEffect(() => {
+    if (confirming) requestAnimationFrame(() => dialog.current?.querySelector('button')?.focus())
+  }, [confirming])
+  async function confirmBreakdown() {
+    setConfirming(false)
     submitting.current = true
     setPending(true)
     setResult(null)
@@ -55,6 +78,7 @@ export function TruckBreakdown() {
     } finally {
       submitting.current = false
       setPending(false)
+      requestAnimationFrame(() => trigger.current?.focus())
     }
   }
   return <form className="recovery-panel recovery-breakdown" onSubmit={submit}>
@@ -68,7 +92,13 @@ export function TruckBreakdown() {
       {!trucks.length && <option value="">No trucks available</option>}
       {[...trucks].sort((a, b) => a.truckId.localeCompare(b.truckId)).map((truck) => <option value={truck.truckId} key={truck.truckId}>{truck.truckId} · {truck.status}</option>)}
     </select>
-    <ClayButton type="submit" disabled={!truckId || pending}>{pending ? 'Requesting breakdown…' : 'Simulate breakdown'}</ClayButton>
+    <button ref={trigger} className="gl-clay-button" type="submit" disabled={!truckId || pending}>{pending ? 'Requesting breakdown…' : 'Simulate breakdown'}</button>
+    {confirming && <div className="recovery-confirm-backdrop">
+      <div ref={dialog} role="alertdialog" aria-modal="true" aria-labelledby="breakdown-confirm-title" className="recovery-confirm" onKeyDown={trapFocus}>
+        <p id="breakdown-confirm-title">Simulate a breakdown of Truck {truckId}? It stops for about 15 simulated minutes and resumes by itself.</p>
+        <div><button type="button" onClick={() => void confirmBreakdown()}>Confirm</button><button type="button" onClick={closeConfirmation}>Cancel</button></div>
+      </div>
+    </div>}
     {result && <p role="status">{result}</p>}
     {submitError && <p role="alert">Breakdown failed: {submitError}</p>}
   </form>
