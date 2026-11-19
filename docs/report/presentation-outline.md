@@ -1,130 +1,126 @@
 # AetherStream presentation outline
 
-14 slides. Replace bracketed run IDs and results with observed evidence; mark any unfinished feature **planned**. Speaker notes are prompts, not claims of completed experiments.
+12 slides. Pair with `DEMO.md`. Read numbers off the screen. Do not push to `main` during the slot.
 
-## 1. Title and project scope
-- Design and Implementation of a Fault-Tolerant Distributed Stream Processing Engine with Stateful Recovery and Visual Workflow Compilation.
-- AetherStream: a logistics stream-processing demonstration.
-- CDD project; [student/team/institution].
-- Scope: custom Java pipeline/runtime with a visual interface.
+## 1. Title and what will be shown
 
-**Show live:** Title slide, then repository root.  
-**Speaker notes:** State what the project is. Separate implemented repository contents from unverified deployment and performance claims.
+- AetherStream: a fault-tolerant stream engine, shown as a truck city.
+- Live page: city, engine panels, pipeline editor, chaos, compare, footer commit.
+- Evidence beside the page: Compose, Grafana, one CD push, unit / Testcontainers / e2e / kind / Terraform logs.
+- Not on the page in this checkout: Operations, City scenarios, Tour overlay. Those are API calls or a narrated walk.
 
-## 2. The problem: streams fail in real ways
-- Events can be delayed, repeated, malformed, or out of order.
-- Processing can fall behind a slow sink.
-- Worker loss interrupts partition processing.
-- State, offsets, and external writes must remain consistent.
+**Show live:** Title, then `http://localhost:8088`. Confirm no **MOCK DATA** badge.
+**Speaker notes:** Say what is on the page and what is a log. A workflow file is not a green run.
 
-**Show live:** `docs/contracts/02-pipeline-and-semantics.md` and `03-coordinator-worker-protocol.md`.  
-**Speaker notes:** Explain the logistics example without claiming that it models a commercial fleet.
+## 2. The failure modes the demo hits
 
-## 3. Goals and measurable acceptance
-- Validate a graph before execution.
-- Process keyed, event-time windows and alerts.
-- Recover using completed consistent checkpoints.
-- Compare output with a deterministic reference.
-- Show actual tests and CI evidence.
+- Events arrive late or repeated. A closed window becomes a `LATE` dead letter.
+- A slow sink fills a queue of 1000 and the upstream stage blocks.
+- A worker can halt. Recovery uses the latest completed checkpoint and a new generation.
+- Postgres upserts are the only effectively exactly-once sink. Input replay is at-least-once.
 
-**Show live:** acceptance contract/test report or Actions run.  
-**Speaker notes:** The goals are not results. Point to a real test/run before saying any criterion passed.
+**Show live:** Contract 02 section 4 and contract 03 sections 5-6, one sentence each. Do not read them aloud.
+**Speaker notes:** Name the four failures. Do not claim Flink parity.
 
-## 4. System architecture
-- Compiler and shared operator semantics.
-- Coordinator assigns partitions; workers process bounded stages.
-- Kafka input, PostgreSQL result sink, S3-compatible checkpoint store.
-- Control API and React UI; simulator emits logistics events.
+## 3. Architecture in one picture
 
-**Show live:** `docs/contracts/README.md`, `docker-compose.yml`, module folders.  
-**Speaker notes:** Describe the custom runtime boundary. Flink is a reference, not a dependency/runtime claim.
+- Simulator emits `truck.position` and `truck.delivery` to Kafka topic `truck-events`, 6 partitions, key = truck id.
+- Compiler plans the graph. Engine and reference share `io.aetherstream.compiler.ops`.
+- Coordinator assigns partitions. Three workers. Checkpoints go to MinIO. Results go to Postgres.
+- Control API on 18080. Web nginx on 8088 proxies `/api` and `/ws`.
 
-## 5. Pipeline compilation and event time
-- Typed source/filter/key-by/window/rule/sink graph.
-- Compiler collects validation errors and produces a deterministic plan.
-- Per-partition watermark = max event time minus allowed out-of-orderness.
-- Closed-window late records are routed to dead letters.
+**Show live:** `docker compose ps`, then the module folders or `docs/contracts/README.md`.
+**Speaker notes:** Compose on this machine is the demo. kind and Terraform are separate CI proofs.
 
-**Show live:** pipeline editor and validation response; `POST /api/pipelines/validate` if stack is running.  
-**Speaker notes:** Explain that watermarks express a policy; an idle partition does not advance in the contract.
+## 4. City and live panels
 
-## 6. Reference execution and correctness
-- Reference executor runs the shared operator semantics.
-- Compare uses records bounded by checkpoint offsets.
-- Window rows compare values and event count; mismatches are inspectable.
-- A match is scoped evidence, not a blanket guarantee.
+- **AETHER CITY**, moving trucks, `events/s`, particle stream into the engine.
+- **Speed windows**, **Deliveries / min**, **Alerts**, **Workers**.
+- Stuck rule: truck-007, average speed under 1 for 10 one-minute windows. Message `truck-007 has not moved for 10 min` only if that row is visible.
+- Footer **Deployed version:** is the first 7 characters of `GET /api/version`.
 
-**Show live:** actual compare response and checkpoint IDs, or explicitly say comparison not run.  
-**Speaker notes:** Do not show fabricated counts. Note the API contract caps returned mismatch details.
+**Show live:** The page. Hover a truck for **Speed**, **Route**, **Partition**.
+**Speaker notes:** Panels are engine rows, not drawings. Screenshot fallback: `docs/ux/screenshots/desktop-02-app-fullpage-60s.png`.
 
-## 7. Worker protocol and backpressure
-- Worker pipeline: source → bounded queue → operators → bounded queue → sink.
-- Queue capacity and worker status are exposed by the protocol.
-- Slow sink can demonstrate queue growth and upstream blocking.
-- Execution generation fences stale workers.
+## 5. Pipeline editor
 
-**Show live:** worker panel and actual slow-sink observation; `POST /api/chaos/slow-sink` if safely available.  
-**Speaker notes:** Distinguish worker backpressure from execution failure. State only observed outcomes.
+- Click **Pipeline**. **Examples** lists **Broken logistics demo** and **Truck city: speed, deliveries, stuck trucks**.
+- **Validate** on the broken example shows three errors and **Show me**. **Run** stays disabled.
+- The good example prints `Valid - 11 operators, 6 partitions`.
+- **Run** saves and starts, and stops any current execution.
 
-## 8. Checkpointing: consistent state and offsets
-- Source places an aligned barrier behind records already enqueued.
-- Operator snapshots partition state; sink flushes prior outputs.
-- Worker state/offset objects are acknowledged; coordinator writes manifest.
-- Only COMPLETED checkpoints can be restored.
+**Show live:** That click path. If **Examples** 404s, the button is **Load demo**.
+**Speaker notes:** Do not restart if you still need the stuck-truck alert on screen. Say **Run** is enabled and close with **Close pipeline editor**.
 
-**Show live:** `docs/contracts/03-coordinator-worker-protocol.md` and actual checkpoint endpoint/list if running.  
-**Speaker notes:** Walk through the contract sequence and identify the corresponding implementation/test evidence.
+## 6. Chaos, backpressure, kill, recover
 
-## 9. Failure and recovery demonstration
-- Inject a worker failure only in the demo environment.
-- Observe worker-dead and execution-recovering transitions.
-- Show restored checkpoint and generation if reported.
-- Verify output correctness after recovery using test or comparison evidence.
+- **Send late events**, then **Dead letters** tab **LATE**.
+- **Slow down output** → **200 ms per record**. Hint names the 1,000 bound. **Backpressured** is amber when a queue is at least 90% full.
+- **Kill worker**, **Confirm kill**. Banner **Recovering from checkpoint #N**, then **Recovered**. Worker row **Dead** is red.
+- Timeline: **Recovering from checkpoint #N (generation G → G+1)**.
 
-**Show live:** confirmation dialog, actual recovery logs, checkpoint history and post-recovery result.  
-**Speaker notes:** If no successful run evidence exists, present this as a planned demo, not a completed result.
+**Show live:** Those clicks. If amber is late, do not wait the minute.
+**Speaker notes:** Fallback log is ci-e2e run 44410772993: late events, backpressure, `worker-3 killed; recovered in 6s`. Screenshots: `desktop-04-recovering-viewport.png`, `desktop-recovered-banner.png`.
 
-## 10. Visual workflow and UX
-- Graph editor for pipeline creation and validation.
-- Operations panels for workers, windows, alerts and dead letters.
-- City view provides context; tables and labels carry evidence.
-- UX files are design proposals, not user-study results.
+## 7. Compare with reference
 
-**Show live:** running UI at `http://localhost:8088` and one accessible evidence panel.  
-**Speaker notes:** Distinguish implemented UI from planned UX research, Figma work, or usability validation.
+- Button **Compare with reference**. Success heading is **N / N results match**.
+- Comparison replays Kafka offsets from checkpoint 0 to the latest completed checkpoint.
+- Live N is this click. e2e run 44410772993 printed `71 / 71`. Integration run 44395770221 printed 811/811. Do not mix them.
 
-## 11. Testing strategy and results
-- Gradle build/unit test workflow.
-- Testcontainers integration workflow.
-- Web lint/test/build and Docker image checks.
-- Compose smoke script exercises the integrated services.
+**Show live:** The button, then the heading.
+**Speaker notes:** If the call fails, `curl -fsS -X POST http://localhost:18080/api/compare -H 'content-type: application/json' -d '{}'` or open those two runs.
 
-**Show live:** GitHub Actions run on presented commit; artifacts and test reports.  
-**Speaker notes:** Fill in `[run #..., commit ..., conclusion ...]` from actual Actions. Do not invent totals or benchmarks.
+## 8. Savepoint, rescale, scenarios
 
-## 12. Docker and local deployment
-- Custom Java runtime images and web image.
-- Compose includes Kafka, PostgreSQL, MinIO and application services.
-- Health checks, persistent volumes, labels, and smoke verification.
-- CI image workflow builds without pushing.
+- Shell does not mount **Operations** or **City scenarios**.
+- Commands: `POST /api/executions/{id}/savepoints`, `POST .../restore`, `POST .../rescale`, `POST /api/simulator/scenario`.
+- Balanced rescale is HTTP 409 `does not need a rebalance`. That is the rule, not a missing route.
+- `ci-e2e` prints `9-11 SKIP extended steps (E2E_EXTENDED=0)`. Do not call that a restore pass.
+- Scenario labels from the API: **Rush hour**, **Breakdown**, **Surge**, **Reset**.
 
-**Show live:** `docker compose ps`, `docker image ls`, image revision label and service logs.  
-**Speaker notes:** Local containers prove local execution, not cloud deployment or production readiness.
+**Show live:** The curls in `DEMO.md`, or the buttons if a later build mounted them.
+**Speaker notes:** Contract 04 does not list these routes. The controller and `infra/scripts/demo-e2e.sh` do.
 
-## 13. CI/CD and delivery evidence
-- Separate workflows for Java, integration, web, images, mock, and Compose checks.
-- Workflow definitions are inspectable; successful run must be shown live.
-- `cd.yml`, self-hosted deployment, and GHCR publication were not found in inspected checkout.
-- Mark external CD as unverified/planned unless current direct evidence is available.
+## 9. One push: CI, GHCR, vivek-pc, smoke
 
-**Show live:** Actions page and `gh run list`; if a real deployment workflow exists, show its log and deployed version.  
-**Speaker notes:** Explicitly distinguish build, publish, deploy, and smoke-test stages.
+- Do not push during the talk. A `cd` deploy restarts this stack.
+- Open run 44438884629. Jobs **publish** and **deploy** both succeeded.
+- Images: `ghcr.io/vivektiwary-25/aetherstream-engine`, `aetherstream-simulator`, `aetherstream-control-api`, `aetherstream-web`, SHA `d1714e34e04fa1ed5feba43dfb959342be8d92a6`.
+- Deploy runner name `vivek-pc-deploy`, label `aether-deploy`. Smoke: `PASS: health is UP and deployed commit is d1714e34e04fa1ed5feba43dfb959342be8d92a6`.
 
-## 14. Limitations, future work, conclusion
-- Single-active-coordinator baseline; HA is planned.
-- Savepoints, rescaling, advanced operators, IaC, and external deployment need evidence before being called complete.
-- No benchmark values or usability-test results are asserted.
-- Summarize strongest verified behavior and next engineering step.
+**Show live:** That Actions run, then the footer. They match only if `/api/version` still returns that SHA.
+**Speaker notes:** A task-branch `cd` run only lints. `ci-ui-e2e` is `continue-on-error: true`.
 
-**Show live:** limitation list beside actual evidence and open gaps.  
-**Speaker notes:** End with a defensible claim: show exactly what was built and tested; label everything else planned.
+## 10. Containers, Grafana, and the test logs
+
+- `docker compose ps` and `docker compose images`. Revision label on the control-api container.
+- Grafana `http://localhost:13000`, dashboard **AetherStream engine**. Profile `monitoring`. Empty panels stay empty.
+- Unit: run 44439772370, `./gradlew build`.
+- Testcontainers: run 44395770221, `./gradlew :tests:integrationTest`.
+- e2e: run 44410772993, `bash infra/scripts/demo-e2e.sh`.
+- kind: run 44398295492, `kubectl get pods -A -o wide`. Terraform: run 44395471523, `Plan: 24 to add, 0 to change, 0 to destroy.`
+
+**Show live:** Compose, Grafana, then two of those runs. Do not start kind or Terraform here.
+**Speaker notes:** Local `:local` images are not the GHCR tags. Terraform uses the Docker provider, not a cloud account.
+
+## 11. Limits, said out loud
+
+- One coordinator. No multi-active high availability.
+- Tumbling windows only. Key-by is `key` or `payload.truckId`.
+- Exactly-once claim stops at the Postgres upserts.
+- Savepoint restore and rescale are implemented and not in the current green e2e path.
+- Tour, ops, and scenario panels exist as components and are not in `AppShell`.
+
+**Show live:** This list, next to the page.
+**Speaker notes:** Offer the Q&A in `DEMO.md` rather than a new claim.
+
+## 12. Close
+
+- What ran on this machine: city, panels, editor, chaos, compare, Compose, Grafana.
+- What a push already proved: GHCR publish, deploy on `vivek-pc-deploy`, smoke against `/api/version`.
+- What CI proved separately: unit, Testcontainers 811/811, e2e 71/71, kind recovery, Terraform apply and destroy.
+- Questions: use the short answers in `DEMO.md`.
+
+**Show live:** Footer, then the CD run, then stop.
+**Speaker notes:** If a click failed, name the fallback you used. Do not upgrade a screenshot or a skip line into a pass.
