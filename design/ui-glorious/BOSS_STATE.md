@@ -38,7 +38,8 @@ Fresh boss session: read swarm/BOSS.md, then design/ui-glorious/BOSS_PROMPT.md (
 - Make technical decisions yourself and TELL him. Only ASK about anything touching main (except swarm-tool changes) or the live demo.
 - ui-glorious -> main: NOT tonight. Bring it with the 08:30 final report.
 - Timeline: 06:00 Pipelines checkpoint, 07:00 freeze + full tests, 08:30 final report, 09:00 stop.
-- Grok watermark: crop it (b). vivek-pc workers: disabled (main 1952713).
+- Grok watermark: crop it (b).
+- CORRECTION 03:40: vivek-pc workers stay ENABLED (disable reverted: main 1574ad8). Instead vivek-pc has "max_busy": 1 (main 1111cd1, listener caps concurrent tasks per machine). Boss session + live demo must never be starved; do not queue heavy work (builds/stacks) to vivek-pc yourself.
 
 ## Running / queued — 03:33
 - t261120-0323-e100 vimlesh-pc/codex-luna  web build #2 artifact (after map fix) -> load into :8089 preview, re-check map with live data, then reject 9f5b + e100 (artifacts never merged)
