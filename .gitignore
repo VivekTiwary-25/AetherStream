@@ -47,3 +47,4 @@ blob-report/
 dist-mock/
 web/mock/package-lock.json
 docs/expo/backup/_video_tmp/
+.check-logs/
