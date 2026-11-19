@@ -1,5 +1,7 @@
 # ui-glorious preview
 
+Scripts support Windows PowerShell 5.1; HTTP requests use basic parsing and explicit timeouts.
+
 - Start or update the stack and detached quick tunnel: `powershell -NoProfile -ExecutionPolicy Bypass -File C:\aether-preview\.preview\preview-up.ps1`
 - Refresh changed app images: `powershell -NoProfile -ExecutionPolicy Bypass -File C:\aether-preview\.preview\preview-refresh.ps1`
 - Stop the tunnel and containers: `powershell -NoProfile -ExecutionPolicy Bypass -File C:\aether-preview\.preview\preview-down.ps1`
