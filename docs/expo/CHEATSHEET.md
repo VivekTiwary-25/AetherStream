@@ -28,6 +28,18 @@ Click only these labels. No **MOCK DATA** badge. Do not push to `main`. Do not r
 
 Clean demo between visitor groups: `bash infra/scripts/expo-reset.sh` (preview: `--dry-run`; alternate API: `--api URL`; erase pipeline/execution history too: `--hard`).
 
+## Show me
+
+From this checkout, with the Compose demo running: `bash infra/scripts/expo-proofs.sh all`.
+Requires Bash, Docker Compose, curl, and jq; alternate API: `API=http://localhost:18080 bash infra/scripts/expo-proofs.sh all`.
+Read-only: no checkpoint triggers, chaos calls, object writes, or database updates.
+
+- `checkpoints`: five latest MinIO manifests plus the latest completed manifest's id, generation, partition next-read offsets, and worker state object keys.
+- `offsets`: each Kafka partition's log end versus the completed checkpoint; replay distance is not consumer-group lag (workers use manual assignment).
+- `fencing`: current execution generation/audit history and up to ten matching coordinator/worker log lines from the last 30 minutes. No matching logs means no rejection was observed, not that fencing failed.
+- `recovery`: latest completed worker-loss recovery in the stack audit, including worker, restored checkpoint, and `durationMs`; explicitly identifies whether it belongs to the current execution.
+- `all`: all five blocks (checkpoint listing, manifest, offsets, fencing, recovery). Missing evidence or a failed read exits nonzero; finish the existing **Kill worker** demo first if no recovery is recorded. Checkpoint 0 alone may have no manifest.
+
 ## Backup
 
 Recording folder: `docs/expo/backup/` (not in this checkout). Screenshots that exist: `docs/ux/screenshots/`.

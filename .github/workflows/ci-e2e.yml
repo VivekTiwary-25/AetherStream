@@ -95,3 +95,18 @@ jobs:
           trap 'docker compose down -v' EXIT
           docker compose up -d --wait
           bash infra/scripts/doc-commands-check.sh
+      - name: Show live expo proofs after worker recovery
+        env:
+          GIT_SHA: ${{ github.sha }}
+          EXPECT_SHA: ${{ github.sha }}
+          E2E_EXTENDED: "0"
+        run: |
+          # Earlier readiness steps remove their volumes; create fresh kill/recovery evidence.
+          trap 'docker compose down -v' EXIT
+          docker compose up -d --wait
+          bash infra/scripts/demo-e2e.sh
+          set -o pipefail
+          bash infra/scripts/expo-proofs.sh all | tee expo-proofs.txt
+          for block in checkpoints manifest offsets fencing recovery; do
+            grep -Fx "PROOF $block OK" expo-proofs.txt
+          done
