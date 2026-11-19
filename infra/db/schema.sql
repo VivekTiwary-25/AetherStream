@@ -81,6 +81,12 @@ CREATE TABLE IF NOT EXISTS dead_letters (
     PRIMARY KEY (execution_id, event_id, kind)
 );
 
+-- The control-api WebSocket pollers read new rows WHERE execution_id=? AND written_at>=? every second
+-- (R08 #4). Additive, also applied to live databases by control-api OrgMigration.
+CREATE INDEX IF NOT EXISTS window_results_written_at_idx ON window_results (execution_id, written_at);
+CREATE INDEX IF NOT EXISTS alerts_written_at_idx ON alerts (execution_id, written_at);
+CREATE INDEX IF NOT EXISTS dead_letters_written_at_idx ON dead_letters (execution_id, written_at);
+
 CREATE TABLE IF NOT EXISTS audit_log (
     id          BIGSERIAL   PRIMARY KEY,
     at          TIMESTAMPTZ NOT NULL DEFAULT now(),

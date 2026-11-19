@@ -10,9 +10,7 @@ import io.aetherstream.reference.EngineAlertRow;
 import io.aetherstream.reference.EngineWindowRow;
 import io.aetherstream.reference.KafkaRangeReader;
 import io.aetherstream.reference.RawRecord;
-import io.aetherstream.reference.ReferenceExecutor;
 import io.aetherstream.reference.ResultComparator;
-import io.aetherstream.reference.ReferenceExecutor.ReplayStage;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -20,6 +18,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,22 +32,36 @@ public class CompareService {
     private static final Logger LOG = LoggerFactory.getLogger(CompareService.class);
     private static final TypeReference<Map<Integer, Long>> OFFSETS = new TypeReference<>() {};
     private static final TypeReference<Map<String, Double>> VALUES = new TypeReference<>() {};
+    /**
+     * Event-time horizon of compared results (R08 #1). The reference still replays the whole lineage
+     * so operator state is exact, but only results ending within this horizon of each partition's
+     * final event time are held and compared, so memory does not grow with run length.
+     */
+    static final long DEFAULT_RETENTION_MS = 3_600_000L;
 
     private final JdbcTemplate jdbc;
     private final ObjectMapper mapper;
     private final String bootstrap;
     private final String topic;
     private final RangeReader rangeReader;
+    private final long retentionMs;
     private final ReentrantLock lock = new ReentrantLock();
 
     @Autowired
     public CompareService(JdbcTemplate jdbc, ObjectMapper mapper,
                           @Value("${aetherstream.kafka-bootstrap}") String bootstrap,
-                          @Value("${KAFKA_TOPIC:truck-events}") String topic) {
-        this(jdbc, mapper, bootstrap, topic, new KafkaRangeReader()::read);
+                          @Value("${KAFKA_TOPIC:truck-events}") String topic,
+                          @Value("${aetherstream.compare.retention-ms:" + DEFAULT_RETENTION_MS + "}") long retentionMs) {
+        this(jdbc, mapper, bootstrap, topic, new KafkaRangeReader()::stream, retentionMs);
     }
 
     CompareService(JdbcTemplate jdbc, ObjectMapper mapper, String bootstrap, String topic, RangeReader rangeReader) {
+        this(jdbc, mapper, bootstrap, topic, rangeReader, DEFAULT_RETENTION_MS);
+    }
+
+    CompareService(JdbcTemplate jdbc, ObjectMapper mapper, String bootstrap, String topic, RangeReader rangeReader,
+                   long retentionMs) {
+        this.retentionMs = retentionMs;
         this.jdbc = jdbc;
         this.mapper = mapper;
         this.bootstrap = bootstrap;
@@ -82,15 +95,27 @@ public class CompareService {
             }
             Checkpoint checkpoint = completed.get(0);
             var stages = replayLineage(execution, checkpoint.offsets());
-            var reference = new ReferenceExecutor().run(stages);
-            List<EngineWindowRow> windows = jdbc.query(
-                    "SELECT sink_id,key,window_start,window_end,values::text,event_count FROM window_results WHERE execution_id=?",
-                    (rs, row) -> new EngineWindowRow(rs.getString("sink_id"), rs.getString("key"),
-                            rs.getLong("window_start"), rs.getLong("window_end"),
-                            readJson(rs.getString("values"), VALUES), rs.getLong("event_count")), execution.id());
-            List<EngineAlertRow> alerts = jdbc.query(
-                    "SELECT sink_id,alert_id FROM alerts WHERE execution_id=?",
-                    (rs, row) -> new EngineAlertRow(rs.getString("sink_id"), rs.getString("alert_id")), execution.id());
+            BoundedReplay.Outcome replay = BoundedReplay.run(stages, (partition, from, to, sink) ->
+                    rangeReader.read(bootstrap, topic, Map.of(partition, from), Map.of(partition, to), sink),
+                    retentionMs);
+            var reference = replay.reference();
+            // Same horizon as the reference: SQL pre-filters on the smallest cutoff, the mapper on the key's own.
+            List<EngineWindowRow> windows = withoutNulls(jdbc.query(
+                    "SELECT sink_id,key,window_start,window_end,values::text,event_count FROM window_results " +
+                            "WHERE execution_id=? AND window_end>?",
+                    (rs, row) -> replay.keeps(rs.getString("key"), rs.getLong("window_end"))
+                            ? new EngineWindowRow(rs.getString("sink_id"), rs.getString("key"),
+                                    rs.getLong("window_start"), rs.getLong("window_end"),
+                                    readJson(rs.getString("values"), VALUES), rs.getLong("event_count"))
+                            : null,
+                    execution.id(), replay.floor()));
+            List<EngineAlertRow> alerts = withoutNulls(jdbc.query(
+                    "SELECT sink_id,alert_id,key,event_time FROM alerts WHERE execution_id=? AND event_time>?",
+                    (rs, row) -> replay.keeps(rs.getString("key"), rs.getLong("event_time"))
+                            ? new EngineAlertRow(rs.getString("sink_id"), rs.getString("alert_id")) : null,
+                    execution.id(), replay.floor()));
+            LOG.info("Compare replayed {} records, held at most {} reference results (horizon {} ms)",
+                    reference.recordsReplayed(), replay.peakRetained(), replay.retentionMs());
             CompareResult result = new ResultComparator().compare(reference, windows, alerts, checkpoint.id(), 0);
             return new CompareResult(result.checkpointId(), result.referenceResults(), result.engineResults(),
                     result.matched(), result.mismatches(), result.recordsReplayed(), elapsedMs(started), result.match());
@@ -100,7 +125,7 @@ public class CompareService {
         }
     }
 
-    private List<ReplayStage> replayLineage(Execution execution, Map<Integer, Long> endOffsets) {
+    private List<BoundedReplay.Stage> replayLineage(Execution execution, Map<Integer, Long> endOffsets) {
         List<ReplayRange> ranges = new ArrayList<>();
         var visited = new HashSet<String>();
         while (true) {
@@ -129,12 +154,16 @@ public class CompareService {
             execution = sources.getFirst();
             endOffsets = initial.offsets();
         }
-        List<ReplayStage> stages = new ArrayList<>(ranges.size());
+        List<BoundedReplay.Stage> stages = new ArrayList<>(ranges.size());
         for (ReplayRange range : ranges) {
-            stages.add(new ReplayStage(range.plan(),
-                    rangeReader.read(bootstrap, topic, range.from(), range.to())));
+            stages.add(new BoundedReplay.Stage(range.plan(), range.from(), range.to()));
         }
         return stages;
+    }
+
+    private static <T> List<T> withoutNulls(List<T> rows) {
+        rows.removeIf(java.util.Objects::isNull);
+        return rows;
     }
 
     private <T> T readJson(String json, Class<T> type) throws SQLException {
@@ -153,8 +182,9 @@ public class CompareService {
 
     @FunctionalInterface
     interface RangeReader {
-        Map<Integer, List<RawRecord>> read(String bootstrap, String topic,
-                                         Map<Integer, Long> fromInclusive, Map<Integer, Long> toExclusive);
+        /** Streams the records in the range in offset order per partition; called with one partition at a time. */
+        void read(String bootstrap, String topic, Map<Integer, Long> fromInclusive, Map<Integer, Long> toExclusive,
+                  Consumer<RawRecord> sink);
     }
 
     private record Execution(String id, ExecutionPlan plan) {}
