@@ -7,6 +7,7 @@ on:
       - 'task/**'
     paths:
       - 'web/**'
+      - '!web/public/expo-build.txt'
       - 'control-api/**'
       - 'engine/**'
       - 'tests/ui/**'

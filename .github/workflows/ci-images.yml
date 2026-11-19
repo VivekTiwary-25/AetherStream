@@ -3,7 +3,7 @@ name: ci-images
 on:
   push:
     branches: [main]
-    paths-ignore: ["swarm/**", "boss/**", "docs/**", "**/*.md"]
+    paths-ignore: ["swarm/**", "boss/**", "docs/**", "**/*.md", "web/public/expo-build.txt"]
   pull_request:
     branches: [main]
 
