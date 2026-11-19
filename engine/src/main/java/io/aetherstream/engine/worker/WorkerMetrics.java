@@ -19,9 +19,14 @@ final class WorkerMetrics {
         sample(out, "queue_capacity", worker + ",queue=\"source\"", status.sourceQueue().capacity());
         sample(out, "queue_capacity", worker + ",queue=\"sink\"", status.sinkQueue().capacity());
         metric(out, "backpressured", "gauge", worker, status.backpressured() ? 1 : 0);
-        type(out, "lag", "gauge");
-        new TreeMap<>(status.lag()).forEach((partition, lag) ->
-                sample(out, "lag", worker + ",partition=\"" + partition + "\"", lag));
+        type(out, "consumer_lag", "gauge");
+        if (status.lag().isEmpty()) {
+            // Publish the family while idle too, so monitoring can discover dashboard metrics before assignment.
+            out.append("aether_worker_consumer_lag{").append(worker).append(",partition=\"\"} NaN\n");
+        } else {
+            new TreeMap<>(status.lag()).forEach((partition, lag) ->
+                    sample(out, "consumer_lag", worker + ",partition=\"" + partition + "\"", lag));
+        }
         metric(out, "generation", "gauge", worker, status.generation());
         metric(out, "last_checkpoint_id", "gauge", worker, status.lastCheckpointId());
         metric(out, "sink_batches_total", "counter", worker, sinkBatches);

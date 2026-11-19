@@ -305,19 +305,24 @@ public final class TaskRuntime {
         try {
             Map<Integer, Long> end = source.endOffsets();
             Map<Integer, Long> next = source.nextOffsets();
-            Map<Integer, Long> l = new TreeMap<>();
-            for (Map.Entry<Integer, Long> e : next.entrySet()) {
-                Long endOffset = end.get(e.getKey());
-                if (endOffset != null) {
-                    l.put(e.getKey(), Math.max(0, endOffset - e.getValue()));
-                }
-            }
-            lag = Collections.unmodifiableMap(l);
+            lag = calculateLag(end, next);
         } catch (RuntimeException e) {
             if (running) {
                 log.debug("lag refresh failed", e);
             }
         }
+    }
+
+    /** Only sampled assigned positions contribute; a stale end offset must never yield negative lag. */
+    static Map<Integer, Long> calculateLag(Map<Integer, Long> end, Map<Integer, Long> next) {
+        Map<Integer, Long> lag = new TreeMap<>();
+        next.forEach((partition, position) -> {
+            Long endOffset = end.get(partition);
+            if (endOffset != null) {
+                lag.put(partition, Math.max(0, endOffset - position));
+            }
+        });
+        return Collections.unmodifiableMap(lag);
     }
 
     // ------------------------------------------------------------------ operator thread

@@ -19,7 +19,7 @@ public interface RecordSource extends AutoCloseable {
     /** Consumer positions after the last poll, distinct from offsets admitted to the checkpoint queue. */
     Map<Integer, Long> nextOffsets();
 
-    /** Current end offset (next offset to be written) per assigned partition; used for lag. */
+    /** Latest cached end offsets per assigned partition. Must not wait for broker metadata; used for lag. */
     Map<Integer, Long> endOffsets();
 
     /** Thread-safe: unblocks a pending consumer operation during shutdown. */
