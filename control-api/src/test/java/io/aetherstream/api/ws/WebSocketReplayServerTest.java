@@ -38,7 +38,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 class WebSocketReplayServerTest {
     @Configuration(proxyBeanMethods = false)
     @EnableAutoConfiguration(exclude = DataSourceAutoConfiguration.class)
-    @Import({LiveHub.class, WebSocketConfig.class})
+    @Import({LiveHub.class, WebSocketConfig.class, io.aetherstream.api.recovery.RecoveryHistory.class})
     static class Application {}
 
     @LocalServerPort int port;

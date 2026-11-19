@@ -33,6 +33,43 @@ class LiveHubReplayTest {
     private final ObjectMapper mapper = new ObjectMapper();
 
     @Test
+    void recoveryHistoryAppearsInSnapshotAndNewFactsUseRecoveryFrames() throws Exception {
+        try (Feed feed = new Feed()) {
+            feed.recoveryHistory.killRequested("demo", "exec-1", "worker-2", "api:demo", 100);
+            Browser browser = feed.connect(null);
+            JsonNode snapshot = browser.next();
+            assertThat(snapshot.path("data").path("recoveryHistory").get(0).path("event").asText())
+                    .isEqualTo("KILL_REQUESTED");
+            // Use the real recorder subscription; poll timers are disabled by Feed.
+            feed.recoveryHistory.observe(new io.aetherstream.api.recovery.RecoveryHistory.AuditFact(
+                    1, 200, "coordinator", "worker.dead",
+                    mapper.readTree("{\"workerId\":\"worker-2\",\"executionId\":\"exec-1\"}"), "demo"));
+            JsonNode frame;
+            do { frame = browser.next(); }
+            while (!frame.path("data").path("event").asText().equals("WORKER_DEAD"));
+            assertThat(frame.path("type").asText()).isEqualTo("recovery");
+            assertThat(frame.path("data").path("workerId").asText()).isEqualTo("worker-2");
+            assertThat(frame.path("data").path("at").longValue()).isEqualTo(200);
+        }
+    }
+
+    @Test
+    void recoveryReplayAndSnapshotsNeverExposeAnotherOrganisationsHistory() throws Exception {
+        try (Feed feed = new Feed()) {
+            Browser browser = feed.connect(null);
+            long cursor = browser.next().path("seq").longValue();
+            feed.hub.afterConnectionClosed(browser.session, CloseStatus.NORMAL);
+            ReflectionTestUtils.invokeMethod(feed.hub, "broadcastRecovery",
+                    new io.aetherstream.api.recovery.RecoveryHistory.Recorded("alpha", Map.of("event", "PRIVATE")));
+            ReflectionTestUtils.invokeMethod(feed.hub, "broadcastRecovery",
+                    new io.aetherstream.api.recovery.RecoveryHistory.Recorded("demo", Map.of("event", "PUBLIC")));
+            Browser reconnect = feed.connect(cursor);
+            assertThat(reconnect.next().path("data").path("event").asText()).isEqualTo("PUBLIC");
+            assertThat(reconnect.next().path("type").asText()).isEqualTo("snapshot");
+        }
+    }
+
+    @Test
     void connectionsShareSequenceAndReceiveIdenticalLiveEnvelopes() throws Exception {
         try (Feed feed = new Feed()) {
             Browser first = feed.connect(null);
@@ -255,7 +292,10 @@ class LiveHubReplayTest {
 
     private final class Feed implements AutoCloseable {
         final LiveSources sources = mock(LiveSources.class);
-        final LiveHub hub = new LiveHub(sources, mock(IncrementalResultRepository.class), mapper);
+        final io.aetherstream.api.recovery.RecoveryHistory recoveryHistory =
+                new io.aetherstream.api.recovery.RecoveryHistory();
+        final LiveHub hub = new LiveHub(sources, mock(IncrementalResultRepository.class), mapper,
+                recoveryHistory);
         int connections;
 
         Feed() {

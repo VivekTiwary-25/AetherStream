@@ -8,6 +8,7 @@ import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.aetherstream.api.LiveSources;
+import io.aetherstream.api.recovery.RecoveryHistory;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -37,7 +38,7 @@ class LiveHubTest {
         }).when(slow).sendMessage(any());
         doAnswer(invocation -> { received.add(invocation.getArgument(0)); return null; })
                 .when(fast).sendMessage(any());
-        LiveHub hub = new LiveHub(sources, results, mapper);
+        LiveHub hub = new LiveHub(sources, results, mapper, new RecoveryHistory());
         try {
             hub.afterConnectionEstablished(slow);
             assertThat(blocked.await(1, TimeUnit.SECONDS)).isTrue();

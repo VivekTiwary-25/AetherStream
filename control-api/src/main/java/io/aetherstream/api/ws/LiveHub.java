@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.aetherstream.api.LiveSources;
+import io.aetherstream.api.recovery.RecoveryHistory;
 import jakarta.annotation.PreDestroy;
 import java.io.IOException;
 import java.util.ArrayDeque;
@@ -25,6 +26,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
+import java.util.function.Consumer;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
@@ -45,6 +47,8 @@ public class LiveHub extends TextWebSocketHandler {
     private final IncrementalResultRepository results;
     private final ObjectMapper mapper;
     private final ExecutionEvents executionEvents;
+    private final RecoveryHistory recoveryHistory;
+    private final Consumer<RecoveryHistory.Recorded> recoveryListener;
     private final FailureLog failures = new FailureLog();
     private final Set<Peer> sessions = ConcurrentHashMap.newKeySet();
     private static final int HISTORY_LIMIT = 500;
@@ -70,11 +74,15 @@ public class LiveHub extends TextWebSocketHandler {
     private IncrementalResultRepository.Counts lastCounts;
     private long lastCountTime;
 
-    public LiveHub(LiveSources sources, IncrementalResultRepository results, ObjectMapper mapper) {
+    public LiveHub(LiveSources sources, IncrementalResultRepository results, ObjectMapper mapper,
+                   RecoveryHistory recoveryHistory) {
         this.sources = sources;
         this.results = results;
         this.mapper = mapper;
         this.executionEvents = new ExecutionEvents(mapper);
+        this.recoveryHistory = recoveryHistory;
+        this.recoveryListener = recorded -> dispatch(() -> broadcastRecovery(recorded));
+        recoveryHistory.subscribe(recoveryListener);
         scheduler.setRemoveOnCancelPolicy(true);
     }
 
@@ -110,10 +118,11 @@ public class LiveHub extends TextWebSocketHandler {
         snapshot.put("simulator", simulator.join());
         synchronized (publication) {
             if (!sessions.contains(peer)) return;
+            snapshot.put("recoveryHistory", recoveryHistory.history(peer.orgId));
             if (since != null) {
                 long replayBytes = 0;
                 for (Retained retained : history) {
-                    if (retained.seq() > since) replayBytes += retained.message().getPayloadLength();
+                    if (visible(retained, peer) && retained.seq() > since) replayBytes += retained.message().getPayloadLength();
                 }
                 if (since > sequence || (!history.isEmpty() && since < history.getFirst().seq() - 1)
                         || replayBytes > SEND_BUFFER_LIMIT / 2) {
@@ -121,7 +130,7 @@ public class LiveHub extends TextWebSocketHandler {
                     if (resync != null) enqueue(peer, resync.message());
                 } else {
                     for (Retained retained : history) {
-                        if (retained.seq() > since) enqueue(peer, retained.message());
+                        if (visible(retained, peer) && retained.seq() > since) enqueue(peer, retained.message());
                     }
                 }
             }
@@ -247,12 +256,16 @@ public class LiveHub extends TextWebSocketHandler {
 
     // Called only under publication: assigning seq, retaining and queuing share one order.
     private Retained encode(String type, Object data) {
+        return encode(type, data, null);
+    }
+
+    private Retained encode(String type, Object data, String orgId) {
         try {
             long next = sequence + 1;
             TextMessage message = new TextMessage(mapper.writeValueAsString(
                     new LiveMessage(type, System.currentTimeMillis(), data, next)));
             sequence = next;
-            Retained retained = new Retained(next, message);
+            Retained retained = new Retained(next, message, orgId);
             if (history.size() == HISTORY_LIMIT) history.removeFirst();
             history.addLast(retained);
             return retained;
@@ -271,6 +284,20 @@ public class LiveHub extends TextWebSocketHandler {
             }
         }
     }
+    private static boolean visible(Retained retained, Peer peer) {
+        return retained.orgId() == null || retained.orgId().equals(peer.orgId);
+    }
+
+    private void broadcastRecovery(RecoveryHistory.Recorded recorded) {
+        synchronized (publication) {
+            Retained retained = encode("recovery", recorded.entry(), recorded.orgId());
+            if (retained == null) return;
+            for (Peer peer : sessions) {
+                if (peer.ready && visible(retained, peer)) enqueue(peer, retained.message());
+            }
+        }
+    }
+
 
     private void enqueue(Peer peer, TextMessage message) {
         if (!sessions.contains(peer)) return;
@@ -354,15 +381,17 @@ public class LiveHub extends TextWebSocketHandler {
 
     @PreDestroy
     public void close() {
+        recoveryHistory.unsubscribe(recoveryListener);
         scheduler.shutdownNow();
         for (Peer peer : sessions) remove(peer, CloseStatus.GOING_AWAY);
         io.shutdown();
     }
 
-    private record Retained(long seq, TextMessage message) {}
+    private record Retained(long seq, TextMessage message, String orgId) {}
 
     private static final class Peer {
         final ConcurrentWebSocketSessionDecorator session;
+        final String orgId;
         final AtomicLong sendingSince = new AtomicLong();
         final ConcurrentLinkedQueue<TextMessage> pending = new ConcurrentLinkedQueue<>();
         final AtomicLong pendingBytes = new AtomicLong();
@@ -371,6 +400,8 @@ public class LiveHub extends TextWebSocketHandler {
 
         Peer(WebSocketSession session) {
             this.session = new ConcurrentWebSocketSessionDecorator(session, 2000, SEND_BUFFER_LIMIT);
+            String org = session.getHandshakeHeaders() == null ? null : session.getHandshakeHeaders().getFirst("X-Org");
+            this.orgId = org == null ? "demo" : org;
         }
     }
 }

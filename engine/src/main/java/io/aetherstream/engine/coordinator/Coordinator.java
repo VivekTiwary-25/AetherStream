@@ -146,6 +146,8 @@ public class Coordinator {
         Long restoredFrom;
         /** workerId -> partitions of the current generation (empty = not assigned). */
         TreeMap<String, List<Integer>> assignment = new TreeMap<>();
+        /** Observability only: retain the last assigned owners across temporary recovery clearing. */
+        Map<String, List<Integer>> lastAuditedAssignment = Map.of();
         /** workerId -> ASSIGN of the current assignment and when it was last queued (for lost-response resends). */
         Map<String, Command.Assign> assignCommands = new TreeMap<>();
         Map<String, Long> assignSentMs = new TreeMap<>();
@@ -263,6 +265,13 @@ public class Coordinator {
             // Same id re-registered while it owned partitions: its in-memory state is gone, treat as a failure.
             audit("worker.dead", detail("workerId", id, "executionId", exec.id,
                     "partitions", exec.assignment.get(id), "reason", "re-registered"));
+        }
+        if (old != null) {
+            audit("worker.restarted", detail("workerId", id, "executionId", exec == null ? null : exec.id,
+                    "reason", "re-registered",
+                    "durationMs", !old.alive ? now - old.deadSinceMs : null));
+        }
+        if (lostWork) {
             beginRecovery(now);
         } else {
             maybeAssign(now);
@@ -767,6 +776,8 @@ public class Coordinator {
         // A failure during a planned rebalance starts a new failure-recovery interval.
         if (e.recoveryStartedMs == null || e.rebalanceInProgress) {
             e.recoveryStartedMs = now;
+            audit("execution.recoveryStarted", detail("executionId", e.id, "generation", e.generation,
+                    "checkpointId", null, "atMs", now));
         }
         if (!RECOVERING.equals(e.state)) {
             e.state = RECOVERING;
@@ -863,6 +874,11 @@ public class Coordinator {
             a.computeIfAbsent(live.get(p % live.size()), k -> new ArrayList<>()).add(p);
         }
         e.assignment = a;
+        if (!e.lastAuditedAssignment.equals(a)) {
+            audit("execution.assignment", detail("executionId", e.id, "generation", e.generation,
+                    "checkpointId", e.restoredFrom, "oldAssignment", e.lastAuditedAssignment, "assignment", a));
+            e.lastAuditedAssignment = a;
+        }
         e.assignedOnce = true;
         e.lastTriggerMs = now;
         e.assignCommands = new TreeMap<>();
@@ -993,6 +1009,8 @@ public class Coordinator {
         e.state = RECOVERING;
         e.rebalanceInProgress = true;
         e.recoveryStartedMs = now;
+        audit("execution.recoveryStarted", detail("executionId", e.id, "generation", e.generation,
+                "checkpointId", restoreCheckpointId, "atMs", now, "reason", "rebalance"));
         repo.updateState(e.id, RECOVERING);
         e.generation = repo.bumpGeneration(e.id);
         e.restoredFrom = restoreCheckpointId;
@@ -1056,6 +1074,8 @@ public class Coordinator {
         e.lastDurationMs = duration;
         checkpointsCompleted++;
         checkpointDuration.observe(duration);
+        audit("checkpoint.completed", detail("executionId", e.id, "generation", p.generation,
+                "checkpointId", p.id, "durationMs", duration, "atMs", now));
         notifyAll();
         if (e.rebalanceRequested) {
             e.rebalanceRequested = false;
@@ -1233,6 +1253,7 @@ public class Coordinator {
 
     /** Audit rows are best effort: a failed insert must never abort failure detection or recovery half-way. */
     private void audit(String action, Map<String, Object> detail) {
+        detail.putIfAbsent("atMs", clock.nowMs());
         try {
             repo.audit(action, detail);
         } catch (RuntimeException ex) {
