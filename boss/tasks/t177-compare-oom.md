@@ -1,0 +1,26 @@
+# T177: Fix R08 HIGH #1 - Compare must not OOM control-api over an expo day (+ #4 index, restart policy)  [Opus, code-only]
+
+Read docs/reviews/R08-expo-risk-review.md (your own review) items 1 and 4 and the demo-day checklist.
+1. Compare (control-api compare/**, reference/** helpers): bound memory regardless of run length - e.g. compare only the
+   windows written since a bounded start (last K checkpoints or last N minutes of event time, with the reference replaying from
+   the matching checkpoint offsets and seeded with that checkpoint's operator state if available, or from the lineage root only
+   when the run is short), or stream records instead of loading all. The UI result must stay "N / N results match" with N > 0 and
+   stay correct for restored executions (T93 lineage). Add a unit test with a large synthetic run that proves memory is bounded
+   (e.g. counts records held, not heap).
+2. Item 4: the boss approves an additive index in infra/db/schema.sql: CREATE INDEX IF NOT EXISTS on the result tables'
+   written_at (exact columns per your review; no semicolons inside comments - the test loader splits on ';'), plus the same
+   CREATE INDEX IF NOT EXISTS in control-api's startup migration so the live DB gets it.
+3. docker-compose.yml: control-api (and any other demo service missing it) gets `restart: unless-stopped`.
+You are on vivek-pc: do NOT build, test or start containers locally - rely on GitHub Actions.
+
+Files (edit only these): control-api/src/main/java/io/aetherstream/api/compare/**, control-api/src/test/java/**/compare/**,
+reference/src/main/java/** (small helpers only), control-api startup migration class, infra/db/schema.sql (index only),
+docker-compose.yml (restart policies only).
+
+Acceptance check: ci-java, ci-integration and ci-e2e green on your branch (e2e step 9 restored-compare still passes).
+
+## Rules (apply to every task)
+- Read every file in docs/contracts/ first and follow them exactly. Do not edit docs/contracts/ or infra/db/schema.sql (if a contract looks wrong, say so in your report).
+- Do not read or change anything in swarm/ (except your own report file if the swarm asks you to write one).
+- Only edit the files listed. If you are on vivek-pc: do NOT start Docker containers or kind there (the live demo runs on it). Acceptance runs in GitHub Actions on your task branch.
+- If you are on vivek-pc: it runs the live demo. Do NOT run builds, test suites, Gradle, npm build/test, Playwright or any browser/renderer locally there - read code, edit, and rely on GitHub Actions for every check.
