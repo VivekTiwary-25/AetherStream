@@ -43,7 +43,8 @@ Invoke-Check '/api/executions/current' {
     'state=RUNNING'
 }
 Invoke-Check '/api/workers' {
-    $workers = @(Get-Json '/api/workers')
+    # Windows PowerShell 5.1 emits a JSON array as ONE object: unroll it through the pipeline.
+    $workers = @(Get-Json '/api/workers' | ForEach-Object { $_ })
     $alive = @($workers | Where-Object { $_.alive -eq $true })
     $partitions = @($alive | ForEach-Object { $_.partitions } | ForEach-Object { $_ }) | Select-Object -Unique
     if ($workers.Count -ne 3 -or $alive.Count -ne 3 -or $partitions.Count -ne 6) {
