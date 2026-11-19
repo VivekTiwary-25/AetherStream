@@ -109,6 +109,11 @@ public class Coordinator {
         Long restoredFrom;
         /** workerId -> partitions of the current generation (empty = not assigned). */
         TreeMap<String, List<Integer>> assignment = new TreeMap<>();
+        /** workerId -> ASSIGN of the current assignment and when it was last queued (for lost-response resends). */
+        Map<String, Command.Assign> assignCommands = new TreeMap<>();
+        Map<String, Long> assignSentMs = new TreeMap<>();
+        /** workerId -> first heartbeat time at which it reported IDLE in the current generation. */
+        Map<String, Long> idleSinceMs = new TreeMap<>();
         /** Checkpoint 0 offsets, used for the very first assignment. */
         Map<Integer, Long> startOffsets = Map.of();
         long initialRestoreCheckpointId;
@@ -180,7 +185,7 @@ public class Coordinator {
             ExecutionRecord old = active.get(i);
             repo.abortPendingCheckpoints(old.id());
             repo.updateState(old.id(), STOPPED);
-            repo.audit("execution.stopped", detail("executionId", old.id(), "reason", "superseded at coordinator restart"));
+            audit("execution.stopped", detail("executionId", old.id(), "reason", "superseded at coordinator restart"));
         }
         ExecutionRecord r = active.get(active.size() - 1);
         ExecState e = new ExecState(r.id(), r.pipelineId(), r.pipelineVersion(), r.plan(),
@@ -217,13 +222,12 @@ public class Coordinator {
             w.queue.add(new Command.SetSinkDelay(sinkDelayMs));
         }
         log.info("Worker {} registered (host {})", id, req.host());
-        if (!lostWork && autoRebalance && exec != null && RUNNING.equals(exec.state)
-                && !exec.assignment.isEmpty() && !exec.assignment.containsKey(id)) {
-            w.rebalanceCandidateSinceMs = now;
+        if (!lostWork) {
+            markRebalanceCandidate(w, now);
         }
         if (lostWork) {
             // Same id re-registered while it owned partitions: its in-memory state is gone, treat as a failure.
-            repo.audit("worker.dead", detail("workerId", id, "executionId", exec.id,
+            audit("worker.dead", detail("workerId", id, "executionId", exec.id,
                     "partitions", exec.assignment.get(id), "reason", "re-registered"));
             beginRecovery(now);
         } else {
@@ -249,6 +253,7 @@ public class Coordinator {
                 w.queue.add(new Command.SetSinkDelay(sinkDelayMs));
             }
             log.info("Worker {} (re)admitted by heartbeat", workerId);
+            markRebalanceCandidate(w, now);
         }
         w.lastHeartbeatMs = now;
         w.status = status;
@@ -260,6 +265,7 @@ public class Coordinator {
                 w.queue.add(cancel);
             }
         }
+        maybeResendAssign(w, status, now);
         maybeAssign(now);
         checkRecoveryComplete(now);
         maybeScheduleAutoRebalance(now);
@@ -363,7 +369,7 @@ public class Coordinator {
                     e.restoredFrom, now));
             repo.insertCheckpoint(new CheckpointRecord(e.id, 0, 1, CheckpointRecord.COMPLETED, e.initialManifestKey, offsets, now,
                     now, 0L));
-            repo.audit("execution.started", detail("executionId", e.id, "pipelineId", e.pipelineId,
+            audit("execution.started", detail("executionId", e.id, "pipelineId", e.pipelineId,
                     "generation", 1L, "checkpoint0Offsets", offsets));
             exec = e;
             log.info("Execution {} started (pipeline {} v{}, {} partitions)", e.id, e.pipelineId, e.pipelineVersion,
@@ -435,7 +441,7 @@ public class Coordinator {
                 Protocol.VERSION, e.plan.operators().stream().map(PlannedOperator::id).toList(),
                 Instant.ofEpochMilli(clock.nowMs()).toString());
         store.putJson(saved.manifestKey(), manifest);
-        repo.audit("savepoint.created", detail("savepointId", id, "executionId", executionId,
+        audit("savepoint.created", detail("savepointId", id, "executionId", executionId,
                 "checkpointId", checkpointId, "pipelineId", saved.pipelineId(), "pipelineVersion", saved.pipelineVersion(),
                 "protocolVersion", saved.protocolVersion(), "operatorIds", saved.operatorIds(), "createdAt", saved.createdAt()));
         return saved;
@@ -555,7 +561,7 @@ public class Coordinator {
             }
         }
         target.queue.add(new Command.Kill());
-        repo.audit("chaos.kill", detail("workerId", target.id));
+        audit("chaos.kill", detail("workerId", target.id));
         log.info("Chaos: KILL queued for worker {}", target.id);
         return target.id;
     }
@@ -572,7 +578,7 @@ public class Coordinator {
                 w.queue.add(new Command.SetSinkDelay(delayMs));
             }
         }
-        repo.audit("chaos.sinkDelay", detail("delayMs", delayMs));
+        audit("chaos.sinkDelay", detail("delayMs", delayMs));
         return delayMs;
     }
 
@@ -609,6 +615,15 @@ public class Coordinator {
             throw new IllegalStateException("execution " + executionId + " was rebalanced less than 30 s ago");
         }
         return scheduleRebalance(e, now);
+    }
+
+    /** Test probe: the longest command queue of any known worker (queues must stay bounded). */
+    synchronized int maxQueuedCommands() {
+        int max = 0;
+        for (WorkerEntry w : workers.values()) {
+            max = Math.max(max, w.queue.size());
+        }
+        return max;
     }
 
     public synchronized String metricsText() {
@@ -682,11 +697,22 @@ public class Coordinator {
                 w.deadSinceMs = now;
                 w.queue.clear();
                 List<Integer> owned = exec != null && exec.active() ? exec.assignment.get(w.id) : null;
-                repo.audit("worker.dead", detail("workerId", w.id, "executionId", exec == null ? null : exec.id,
+                audit("worker.dead", detail("workerId", w.id, "executionId", exec == null ? null : exec.id,
                         "partitions", owned, "lastHeartbeatMs", w.lastHeartbeatMs));
                 log.warn("Worker {} declared DEAD (no heartbeat for {} ms)", w.id, now - w.lastHeartbeatMs);
                 if (owned != null) {
                     affected = true;
+                }
+            }
+        }
+        if (!affected && exec != null && exec.active()) {
+            // Self-heal: an assigned worker that is dead or gone (a previous tick failed half-way, e.g. a DB error
+            // inside beginRecovery) must still trigger recovery, otherwise the execution waits for it forever.
+            for (String id : exec.assignment.keySet()) {
+                WorkerEntry w = workers.get(id);
+                if (w == null || !w.alive) {
+                    affected = true;
+                    break;
                 }
             }
         }
@@ -771,16 +797,18 @@ public class Coordinator {
         }
         long oldGeneration = e.generation;
         long newGeneration = repo.bumpGeneration(e.id);
-        repo.setRestoredFrom(e.id, restoreCheckpointId);
+        // Memory must follow the DB fencing token at once: if a later repo call fails, a lagging in-memory
+        // generation would hand out ASSIGNs whose sink transactions are all rejected as fenced.
         e.generation = newGeneration;
         e.restoredFrom = restoreCheckpointId;
+        repo.setRestoredFrom(e.id, restoreCheckpointId);
         for (String id : live) {
             WorkerEntry w = workers.get(id);
             w.queue.removeIf(c -> isForExecution(c, e.id));
             w.queue.add(new Command.Cancel(e.id, oldGeneration));
         }
         assign(e, live, restoreCheckpointId, manifestKey, startOffsets, now);
-        repo.audit("execution.recovering", detail("executionId", e.id, "checkpointId", cp.checkpointId(),
+        audit("execution.recovering", detail("executionId", e.id, "checkpointId", cp.checkpointId(),
                 "generation", newGeneration, "previousGeneration", oldGeneration, "assignment", e.assignment));
         log.warn("Execution {} RECOVERING from checkpoint {} with generation {}: {}", e.id, cp.checkpointId(),
                 newGeneration, e.assignment);
@@ -796,13 +824,19 @@ public class Coordinator {
         e.assignment = a;
         e.assignedOnce = true;
         e.lastTriggerMs = now;
+        e.assignCommands = new TreeMap<>();
+        e.assignSentMs = new TreeMap<>();
+        e.idleSinceMs = new TreeMap<>();
         for (Map.Entry<String, List<Integer>> entry : a.entrySet()) {
             Map<Integer, Long> own = new TreeMap<>();
             for (Integer p : entry.getValue()) {
                 own.put(p, offsets.getOrDefault(p, 0L));
             }
-            workers.get(entry.getKey()).queue.add(new Command.Assign(e.id, e.generation, e.plan,
-                    List.copyOf(entry.getValue()), checkpointId, manifestKey, own));
+            Command.Assign cmd = new Command.Assign(e.id, e.generation, e.plan,
+                    List.copyOf(entry.getValue()), checkpointId, manifestKey, own);
+            workers.get(entry.getKey()).queue.add(cmd);
+            e.assignCommands.put(entry.getKey(), cmd);
+            e.assignSentMs.put(entry.getKey(), now);
         }
     }
 
@@ -817,13 +851,13 @@ public class Coordinator {
         e.recoveryStartedMs = null;
         e.lastTriggerMs = now;
         if (e.rebalanceInProgress) {
-            repo.audit("execution.rebalanced", detail("executionId", e.id, "checkpointId", e.restoredFrom,
+            audit("execution.rebalanced", detail("executionId", e.id, "checkpointId", e.restoredFrom,
                     "generation", e.generation, "assignment", e.assignment, "durationMs", duration));
             e.rebalanceInProgress = false;
         } else {
             e.recoveriesCompleted++;
             e.lastRecoveryDurationMs = duration;
-            repo.audit("execution.recovered", detail("executionId", e.id, "checkpointId", e.restoredFrom,
+            audit("execution.recovered", detail("executionId", e.id, "checkpointId", e.restoredFrom,
                     "generation", e.generation, "recoveryDurationMs", duration));
         }
         log.info("Execution {} RECOVERED from checkpoint {} (generation {}) in {} ms", e.id, e.restoredFrom,
@@ -831,6 +865,9 @@ public class Coordinator {
     }
 
     private boolean allAssignedRunning(ExecState e) {
+        if (e.assignment.isEmpty()) {
+            return false; // e.g. the restart grace window: nothing runs yet, so no checkpoint/rebalance may start
+        }
         for (String id : e.assignment.keySet()) {
             WorkerEntry w = workers.get(id);
             if (w == null || !w.alive || w.status == null) {
@@ -1020,7 +1057,7 @@ public class Coordinator {
         e.recoverAtMs = null;
         e.recoveryStartedMs = null;
         repo.updateState(e.id, STOPPED);
-        repo.audit("execution.stopped", detail("executionId", e.id, "generation", e.generation, "reason", reason));
+        audit("execution.stopped", detail("executionId", e.id, "generation", e.generation, "reason", reason));
         log.info("Execution {} STOPPED ({})", e.id, reason);
     }
 
@@ -1039,6 +1076,64 @@ public class Coordinator {
         return (c instanceof Command.Assign a && executionId.equals(a.executionId()))
                 || (c instanceof Command.TriggerCheckpoint t && executionId.equals(t.executionId()))
                 || (c instanceof Command.Cancel x && executionId.equals(x.executionId()));
+    }
+
+    /**
+     * A worker that joins while an execution already has an assignment it is not part of (RUNNING or mid-recovery)
+     * becomes a rebalance candidate; otherwise a worker that rejoined during RECOVERING would stay idle forever.
+     */
+    private void markRebalanceCandidate(WorkerEntry w, long now) {
+        if (autoRebalance && exec != null && exec.active() && !exec.assignment.isEmpty()
+                && !exec.assignment.containsKey(w.id)) {
+            w.rebalanceCandidateSinceMs = now;
+        }
+    }
+
+    /**
+     * Commands are drained into the heartbeat response; if that response is lost (worker-side timeout while the
+     * coordinator was slow) the ASSIGN is gone and the execution would wait for this worker forever. The worker
+     * handles every response before its next heartbeat, so a member that still reports an older generation (or is
+     * IDLE in the current one because its runtime failed) did not get its ASSIGN or lost its runtime: send the ASSIGN
+     * again (idempotent per generation) plus the pending checkpoint trigger. At most once per two heartbeat intervals;
+     * a member IDLE in the current generation only after it has stayed IDLE for one heartbeat timeout.
+     */
+    private void maybeResendAssign(WorkerEntry w, WorkerStatus status, long now) {
+        ExecState e = exec;
+        if (status == null || e == null || !e.active() || !e.assignment.containsKey(w.id)) {
+            return;
+        }
+        Command.Assign assign = e.assignCommands.get(w.id);
+        if (assign == null || assign.generation() != e.generation) {
+            return;
+        }
+        boolean sameExec = e.id.equals(status.executionId());
+        if (sameExec && status.generation() > e.generation) {
+            return;
+        }
+        if (sameExec && status.generation() == e.generation) {
+            if (!"IDLE".equals(status.state())) {
+                e.idleSinceMs.remove(w.id);
+                return; // RESTORING or RUNNING the current assignment
+            }
+            // Its runtime stopped by itself (source/restore failure, or a final IDLE report while shutting down):
+            // give it one heartbeat timeout (a dying worker is declared dead by then) before restarting it.
+            long idleSince = e.idleSinceMs.computeIfAbsent(w.id, k -> now);
+            if (now - idleSince < HEARTBEAT_TIMEOUT_MS) {
+                return;
+            }
+        }
+        Long lastSent = e.assignSentMs.get(w.id);
+        if (w.queue.contains(assign) || lastSent != null && now - lastSent < 2 * HEARTBEAT_INTERVAL_MS) {
+            return;
+        }
+        e.idleSinceMs.remove(w.id);
+        w.queue.add(assign);
+        e.assignSentMs.put(w.id, now);
+        if (e.pending != null && e.pending.generation == e.generation) {
+            w.queue.add(new Command.TriggerCheckpoint(e.id, e.generation, e.pending.id));
+        }
+        log.warn("Re-sending ASSIGN generation {} to worker {} (it reports {} g{} {})", e.generation, w.id,
+                status.executionId(), status.generation(), status.state());
     }
 
     private boolean isCurrentMember(String workerId, String executionId) {
@@ -1092,6 +1187,15 @@ public class Coordinator {
     private static ExecutionInfo info(ExecState e) {
         return new ExecutionInfo(e.id, e.pipelineId, e.pipelineVersion, e.state, e.generation, e.restoredFrom,
                 e.lastCompleted, e.createdAt);
+    }
+
+    /** Audit rows are best effort: a failed insert must never abort failure detection or recovery half-way. */
+    private void audit(String action, Map<String, Object> detail) {
+        try {
+            repo.audit(action, detail);
+        } catch (RuntimeException ex) {
+            log.warn("Audit {} failed: {}", action, ex.toString());
+        }
     }
 
     private static Map<String, Object> detail(Object... keyValues) {
