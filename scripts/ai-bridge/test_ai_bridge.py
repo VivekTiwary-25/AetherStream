@@ -67,6 +67,71 @@ class BridgeTests(unittest.TestCase):
         self.assertNotIn("Alert on fast trucks secret phrase", calls[0]["argv"])
         self.assertIn("--no-session-persistence", calls[0]["argv"])
 
+
+    def test_repairs_fenced_prose_and_numeric_strings_before_validation(self):
+        response = (
+            "Here is the pipeline:\n```json\n"
+            '{"name":"Speeding alert","nodes":['
+            '{"id":"filter","type":"filter","params":{"field":"speedKmh","op":">","value":"60"}},'
+            '{"id":"alert","type":"thresholdAlert","params":{"field":"speedKmh","op":">","value":"60","message":"Fast"}},'
+            '{"id":"output","type":"output","params":{"name":"Alerts"}}],'
+            '"edges":[{"from":"filter","to":"alert"},{"from":"alert","to":"output"}]}'
+            "\n```\nThis is the result."
+        )
+        self.set_outputs([response])
+        with patch.object(ai_bridge, "validate_remote", return_value=(True, [], "control-api")) as validate:
+            result = ai_bridge.generate("Alert on speeding")
+        self.assertEqual(result["source"], "ai")
+        pipeline = validate.call_args.args[0]
+        self.assertEqual(pipeline["nodes"][0]["params"]["value"], 60)
+        self.assertIsInstance(pipeline["nodes"][0]["params"]["value"], int)
+
+    def test_repairs_window_string_and_missing_edges(self):
+        pipeline = {
+            "name": "Average",
+            "nodes": [
+                {"id": "average", "type": "windowAverage", "params": {"field": "speedKmh", "windowSec": "30"}},
+                {"id": "output", "type": "output", "params": {"name": "Average"}},
+            ],
+        }
+        self.set_outputs([pipeline])
+        with patch.object(ai_bridge, "validate_remote", return_value=(True, [], "control-api")) as validate:
+            result = ai_bridge.generate("Average speed")
+        self.assertEqual(result["source"], "ai")
+        repaired = validate.call_args.args[0]
+        self.assertEqual(repaired["nodes"][0]["params"]["windowSec"], 30)
+        self.assertEqual(repaired["edges"], [{"from": "average", "to": "output"}])
+
+    def test_impossible_request_uses_limited_pipeline_name(self):
+        pipeline = {**PIPELINE, "name": "Closest supported: no weather data"}
+        self.set_outputs([pipeline])
+        with patch.object(ai_bridge, "validate_remote", return_value=(True, [], "control-api")):
+            result = ai_bridge.generate("Predict tomorrow's weather at each truck location")
+        self.assertEqual(result["source"], "ai")
+        self.assertIn("weather", result["pipeline"]["name"])
+        calls = json.loads(self.calls.read_text(encoding="utf-8"))
+        system_prompt = calls[0]["argv"][calls[0]["argv"].index("--system-prompt") + 1]
+        self.assertIn("choose the closest supported pipeline", system_prompt)
+        self.assertIn("state the limitation briefly in its pipeline name", system_prompt)
+
+    def test_empty_and_oversized_prompts_return_clear_400(self):
+        server = ThreadingHTTPServer(("127.0.0.1", 0), ai_bridge.Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        self.addCleanup(thread.join)
+        self.addCleanup(server.server_close)
+        self.addCleanup(server.shutdown)
+        for prompt, message in (("", "prompt must be a non-empty string"), ("x" * 501, "prompt must be at most 500 characters")):
+            request = Request(
+                f"http://127.0.0.1:{server.server_port}/generate",
+                data=json.dumps({"prompt": prompt}).encode(),
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            with self.assertRaises(HTTPError) as caught:
+                urlopen(request, timeout=2)
+            self.assertEqual(caught.exception.code, 400)
+            self.assertEqual(json.loads(caught.exception.read())["error"], message)
     def test_invalid_response_retries_then_returns_saved_example(self):
         self.set_outputs([{"name": "bad", "nodes": [], "edges": []}])
         with patch.object(ai_bridge, "validate_remote", return_value=(False, ["nodes required"], "control-api")):
