@@ -65,22 +65,36 @@ export function useRecoveryFeed() {
 
   useEffect(() => {
     let active = true
-    const historyVersion = historyRevision.current
-    const executionVersion = executionRevision.current
-    recoveryRequest('/api/recovery/history').then((response) => response.json()).then((entries: RecoveryEntry[]) => {
-      if (!active) return
-      setHistory((previous) => mergeHistory(previous, entries))
-      setHistoryLoaded(true)
-      setHistoryError(null)
-    }).catch((error: Error) => {
-      if (active && historyRevision.current === historyVersion) setHistoryError(error.message)
-    })
-    getCurrentExecution().then((current) => {
-      if (active && executionRevision.current === executionVersion) setExecution(current)
-    }).catch((error: Error) => {
-      if (active && executionRevision.current === executionVersion) setExecutionError(error.message)
-    })
-    return () => { active = false }
+    let timer: number | undefined
+    let pending = false
+    const refresh = async () => {
+      if (pending) return
+      pending = true
+      const historyVersion = historyRevision.current
+      const executionVersion = executionRevision.current
+      try {
+        const response = await recoveryRequest('/api/recovery/history')
+        const entries = await response.json() as RecoveryEntry[]
+        if (active && historyRevision.current === historyVersion) {
+          setHistory((previous) => mergeHistory(previous, entries))
+          setHistoryLoaded(true)
+          setHistoryError(null)
+        }
+      } catch (error) {
+        if (active && historyRevision.current === historyVersion) setHistoryError((error as Error).message)
+      } finally { pending = false }
+      getCurrentExecution().then((current) => {
+        if (active && executionRevision.current === executionVersion) {
+          setExecution(current)
+          setExecutionError(null)
+        }
+      }).catch((error: Error) => {
+        if (active && executionRevision.current === executionVersion) setExecutionError(error.message)
+      })
+      if (active) timer = window.setTimeout(() => { void refresh() }, 5_000)
+    }
+    void refresh()
+    return () => { active = false; if (timer !== undefined) window.clearTimeout(timer) }
   }, [])
 
   const executionId = execution?.id
