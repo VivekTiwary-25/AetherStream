@@ -134,7 +134,7 @@ public final class Simulation {
                 for (Truck truck : trucks.values()) truck.setRushHour(true, now);
             }
             case "breakdown" -> {
-                scenarioEnd = now + 720_000;
+                scenarioEnd = now + 900_000;
                 breakdownTruck = chosen;
                 chosen.pause(now, scenarioEnd);
             }
