@@ -1,0 +1,62 @@
+[
+  {
+    "name": "Mysore Palace",
+    "lon": 76.6553846,
+    "lat": 12.3052197,
+    "source": "osm:way/656323590"
+  },
+  {
+    "name": "Infosys campus",
+    "lon": 76.5961002,
+    "lat": 12.3634413,
+    "source": "osm:way/231782270"
+  },
+  {
+    "name": "Kukkarahalli Lake Park",
+    "lon": 76.6274445,
+    "lat": 12.3102084,
+    "source": "osm:relation/9994370"
+  },
+  {
+    "name": "Karanji Lake",
+    "lon": 76.6732818,
+    "lat": 12.3021792,
+    "source": "osm:relation/2310424"
+  },
+  {
+    "name": "St. Philomena's Church",
+    "lon": 76.6582822,
+    "lat": 12.3209949,
+    "source": "osm:way/28275837"
+  },
+  {
+    "name": "Mysuru Zoo",
+    "lon": 76.6682663,
+    "lat": 12.3006384,
+    "source": "osm:way/28950421"
+  },
+  {
+    "name": "Manasagangotri Campus",
+    "lon": 76.621775,
+    "lat": 12.3134772,
+    "source": "osm:way/51684020"
+  },
+  {
+    "name": "Chamundeshwari Temple, Chamundi Hill",
+    "lon": 76.6707019,
+    "lat": 12.2724724,
+    "source": "osm:relation/5422792"
+  },
+  {
+    "name": "JSS Hospital",
+    "lon": 76.6552529,
+    "lat": 12.2959701,
+    "source": "osm:way/150869510"
+  },
+  {
+    "name": "Devaraja Market",
+    "lon": 76.6520287,
+    "lat": 12.3108551,
+    "source": "osm:node/4764454021"
+  }
+]
