@@ -1,141 +1,172 @@
-# Design and Implementation of a Fault-Tolerant Distributed Stream Processing Engine with Stateful Recovery and Visual Workflow Compilation
+# AetherStream: Project Report for the CDD Expo
 
 > **Project:** AetherStream  
 > **Course:** Collaborative Development and DevOps (CDD)  
-> **Student:** [name / registration number]  
-> **Institution:** [institution]  
-> **Supervisor:** [name]  
-> **Submission date:** [date]
+> **Student/team:** [complete with the project team's verified names]  
+> **Institution:** [complete]  
+> **Supervisor:** [complete]  
+> **Submission date:** 21 November 2026
 >
-> Complete the bracketed fields and replace result placeholders only with evidence from actual project runs.
+> This report distinguishes repository specifications, implementation evidence, and recorded run evidence. Replace the identity fields only with confirmed details. A workflow definition is not evidence that a run passed.
 
 ## Abstract
 
-AetherStream is a Java-based project for authoring and running stateful stream-processing pipelines. Its repository defines a modular engine, deterministic reference execution, a React workflow interface, a logistics event simulator, persistence and checkpoint services, and automated verification workflows. The design focuses on event-time windows, late data, bounded worker queues, consistent checkpoints, worker recovery, and comparison against a reference executor. Docker Compose provides a local multi-service stack. GitHub Actions definitions cover Java, integration, web, images, mock-server and Compose checks. The repository contains definitions and implementation evidence, but a checked-in workflow is not proof of a successful run, and image build capability is not proof of deployment. Deployment and live-run results must be filled from verifiable evidence.
+AetherStream is an educational stream-processing project built around a simulated urban delivery fleet. A Java simulator produces truck-position and delivery events; Kafka transports the events; a coordinator assigns source partitions to workers; workers execute keyed event-time pipelines and write results to PostgreSQL. MinIO stores worker checkpoint objects and manifests. A Spring-based control API and a React interface expose pipeline authoring, execution state, operational results, and event context. The runtime is designed to make delayed and duplicate events, bounded-queue backpressure, checkpoints, and worker recovery observable.
 
-## Problem statement
+The implementation shares pipeline operator semantics between the distributed engine and a deterministic reference executor. This enables scoped comparisons at completed checkpoint boundaries. The repository also contains unit, integration, browser-component, mock-server, Compose, Kubernetes, Terraform, and benchmark checks. These are not interchangeable: a unit test can prove a state transition using fakes, whereas a passing distributed integration run exercises real Kafka, PostgreSQL, MinIO, and workers. Recorded Actions evidence includes an integration result comparing 811 reference and engine outputs, and separate Kubernetes and Terraform runs; the report links these records rather than presenting test assertions as measured service performance.
 
-Continuous event sources can deliver delayed or repeated records, outpace consumers, and be interrupted by worker failures. A useful processing system needs explicit rules for event time, replay, state snapshots, output consistency, and recovery. AetherStream addresses this as a demonstrable logistics workload: simulated truck events flow through validation, partitioned window calculations and alerts into queryable results, while a visual interface presents execution and failure evidence.
+The project is an educational single-coordinator baseline, not a claim of a production-grade general-purpose engine. The normative contracts define six-partition input, per-partition watermarks, aligned checkpoints, and generation fencing. Savepoint and controlled-rescale APIs are additional repository features beyond the checkpoint baseline described in the protocol contract. Operational high availability, general online repartitioning, authenticated multi-tenant use, measured production capacity, and usability-study results are not claimed here.
 
-## Objectives
+## 1. Problem and goals
 
-- Define a typed event and pipeline contract and validate graphs before execution.
-- Provide deterministic operator semantics shared by distributed and reference execution.
-- Run partitioned processing with bounded queues and observable backpressure.
-- Persist checkpoint state and source positions so recovery can resume from a completed consistent checkpoint.
-- Demonstrate event-time, late-event, duplicate, slow-sink and worker-failure behavior.
-- Provide a visual editor/operations UI and a repeatable containerized development environment.
-- Automate build, tests, image checks, and full-stack smoke verification through GitHub Actions.
+An event stream is not a clean sequence of perfectly timed, unique records. A truck may emit a record late, a producer may resend an event, a payload may violate its schema, a sink may slow down, or a worker may disappear while holding state. A processing application must state what each case means. It must also ensure that the data already written agrees with the input positions and operator state selected for recovery. A dashboard that only displays a moving map or a green status indicator cannot demonstrate those properties.
 
-## Background and related work
+AetherStream frames this challenge as a bounded logistics example. The simulator describes a 2,000-by-2,000-metre city, with a depot and seeded delivery stops. It generates position and delivery events with a stable truck key, simulation event time, schema version, event identifier, and typed payload. A configurable stuck-truck scenario generates a sequence useful for demonstrating a rule. The simulator's HTTP API also exposes deliberate late, duplicate, and malformed event injection; these are controlled demonstrations of data-quality and time semantics, not claims about a real commercial fleet. See [event and simulator contract](../contracts/01-event-envelope-and-simulator.md).
 
-**Stream processing** evaluates unbounded event sequences continuously. A stream engine must coordinate event ordering, state, throughput, persistence and failures rather than treating input as a finite batch.
+The project goals are:
 
-**Event time and watermarks.** Event time reflects when a domain event occurred; processing time reflects when the system handled it. A watermark is a policy-based estimate of input progress, not proof that no older event will arrive. AetherStream's contract defines a per-source-partition watermark as maximum observed timestamp minus allowed out-of-orderness; late events for closed windows are recorded as dead letters. This makes the lateness policy and idle-partition behavior explicit.
+1. Define a versioned event and pipeline contract, and reject invalid pipeline graphs with actionable compiler errors.
+2. Make event-time window, duplicate, late-record, and alert behavior deterministic and testable.
+3. Distribute work by Kafka partition while bounding queues so a slow sink applies backpressure rather than requiring unbounded buffering.
+4. Capture state and source positions at a consistent checkpoint boundary, and use completed checkpoints with generation fencing during recovery.
+5. Compare engine output with a reference implementation over a clearly bounded Kafka offset range.
+6. Present system activity through a city visualization and readable operational/editor panels, and automate repeatable checks through CI.
 
-**Chandy–Lamport snapshots.** The coordinator/worker contract uses aligned barriers: the source places a barrier after preceding records, the operator snapshots state at the barrier, and the sink flushes preceding output before saving worker state and acknowledging. The coordinator marks a checkpoint completed only after all partition acknowledgements and a manifest upload. Restore selects only a completed checkpoint. This is a Chandy–Lamport-style consistent-cut approach adapted to the pipeline queues and source positions specified in the contract.
+These are engineering goals; section 4 scopes the evidence and section 8 links recorded runs. Repository examples do not establish throughput, universal exactly-once delivery, coordinator high availability, or usability outcomes.
 
-**Apache Flink as a reference.** Flink provides a mature conceptual and operational reference for distributed stateful streams, event time, and checkpoint recovery. AetherStream uses it as background, not as its execution runtime. Its operators, compiler, coordinator, worker protocol and recovery logic are project components; parity with Flink is not claimed.
+## 2. Architecture
 
-## System design
+The runtime path begins with simulator events keyed by `truckId`. Kafka's `truck-events` topic has six partitions and uses the same key, so the v1 supported `keyBy` fields correspond to the existing Kafka partition key; the pipeline does not need a repartitioning stage. The coordinator controls worker assignment, checkpoints, recovery and execution generations. Workers consume assigned partition records and pass them through a bounded source/operator/sink pipeline. PostgreSQL stores executions, checkpoint metadata, windows, alerts, and dead letters; MinIO stores checkpoint state files and manifests. The control API joins operator-facing requests to the coordinator, simulator and stored results. The web app uses same-origin `/api` and `/ws` routes through the web server.
 
-The system separates definition/validation, runtime execution, control and persistence. A pipeline compiler validates and plans a DAG. A reference executor evaluates the same operator semantics used by the engine. The coordinator assigns Kafka partitions to workers and manages generations, checkpoints and recovery. Workers consume Kafka records, run operator state through bounded stages, and write results to PostgreSQL. Checkpoint objects and manifests use S3-compatible storage. A Spring-based control API exposes pipeline, execution, result, chaos and comparison operations; the React UI uses REST and WebSocket updates. The deterministic simulator supplies logistics events.
+```mermaid
+flowchart LR
+  Sim[Truck simulator] -->|keyed event JSON| K[(Kafka: truck-events, 6 partitions)]
+  K -->|assigned offsets| W[Workers: source → bounded queues → operators → sink]
+  C[Coordinator] <-->|register, heartbeat, assignment, barriers| W
+  C -->|execution and checkpoint metadata| P[(PostgreSQL)]
+  W -->|windows, alerts, dead letters| P
+  W -->|partition state and offsets| M[(MinIO: checkpoint objects)]
+  C -->|all acknowledgements → manifest| M
+  API[Control API] --> C
+  API --> P
+  API --> Sim
+  UI[React web app and city] -->|REST /api, WebSocket /ws| API
+  K -->|bounded replay range| R[Reference executor]
+  R --> Q{{Compare}}
+  P --> Q
+```
 
-See [contracts](../contracts/README.md), especially [pipeline semantics](../contracts/02-pipeline-and-semantics.md), [worker and checkpoint protocol](../contracts/03-coordinator-worker-protocol.md), and [control API](../contracts/04-control-api-rest-ws.md). The requested `docs/architecture.md` is not present in the inspected repository; these contracts are the available architecture evidence.
+The diagram is a high-level project view; see the separate [architecture document](../architecture.md) for its own treatment. The normative component boundaries, ports and pinned versions are recorded in [stack contract](../contracts/00-stack-and-layout.md); the wire format and event rules are in [event contract](../contracts/01-event-envelope-and-simulator.md). The core Gradle modules are `:common` for shared records, `:compiler` for graph validation and operator semantics, `:reference` for single-process replay, `:engine` for coordinator and worker runtime, `:control-api`, `:simulator`, and `:tests`. `web/` is a Vite/React/TypeScript application.
 
-## Implementation by module
+The principal data boundary is a Kafka record containing a JSON envelope with `eventId`, `schemaVersion`, `type`, `eventTime`, `key`, and `payload`; the engine adds source topic, partition, and offset in memory. Invalid envelopes are rejected to the dead-letter output rather than entering normal operators. The compiler validates a directed acyclic graph of source, filters/maps, key-by, windows, rules, and sinks, then produces a deterministic plan. The full REST and WebSocket boundary is documented in [control API contract](../contracts/04-control-api-rest-ws.md). The demo pipeline illustrates parallel speed and delivery paths, keyed tumbling windows, a stuck-truck rule and PostgreSQL sinks.
 
-The pinned stack in `docs/contracts/00-stack-and-layout.md` specifies Java 21, Gradle, Spring Boot, Kafka, PostgreSQL, MinIO, React/TypeScript and the following modules. The repository contains these module trees; consult source and test reports for exact implemented behavior.
+## 3. Engine design
 
-- **`:common` (`common/`)** — shared Java records for event, pipeline, protocol and API contracts.
-- **`:compiler` (`compiler/`)** — pipeline JSON validation and deterministic execution planning; operator semantics are shared with both executors.
-- **`:reference` (`reference/`)** — deterministic single-process executor used as a correctness comparison baseline.
-- **`:engine` (`engine/`)** — coordinator and worker runtime, with Kafka consumption, bounded processing queues, state snapshots, checkpointing and recovery specified by the protocol contract.
-- **`:control-api` (`control-api/`)** — Spring Boot REST and WebSocket API for pipelines, executions, workers, results, chaos operations, and reference comparison.
-- **`:simulator` (`simulator/`)** — Java logistics/truck event generator and HTTP interface.
-- **`:tests` (`tests/`)** — integration-test module; checked-in tests include Kafka offset lookup, PostgreSQL execution repository, and S3 checkpoint store (`tests/src/test/java/io/aetherstream/tests/`). Fault/recovery and distributed comparison coverage should be demonstrated from actual test code and run reports, not inferred from the module name.
-- **Web (`web/`)** — React/TypeScript pipeline editor, logistics city view, API client, live panels, and chaos/reference comparison panels. UX documents are proposals, not proof of user research or usability testing.
+### Partitioning and event time
 
-## Testing strategy
+The input topic has six partitions and is keyed by truck. The coordinator assigns partitions round-robin among live workers sorted by worker ID. A worker executes a `PartitionPipeline` for each assigned partition. Processing is in per-partition Kafka offset order. This makes the partition the unit of ordering, watermark progress, snapshot state and recovery position; results do not depend on cross-partition interleaving or which worker currently owns a partition.
 
-The repository defines multiple layers of verification:
+The demo uses one-minute tumbling windows. A record with event time `t` is assigned to `[floor(t / size) * size, start + size)` for its key. Each partition and window operator maintains the maximum timestamp observed, `maxTs`. Its watermark is `maxTs - outOfOrdernessMs`; for the demo's five-second allowance, a window fires when its end is at or behind that watermark. The watermark is evaluated before the incoming record for the late check. An event targeting an already-closed window is emitted once as a `LATE` dead letter and is not added to the window. Distinct event IDs are counted at most once per key-window; duplicates still inside an open window are ignored without a dead letter. A partition with no new input does not advance: idle windows remain open under the declared policy. These details are normative in [pipeline semantics](../contracts/02-pipeline-and-semantics.md).
 
-1. **Unit/build checks:** `.github/workflows/ci-java.yml` runs `./gradlew build --console=plain`, building and unit-testing modules and uploading test reports.
-2. **Integration checks:** `.github/workflows/ci-integration.yml` runs `./gradlew :tests:integrationTest --console=plain`; checked-in integration tests exercise Kafka, PostgreSQL and S3-compatible storage with Testcontainers. Record the actual run URL and report before asserting success.
-3. **Web checks:** `.github/workflows/ci-web.yml` runs npm install validation, lint, tests and build in `web/` and uploads `web-dist`.
-4. **Image checks:** `.github/workflows/ci-images.yml` builds custom images without publishing, runs Java entrypoint smoke checks, and checks revision labels.
-5. **Compose smoke:** `.github/workflows/ci-compose.yml` starts the full stack, runs `infra/scripts/smoke.sh`, and captures service status/logs. The script is the integration smoke scenario; its actual output determines success.
-6. **Reference comparison:** the API contract describes replaying records up to a completed checkpoint through `ReferenceExecutor`, and comparing window outputs. Show the actual comparison response and corresponding execution/checkpoint.
-7. **Fault/recovery tests:** planned acceptance scenarios include worker termination, incomplete checkpoint rejection, stale-generation fencing, slow-sink backpressure and recovery correctness. Report only cases present in tests and supported by a passing run.
+The window operator supports count, sum, average, minimum and maximum. Aggregation fields absent on a record are skipped, while count counts the accepted record. Window firing order is deterministic. A rule tracks consecutive qualifying results per key and emits an alert when the configured streak is reached; a gap or failed result resets that streak. The demo stuck-truck rule looks for low average speed across ten consecutive one-minute windows. The compiler's shared operator code is also called by the reference executor, reducing the risk of separately implemented definitions of the same operation.
 
-**Results to complete from evidence:**
+### Backpressure and checkpoints
 
-- Java workflow: [fill in from CI run #...; URL, commit, conclusion]
-- Integration workflow: [fill in from CI run #...; URL, commit, conclusion]
-- Web / image / Compose workflow results: [fill in from CI run #...]
-- Test totals and failures: [fill in from uploaded reports]
-- Reference comparison: [fill in from actual response, checkpoint, and commit]
-- Recovery demonstration: [fill in from logs and observed generation/checkpoint]
-- Performance measurements: [fill in from reproducible benchmark, workload, hardware, and method; otherwise state not measured]
+Each worker has a source thread, bounded queue of capacity 1,000, operator thread, second bounded queue of capacity 1,000, and sink thread. Queue saturation blocks the upstream stage and is surfaced as backpressure. The sink batches PostgreSQL writes. This is a bounded memory and flow-control design, not an assertion that a particular throughput or latency has been achieved.
 
-No benchmark values are asserted here.
+For a checkpoint, the coordinator creates a pending checkpoint and sends a trigger. Each worker's source records the next offset not yet enqueued and places a barrier behind records already in the source queue. The operator snapshots each partition's state at the barrier and forwards it. The sink flushes and commits preceding output before uploading the worker's partition states and next offsets to MinIO and acknowledging the coordinator. The coordinator waits for acknowledgements covering all partitions, writes a manifest, and only after that upload succeeds marks the checkpoint `COMPLETED`. A checkpoint that times out or is interrupted is aborted; its partial worker objects are not a recovery point. Checkpoint zero records initial beginning or end offsets depending on the pipeline's start mode.
 
-## DevOps and delivery
+Recovery selects only the latest completed checkpoint. It restores the matching partition state and offsets, seeks Kafka to the saved positions, and replays from there. The coordinator increments the execution generation before reassignment. Sink transactions lock and check the execution generation before writing, so a stale worker cannot commit after a newer generation is active. Output rows are upserted by their logical keys. The contract therefore describes at-least-once input replay, state restored with offsets from one consistent checkpoint, and effectively exactly-once PostgreSQL results through deterministic output and upsert keys. It makes no such exactly-once claim for other sinks. The full protocol is [coordinator/worker contract](../contracts/03-coordinator-worker-protocol.md).
 
-### Git workflow
+### Savepoints and rescale
 
-Task instructions describe task branches and reviews as the team workflow. Use branch history and reviewed pull requests as evidence; do not claim review or merge practices from a plan alone. CI YAML triggers include pushes to `main` and `task/**` and pull requests to `main` for most workflows. The web workflow filters pushes to web paths. The documented contract also mentions `cd.yml`, but no such file was found in the inspected workflow directory; actual CD must therefore be demonstrated separately if it exists outside this checkout.
+The repository [README](../../README.md) lists APIs for creating and restoring savepoints, including rejection of an incompatible savepoint, and for controlled rescaling. It characterizes rescale as a pause at a completed checkpoint followed by reassignment, not online migration, and says a balanced assignment is refused. These additions must be understood alongside the contracts: contract 03 specifies periodic checkpoints, recovery, and generation fencing but does not define savepoint or rescale request/restore semantics. This report treats them as repository extensions, not behavior guaranteed by the normative worker protocol. A future contract revision should describe compatibility checks, lifecycle and rescale invariants before treating those interfaces as stable.
 
-### GitHub Actions
+## 4. Correctness and verification
 
-| Workflow | Defined behavior | What the examiner should verify |
+The reference executor is a deterministic single-process baseline. It replays the same shared `PartitionPipeline` semantics, in partition offset order. The compare API uses the initial checkpoint and latest completed checkpoint as Kafka offset bounds; it compares reference windows against PostgreSQL rows, including event count and aggregation values within absolute tolerance `1e-6`, and checks for extra closed-window rows. It returns a bounded mismatch list. Thus “match” refers to this replay range and result scope; it is not a proof for arbitrary future inputs, every possible failure, or sinks outside PostgreSQL.
+
+The following test names in [testing guide](../testing.md) establish distinct evidence:
+
+| Test or test family | What the assertion demonstrates | Boundary |
 |---|---|---|
-| `ci-java.yml` | Gradle build and unit tests; test reports artifact | A completed run on the presented commit and its test reports |
-| `ci-integration.yml` | Testcontainers integration task; reports artifact | Run conclusion and integration report |
-| `ci-web.yml` | npm ci, lint, test, production build; dist artifact | Run conclusion and artifact |
-| `ci-images.yml` | Build engine, simulator, API, optional web images; smoke and inspect revision labels | Log evidence; it explicitly uses `push: false` |
-| `ci-compose.yml` | Build/start complete stack, execute smoke script, print status/logs, tear down | Smoke PASS output and service logs |
-| `ci-mock.yml` | Install and smoke-test web development mock server | Run log; mock data is not live-engine evidence |
+| `PipelineCompilerTest` | Invalid graphs report contract error codes, node context and repair hints; multiple independent errors are collected; the demo plan is deterministic and round-trips. | Compiler unit test; no workers start. |
+| `PartitionPipelineTest.snapshotRoundTripsMatchUninterruptedExecutionAcrossFiveThousandRecords` | Snapshot/restore at three cuts over a 5,000-record deterministic stream preserves windows, alerts, dead letters and maximum timestamp. Other methods exercise duplicates, late checks, ordering and rule streaks. | Shared operator unit test, not a distributed checkpoint. |
+| `SimulationTest.seed42IsByteIdenticalForThirtyMinutesAndTheSameApiCalls` | Two seeded simulations produce identical emissions for the same API call sequence. | Simulator unit test, not Kafka delivery. |
+| `CoordinatorTest.checkpointCompletesOnlyWhenAllPartitionsAckedAndManifestIsWrittenFirst` | A checkpoint remains pending until all partitions acknowledge, and manifest creation precedes completion. | In-memory repositories and checkpoint store. |
+| `CoordinatorTest.workerFailureRecoversFromLastCompletedCheckpointWithNewGeneration` and `incompleteCheckpointIsNeverChosenForRecovery` | Recovery uses a completed checkpoint and a new generation, rather than a partial checkpoint. | Coordinator unit tests with fakes. |
+| `TaskRuntimeTest.sinkDelayFillsQueuesAndBlocksSource` | Slow sink fills bounded queues, exposes backpressure and bounds emitted work. | Fake source/sink runtime test; not a latency benchmark. |
+| `WorkerAdaptersIT.postgresSinkRejectsStaleGenerationWithoutInsertingOrOverwritingRows` | A real PostgreSQL sink refuses a stale generation without mutating rows. | Testcontainers integration test. |
+| `EngineMatchesReferenceIT.engineMatchesReferenceAtCompletedCheckpoint` | A multi-worker Kafka/PostgreSQL/MinIO execution compares with replay at a completed checkpoint and checks alerts and dead-letter categories. | Distributed Testcontainers integration test. |
+| `WorkerCrashRecoveryIT.workerCrashRestoresCompletedCheckpointAndMatchesReference` | A worker crash scenario restores from a completed checkpoint and checks the resulting comparison. | Testcontainers integration test; not an actual Compose deployment. |
+| `IncompleteCheckpointIT.abortsInterruptedCheckpointAndRestoresPreviousCompletedManifest` | An interrupted checkpoint is aborted and recovery selects the previous completed manifest. | Testcontainers integration test with real stores. |
 
-The definitions show automation intent, not successful executions. No run IDs or benchmark values are invented here.
+The repository records a specific integration workflow run, [Actions run 44395770221](https://github.com/VivekTiwary-25/AetherStream/actions/runs/44395770221), whose log reported 811 reference results, 811 engine results, 811 matched, and equal dead-letter counts of 25 and 25. That is evidence about that run, not an invariant count or benchmark. The report does not infer successful operation from test names alone. Unit tests use fakes where indicated; integration tests use Testcontainers; CI artifacts and logs are needed to establish the outcome of a particular run.
 
-### Docker and local stack
+The UI also has Vitest coverage for dashboard reducer states, backpressured/dead worker labels, recovery checkpoint labels, confirmation before worker-kill requests, compare rendering, editor validation feedback, and city mapping logic. The mock-server smoke check is separate from the simulator and from live-engine correctness. There is no basis here to treat a component test as a full browser end-to-end test or as proof that a user completed a task.
 
-`infra/docker/` contains custom multi-stage Dockerfiles for engine, simulator and control API, plus a web build/NGINX image. The Java runtime images use Temurin JRE 21, a non-root `aether` user, health checks, and OCI source/revision labels. `docker-compose.yml` defines Kafka, PostgreSQL, MinIO, coordinator, three workers, simulator, control API and web, with persistent volumes, health checks and a shared network. The default credentials in Compose are development defaults; supply secrets appropriately outside a local demo. `ci-images.yml` builds but does not push these images.
+## 5. UI and user experience
 
-### Continuous deployment
+The interface uses the logistics city as visual context: trucks, the depot and stops make the source workload legible. The city is not the authoritative place to inspect exact operational values. The dashboard pairs it with panels for speed windows, delivery rates, alerts, dead letters, workers and execution status. This reflects the design rationale in [UX design thinking](../ux/design-thinking.md): a city-only display risks hiding exact data and engine state, while a metrics-only dashboard loses the relationship to the simulated workload. The proposed direction combines the scene with glass-like panels and readable data views.
 
-A working deployment requires evidence that the built version was published, deployed to a running target, and smoke-tested. The inspected `.github/workflows/` listing contains no `cd.yml`, and the inspected `infra/` contains Dockerfiles, database schema and a smoke script, but no self-hosted-runner deployment workflow or Terraform/Kubernetes deployment configuration. Therefore CD to a self-hosted runner, a live deployed commit, GHCR publication, and runner availability are **not evidenced in this checkout**; treat them as planned/unverified until the team supplies direct workflow and environment evidence. Do not equate image build with deployment.
+The pipeline editor represents a graph of typed operators and provides configuration and compiler feedback. The chaos surface exposes late/duplicate/malformed input, sink delay and worker-kill operations; such actions affect runtime state and are demonstration controls, not routine production controls. The compare surface is intended to show result counts and mismatches within the contract's checkpoint scope. The checkpoint timeline and scenario chooser are other named interface components. The availability of a component in source does not by itself mean it is mounted or reachable in the active shell; the live shell and workflow should be checked for the actual presentation build before making an expo claim.
 
-## User experience
+Glass-panel styling is a visual grouping choice, not evidence of measured contrast. The UX documents favour readable labels alongside state color, preserve a table-oriented view for exact values, distinguish running from backpressured and recovering states, and call for reduced-motion handling. They explicitly state that personas and journeys are assumptions, not interview findings, and that the usability activities are proposed rather than completed. The screenshot set documents deployed dashboard captures on 19 November 2026; it does not cover every newer panel. No participant study, SUS score, WCAG conformance result, or accessibility audit is claimed. See [UX overview](../ux/README.md), [usability decisions](../ux/usability-decisions.md), [design system](../ux/design-system.md), and [visual QA](../ux/visual-qa.md).
 
-The UX materials in [docs/ux](../ux/README.md) include proto-personas, proposed journeys, design decisions, a design system and a Figma plan. They identify a pipeline author, operator, administrator and evaluator. The documents explicitly label personas and journeys as assumptions/proposals, not observed research, implemented journeys or usability-test results. The product direction pairs the logistics city visualization with readable tables and status labels; error, recovery and backpressure states should remain inspectable without relying on colour or animation alone.
+The product boundary is documented by [API contract 04](../contracts/04-control-api-rest-ws.md): REST endpoints serve pipeline validation, executions, results and chaos actions; the plain WebSocket carries snapshots and periodic state updates. It requires text and color together for execution states. The web client can therefore communicate system state with explicit language, while the city remains an orientation layer.
 
-## Limitations and planned work
+## 6. DevOps and delivery
 
-- The supplied handoff says it was written at proposal stage; repository implementation now exists, but a report author must verify every claim against the current source and run artifacts.
-- The architecture contracts specify a single active coordinator; high availability, durable leadership and fencing across coordinator failover are planned extensions.
-- The handoff lists savepoints, controlled rescaling, joins, schema evolution, permissions, autoscaling and advanced scheduling as staged or future work. Do not claim these unless implementation evidence is available.
-- A local Compose stack and CI workflow definitions do not prove an external deployment, self-hosted runner, GHCR package publication, or production readiness.
-- UX artifacts are not user interviews, tested prototypes, or conformance certification.
-- No measured throughput, latency, recovery duration, or benchmark result is included; populate only from reproducible measurements.
-- Confirm the current official CDD syllabus before claiming exact syllabus coverage; handoff section 11 says its mapping requires confirmation.
+### Build and local environment
 
-## Conclusion
+The pinned stack is Java 21 and Gradle 9.6, with Kafka 4.3.2, PostgreSQL 17, S3-compatible MinIO, Spring Boot for the control API, and Node 22/React/TypeScript/Vite for the web application; exact versions are in [stack contract](../contracts/00-stack-and-layout.md) and the Gradle catalog. `docker-compose.yml` defines Kafka, PostgreSQL, MinIO, coordinator, three worker services, simulator, control API and web. The Compose smoke script checks the dependencies and service endpoints, topic and bucket setup, registered workers, simulator state and input activity. Local development credentials are defaults, not credentials for an exposed deployment.
 
-AetherStream provides a technically substantial stream-processing project structure and explicit contracts for compiler semantics, partitioned execution, checkpoints, recovery, APIs, tests and containerized operation. The strongest examination narrative is to connect those contracts to a source file, an actual passing CI log, a running local or remote stack, and a reproducible reference/recovery result. Claims about deployment, benchmark performance, user validation, or unfinished extensions require additional evidence and should remain marked planned or unverified.
+Custom Dockerfiles in `infra/docker/` build engine, simulator, control API and web images. The CI image workflow checks image entry points and revision labels, but its builds use `push: false`; they are not publications. The separate `cd.yml` publishes four GHCR images on pushes to `main`, tagged by commit SHA and `main`, then deploys the requested SHA using the `aether-deploy` self-hosted runner. Its deployment smoke checks both API health and `/api/version` commit identity. `task/**` pushes run the lint job but do not publish or deploy. Workflow definitions and deployment scripts are evidence of configured behavior, not proof that the runner is online or a deployment succeeded.
+
+### CI, Kubernetes, Terraform and monitoring
+
+GitHub Actions workflows separate Java build/unit tests, web lint/tests/build, Testcontainers integration tests, Compose smoke, image checks, mock-server smoke, full-system demo, Kubernetes, Terraform and benchmark checks. `.github/workflows/ci-mock.yml` runs `cd web/mock && npm install && node smoke.mjs`; it exercises the development mock server only. The Java and integration jobs upload reports, while run conclusions must be read from the run corresponding to the commit being presented.
+
+The repository contains a Kubernetes/kind path in `infra/kubernetes/` and `.github/workflows/ci-k8s.yml`. Its README describes rendering and schema validation before applying resources, then readiness checks and worker-pod deletion/recovery in CI. This is a single-node development baseline; its own guide says it is not HA or internet-facing production. `infra/terraform/` provides a parallel local Docker-backed environment, with a workflow that formats, validates, applies, checks readiness and destroys the resources. These deployment paths complement rather than replace the default Compose demo.
+
+The optional Compose monitoring profile provisions Prometheus and Grafana in `infra/monitoring/`. Its documentation describes coordinator and control-api metrics scraping and a dashboard for workers, generations, checkpoints, recovery, throughput, queue size and backpressure. Metrics may be absent until instrumentation is exposed. This is an observability setup, not an independent performance report. Recorded repository evidence includes [Kubernetes run 44398295492](https://github.com/VivekTiwary-25/AetherStream/actions/runs/44398295492), whose job log reports recovery from a checkpoint with a higher generation within its 60-second assertion, and [Terraform run 44395471523](https://github.com/VivekTiwary-25/AetherStream/actions/runs/44395471523), whose log records 24 resources created and later destroyed. The recovery statement is the test's deadline assertion, not a measured recovery duration.
+
+## 7. Team and process
+
+The repository divides responsibility by lanes: contracts/common records, compiler/reference, engine, simulator, web city, web application, infrastructure, and tests, as shown in the stack and layout contract. This separation gives parallel work a shared vocabulary: wire formats, operator semantics, worker protocol, API schemas and module dependencies are written down before consumers implement their parts. Contract 00 assigns ownership for modules and lists independent CI workflows so that concerns can be checked separately.
+
+The documented process uses `task/**` branches and CI on task pushes, followed by review against contracts and CI before merge to `main`; the gated publication and deployment workflow then runs on main. This is process documentation, not proof of branch protections, every review, or this task's outcome. Lane labels do not establish team membership; complete the title-page roster with verified names. Deterministic shared semantics and explicit JSON/API contracts provide a common interface, while only a green run on the presented commit establishes a CI result.
+
+## 8. Results and evidence
+
+Results must be read with their evidence class. Source contracts establish intended semantics; test assertions establish a reproducible check; a workflow log establishes a recorded run; runtime counters and benchmark artifacts establish measured observations only for their recorded workload and environment. The following are repository-verifiable statements and recorded-run links:
+
+- The normative demo pipeline uses six Kafka partitions, 60,000 ms tumbling windows and 5,000 ms out-of-orderness, with speed/delivery aggregations and a ten-window stuck-truck rule ([contract 02](../contracts/02-pipeline-and-semantics.md)).
+- Worker queues are specified at capacity 1,000 each, and the TaskRuntime test asserts saturation and upstream blocking under a delayed fake sink ([contract 03](../contracts/03-coordinator-worker-protocol.md); [testing guide](../testing.md)).
+- `PartitionPipelineTest` includes a deterministic 5,000-record interrupted-versus-uninterrupted snapshot equivalence assertion; it is not a distributed checkpoint measurement.
+- The recorded integration run [44395770221](https://github.com/VivekTiwary-25/AetherStream/actions/runs/44395770221) logged 811 reference rows and 811 engine rows matched, plus equal dead-letter counts. These figures describe that log only.
+- The recorded Kubernetes run [44398295492](https://github.com/VivekTiwary-25/AetherStream/actions/runs/44398295492) includes the recovery assertion and pod diagnostics. Its 60 seconds is an upper bound in the test, not the observed elapsed time.
+- The recorded Terraform run [44395471523](https://github.com/VivekTiwary-25/AetherStream/actions/runs/44395471523) logged 24 resources added and destroyed.
+- The repo defines benchmark tooling and workflows, but this report supplies no benchmark throughput or latency values. It also supplies no recovery-duration statistic, participant usability score, or general production capacity figure.
+Internal Markdown links were checked against this checkout by opening cited files or confirming directory-listed paths.
+
+For an expo presentation, verify each linked workflow's commit SHA, conclusion, job logs and artifacts before presenting its result. The [CI/CD guide](../ci-cd.md) explains workflow triggers and what each job proves; [testing guide](../testing.md) maps test names to their boundaries. A green mock workflow does not prove Kafka processing, and a green smoke test does not establish that recovery and reference comparison passed. Results from a full-system demo should be taken from its own job log rather than inferred from the workflow file.
+
+## 9. Limitations and future work
+
+The coordinator design is single-active-instance. The contracts describe membership and recovery, but not a replicated coordinator or durable leader election. A coordinator outage and multi-coordinator split-brain safety are therefore outside the availability claim. The input design uses six fixed partitions and key-by fields that match the Kafka key; it does not support arbitrary repartitioning. Per-partition watermarks also leave windows open for partitions that become idle. That policy is explicit and simple, but future work could define idle-partition advancement without invalidating late-event guarantees.
+
+The current correctness claim is scoped to replay from completed checkpoint offsets and PostgreSQL's deterministic upsert behavior. Other sinks are not included in the exactly-once statement. Integration coverage uses Testcontainers and in-process workers in some cases; a test that throws on a kill command is not a crashed operating-system process. The crash recovery integration test improves on the unit-level fake, but failure models should be read from the individual test setup. The controlled rescale interface is not online migration, and the savepoint/rescale APIs are not fully specified in the normative contracts.
+
+Security and production operations need more work before deployment beyond a controlled demonstration. Development credentials are present as defaults; Kubernetes documentation warns that example credentials are public. The repository should not be presented as internet-facing, authenticated multi-tenant software. The educational Kubernetes setup is single-node, Terraform targets local Docker, and the Compose deployment depends on the configured self-hosted runner. CI/CD configuration does not in itself establish a protected runner, disaster recovery, secrets hygiene in a production environment, or operational service-level objectives.
+
+The UX documents present rationale and proposed research rather than completed user research. The live screenshot set does not show every editor, chaos, comparison, or timeline surface. Keyboard, screen-reader, contrast, and reduced-motion behavior require rendered-surface validation; no conformance certification is claimed. Future work can test complete operator workflows with participants and record measured outcomes, while keeping the map supplemental to accessible tables and text labels.
+
+Finally, no performance benchmark result is asserted here. A defensible capacity study would need a defined workload, input rate, cluster resources, duration, warmup, queue and checkpoint observations, latency percentiles and repeatable run artifacts. Additional work should also bring savepoint and rescale semantics into the contracts, expand failures tested against real services, and make CI evidence for a demonstrated commit easy to retrieve. These limits do not negate the value of the verified components; they set the boundary for claims an examiner can reproduce.
 
 ## References
 
-1. AetherStream project handoff, §§ 1–17, particularly §§ 3, 9–11 and 17.
-2. AetherStream repository contracts: [stack](../contracts/00-stack-and-layout.md), [pipeline semantics](../contracts/02-pipeline-and-semantics.md), [coordinator/worker protocol](../contracts/03-coordinator-worker-protocol.md), [control API](../contracts/04-control-api-rest-ws.md).
-3. Apache Flink, [Overview](https://flink.apache.org/).
-4. Apache Flink, [Flink applications](https://flink.apache.org/what-is-flink/flink-applications/).
-5. Apache Flink, [Flink operations](https://flink.apache.org/what-is-flink/flink-operations/).
-6. Apache Flink, [Event time and watermarks, 1.19 docs](https://nightlies.apache.org/flink/flink-docs-release-1.19/docs/concepts/time/).
-7. Apache Flink, [Documentation entry point](https://flink.apache.org/q/stable-docs.html).
-8. GitHub, [Deploying with GitHub Actions](https://docs.github.com/en/actions/how-tos/deploy).
-9. GitHub, [Publishing Docker images with GitHub Actions](https://docs.github.com/en/actions/tutorials/publish-packages/publish-docker-images).
-10. Docker, [Test before push with GitHub Actions](https://docs.docker.com/build/ci/github-actions/test-before-push/).
-11. Docker, [Compose CLI reference](https://docs.docker.com/reference/cli/docker/compose).
-12. Kubernetes, [Workload controllers](https://kubernetes.io/docs/concepts/workloads/controllers/).
+1. [AetherStream contracts](../contracts/README.md), especially [stack and layout](../contracts/00-stack-and-layout.md), [event envelope and simulator](../contracts/01-event-envelope-and-simulator.md), [pipeline semantics](../contracts/02-pipeline-and-semantics.md), [coordinator/worker protocol](../contracts/03-coordinator-worker-protocol.md), and [control API](../contracts/04-control-api-rest-ws.md).
+2. [Testing guide](../testing.md), [CI/CD guide](../ci-cd.md), and [UX documentation](../ux/README.md).
+3. [Integration Actions run 44395770221](https://github.com/VivekTiwary-25/AetherStream/actions/runs/44395770221), [Kubernetes Actions run 44398295492](https://github.com/VivekTiwary-25/AetherStream/actions/runs/44398295492), and [Terraform Actions run 44395471523](https://github.com/VivekTiwary-25/AetherStream/actions/runs/44395471523).
+4. Apache Flink, [Project overview](https://flink.apache.org/), for general stream-processing background only; AetherStream does not run on Flink.
