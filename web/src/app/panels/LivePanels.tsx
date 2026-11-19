@@ -3,7 +3,7 @@ import './panels.css'
 import { createPipeline, getDemoPipeline, startExecution } from '../../api/client'
 import type { Alert, DeadLetter, WindowResult, WorkerInfo } from '../../api/types'
 import { useExecutionStatus, type ExecutionStatus } from '../state/executionStatus'
-import { useDashboard } from '../state/store'
+import { isRebalanced, useDashboard } from '../state/store'
 import { formatApiDuration, humanState } from '../timeline/timelineModel'
 import { ClayButton } from '../ui/ClayButton'
 import { GlassPanel } from '../ui/GlassPanel'
@@ -36,10 +36,10 @@ function simClock(timestamp: number) {
 
 const pipelineActive = (state: string | undefined) => state === 'RUNNING' || state === 'RECOVERING'
 
-export function ExecutionStatusPill({ status }: { status: ExecutionStatus }) {
+export function ExecutionStatusPill({ status, label }: { status: ExecutionStatus; label?: string }) {
   return status === 'stopped'
     ? <span className="status-pill status-pill--stopped"><span className="status-pill__dot" aria-hidden="true" />Stopped</span>
-    : <StatusPill state={status} />
+    : <StatusPill state={status} label={label} />
 }
 
 function Sparkline({ values, bars = false }: { values: number[]; bars?: boolean }) {
@@ -157,7 +157,7 @@ function QueueBar({ label, size, capacity }: { label: string; size: number; capa
 }
 
 export function ExecutionBanner() {
-  const { execution, lastExecutionEvent, socketStatus } = useDashboard()
+  const { execution, lastExecutionEvent, socketStatus, rebalancedFromGeneration } = useDashboard()
   const { status, isRecovering, recoveringCheckpoint } = useExecutionStatus()
   const [starting, setStarting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -171,6 +171,9 @@ export function ExecutionBanner() {
     label = `Recovering from checkpoint #${number.format(recoveringCheckpoint)}`
     shortLabel = `Recovering · #${number.format(recoveringCheckpoint)}`
   } else if (lastExecutionEvent?.event === 'WORKER_DEAD') label = `Worker ${lastExecutionEvent.workerId ?? 'unknown'} lost`
+  else if (isRebalanced(lastExecutionEvent)) label = rebalancedFromGeneration !== null
+    ? `Rebalanced (gen ${number.format(rebalancedFromGeneration)} → ${number.format(lastExecutionEvent?.generation ?? 0)})`
+    : `Rebalanced (gen ${number.format(lastExecutionEvent?.generation ?? 0)})`
   else if (lastExecutionEvent?.event === 'RECOVERED') label = typeof recoveredMs === 'number' ? `Recovered in ${formatApiDuration(recoveredMs)}` : 'Recovered'
   else if (completedCheckpoint > 0 && execution?.state === 'RUNNING') label = `Checkpoint #${number.format(completedCheckpoint)} saved`
   const startDemo = async () => {
@@ -193,10 +196,12 @@ export function ExecutionBanner() {
   }, [lastExecutionEvent])
   const connected = socketStatus === 'connected'
   return <section className={`execution-banner execution-banner--${status}`} aria-label="Execution status" aria-live="polite">
-    <ExecutionStatusPill status={status} />
+    {/* Explicit spaces keep the banner's text readable as words ("Running Recovered in 2.0 s", not
+        "RunningRecovered…") for screen readers, copy/paste and text-based checks. */}
+    <ExecutionStatusPill status={status} label={status === 'backpressured' ? 'Running · Backpressured' : undefined} />{' '}
     <strong ref={checkpointRef} className="execution-banner__label">{shortLabel
       ? <><span className="execution-banner__full">{label}</span><span className="execution-banner__short" aria-hidden="true">{shortLabel}</span></>
-      : label}</strong>
+      : label}</strong>{' '}
     <span className={`execution-banner__connection execution-banner__connection--${socketStatus}`}>
       <span className="execution-banner__connection-icon" aria-hidden="true">{connected ? '●' : '⚠'}</span>
       {connected ? 'Live' : socketStatus === 'connecting' ? 'Connecting…' : 'Live connection lost — reconnecting…'}

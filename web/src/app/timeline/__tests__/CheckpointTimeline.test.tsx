@@ -28,9 +28,17 @@ beforeEach(() => {
   socketState.lastMessage = recoveringMessage
 })
 
-vi.mock('../../../api/ws', () => ({
-  useAetherSocket: () => socketState,
-}))
+// The timeline subscribes to every frame; replay the current socketState frame to the handler once per new frame.
+vi.mock('../../../api/ws', async () => {
+  const { useEffect } = await import('react')
+  return {
+    useAetherMessages: (handler: (message: WebSocketMessage) => void) => {
+      const message = socketState.lastMessage
+      useEffect(() => { handler(message) }, [message]) // eslint-disable-line react-hooks/exhaustive-deps
+      return 'connected'
+    },
+  }
+})
 
 afterEach(() => {
   cleanup()

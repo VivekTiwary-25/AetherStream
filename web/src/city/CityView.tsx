@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import './city.css'
-import { useAetherSocket } from '../api/ws'
+import { useAetherMessages } from '../api/ws'
 import { toCityEnvelope } from './citySocket'
 import { CityModel, type EngineStatus } from './cityModel'
 import type { CityPoint, CityTruck } from './cityTypes'
@@ -38,12 +38,11 @@ export function CityView() {
   const [notice, setNotice] = useState<Notice | null>(null)
   const [dragOver, setDragOver] = useState<DragState>(null)
 
-  const { lastMessage, status: socketStatus } = useAetherSocket()
-
-  useEffect(() => {
-    const message = toCityEnvelope(lastMessage)
+  // Every frame reaches the model in arrival order (no collapsing to the last frame of a React batch).
+  const socketStatus = useAetherMessages((frame) => {
+    const message = toCityEnvelope(frame)
     if (message?.data != null) model.current.apply(message, performance.now())
-  }, [lastMessage])
+  })
 
   useEffect(() => {
     // 'connecting' on first load is normal; only a dropped link counts as offline.

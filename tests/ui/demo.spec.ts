@@ -58,6 +58,10 @@ test('real-stack demo: deployed UI, engine values, editor, recovery, reference',
   }
 
   await step('01-deployed-page', async () => {
+    // The once-per-session intro splash (web/src/app/tour, key INTRO_STORAGE_KEY) is for live audiences; mark it seen.
+    await page.addInitScript(() => {
+      try { window.sessionStorage.setItem('aetherstream.intro.seen', '1') } catch { /* storage blocked: splash still dismisses on click */ }
+    })
     await page.goto('/')
     await expect.soft(page, 'Browser title must identify AetherStream').toHaveTitle('AetherStream')
     await expect.soft(page.getByRole('heading', { name: 'AetherStream', exact: true }), 'Dashboard heading must be visible').toBeVisible()

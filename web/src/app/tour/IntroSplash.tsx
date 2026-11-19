@@ -26,11 +26,14 @@ export function IntroSplash({ durationMs = 2000, onDone }: IntroSplashProps) {
     writeItem('sessionStorage', INTRO_STORAGE_KEY, '1')
     if (!visible) return
     const timer = window.setTimeout(finish, durationMs)
-    const onKey = () => finish()
-    window.addEventListener('keydown', onKey)
+    // Never block a presenter (or an automated run): any key, Escape included, or any click/tap dismisses it.
+    const dismiss = () => finish()
+    window.addEventListener('keydown', dismiss)
+    window.addEventListener('pointerdown', dismiss, true)
     return () => {
       window.clearTimeout(timer)
-      window.removeEventListener('keydown', onKey)
+      window.removeEventListener('keydown', dismiss)
+      window.removeEventListener('pointerdown', dismiss, true)
     }
   }, [visible, durationMs, finish])
 
