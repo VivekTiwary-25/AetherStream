@@ -1,0 +1,31 @@
+[    7.9s] SHOT 53-r2-reload-top.png
+[    9.5s] late tab text: ['Late (0)', 'No late records yet.']
+[    9.7s] SHOT 54-r2-dead-letters-late-tab.png
+[   15.8s] +0.1s banner: ('Running', 'Checkpoint #22 saved')
+[   16.4s] +0.7s banner: ('Running', 'Checkpoint #23 saved')
+[   16.6s] +0.9s banner: ('Checkpoint #23 saved',)
+[   17.9s] +2.2s banner: ('Checkpoint #23 saved', 'Running')
+[   18.2s] +2.5s banner: ('Running', 'Checkpoint #23 saved')
+[   19.3s] +3.6s banner: ('Recovering from checkpoint #23', 'Recovering')
+[   22.0s] SHOT 55-r2-banner-recovering.png
+[   31.3s] +15.6s banner: ('Checkpoint #24 saved',)
+[   32.9s] +17.2s banner: ('Running', 'Checkpoint #24 saved')
+[   41.4s] +25.7s banner: ('Running', 'Checkpoint #25 saved')
+[   41.7s] +26.0s banner: ('Checkpoint #25 saved',)
+[   43.0s] +27.2s banner: ('Checkpoint #25 saved', 'Running')
+[   43.4s] +27.7s banner: ('Running', 'Checkpoint #25 saved')
+[   51.4s] +35.7s banner: ('Checkpoint #26 saved',)
+[   52.9s] +37.2s banner: ('Checkpoint #26 saved', 'Running')
+[   53.2s] +37.4s banner: ('Running', 'Checkpoint #26 saved')
+[   61.3s] +45.6s banner: ('Running', 'Checkpoint #27 saved')
+[   61.4s] +45.7s banner: ('Checkpoint #27 saved',)
+[   62.8s] +47.1s banner: ('Checkpoint #27 saved', 'Running')
+[   63.0s] +47.3s banner: ('Running', 'Checkpoint #27 saved')
+[   71.3s] +55.6s banner: ('Checkpoint #28 saved',)
+[   72.9s] +57.1s banner: ('Checkpoint #28 saved', 'Running')
+[   73.0s] +57.3s banner: ('Running', 'Checkpoint #28 saved')
+[   81.3s] +65.6s banner: ('Checkpoint #29 saved',)
+[   82.9s] +67.2s banner: ('Running', 'Checkpoint #29 saved')
+[   89.8s] SHOT 56-r2-workers-after-kill.png
+[   92.0s] timeline: ['Generation 2']
+[   95.9s] SHOT 57-r2-timeline-after-kill.png

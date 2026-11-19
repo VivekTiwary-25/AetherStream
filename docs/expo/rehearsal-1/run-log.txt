@@ -1,0 +1,141 @@
+[    1.0s] ===== PRE version
+[    2.2s] version (200, '{"commit":"038370142ee02caa9334021076231f75b8bcb061","builtAt":""}')
+[    3.1s] ready (200, '{"checks":{"postgres":"UP","kafka":"UP","coordinator":"UP","simulator":"UP"},"status":"UP"}')
+[    3.9s] current (200, '{"id":"exec-38e74bc1-2b8f-4fa1-84e9-5bf398657057","pipelineId":"logistics-demo","pipelineVersion":4,"state":"RUNNING","generation":1,"restoredFromCheckpoint":25,"lastCompletedCheckpoint":15,"createdAt":"2026-11-19T04:11:49.063Z"}')
+[    4.7s] SHOT 01-pre-api-version.png
+[    4.7s] ===== PRE open app
+[    6.4s] SHOT 02-pre-intro-splash.png
+[    6.4s] intro text present: True True
+[   10.7s] loaded in 6.0
+[   10.7s] MOCK DATA present: False
+[   10.7s] banner/exec: ['Checkpoint #16 saved', 'Checkpoint #16 saved']
+[   10.9s] SHOT 03-pre-app-loaded.png
+[   10.9s] ===== S1 0:00 stack up (docker compose ps)
+[   11.3s] SHOT 04-s1-api-ready.png
+[   15.7s] ===== S2 0:45 panels
+[   15.7s] legend: ['Driving', 'Unloading', 'Idle', 'Stopped', 'Event', 'Rejected', 'Late']
+[   15.7s] events/s: ['40.9 events/s']
+[   15.9s] SHOT 05-s2-city-dashboard.png
+[   16.8s] SHOT 06-s2-speed-windows.png
+[   17.7s] SHOT 07-s2-deliveries-min.png
+[   18.6s] SHOT 08-s2-alerts.png
+[   19.5s] SHOT 09-s2-workers.png
+[   19.5s] speed rows: ['truck-001\n7.4 km/h', 'truck-002\n16.9 km/h', 'truck-003\n11.5 km/h', 'truck-004\n22.8 km/h', 'truck-005\n10.4 km/h', 'truck-006\n28.5 km/h', 'truck-007\n23.0 km/h', 'truck-008\n29.5 km/h']
+[   19.5s] deliveries: ['4\ndeliveries in the last completed sim minute']
+[   19.5s] alerts: ['No alerts — every truck is moving.']
+[   19.5s] workers: ['worker-1\nRunning', 'worker-2\nRunning', 'worker-3\nRunning'] ['Source queue\n0/32', 'Sink queue\n0/32', 'Source queue\n0/32', 'Sink queue\n0/32', 'Source queue\n0/32', 'Sink queue\n0/32']
+[   31.3s] truck tooltip found: None
+[   31.5s] SHOT 10-s2-truck-hover.png
+[   31.5s] S2 took 15.8
+[   31.5s] ===== S3 2:00 pipeline editor
+[   33.2s] SHOT 11-s3-editor-open.png
+[   33.2s] palette: ['Source', 'Filter', 'Map', 'Key-by', 'Window', 'Rule', 'Sink']
+[   33.2s] examples: ['Choose an example…', 'Truck city: speed, deliveries, stuck trucks', 'Speeding alerts', 'Fleet activity', 'Broken logistics demo']
+[   34.7s] broken hint: ['This pipeline has 3 mistakes - press Validate']
+[   34.9s] SHOT 12-s3-broken-loaded.png
+[   34.9s] Run disabled before validate: True
+[   36.9s] errors: ["TYPE_MISMATCH\nSink 'alertSink' (Alert results) needs a Window before it. Connect it to a Window's output.", "DANGLING_NODE\nFilter 'del' (Delivery events) has no output connection. Connect it to a downstream block ending in a Sink.", "TYPE_MISMATCH\nWindow 'speed1m' (1-minute speed window) needs a Key-by before it. Add a Key-by block between Filter 'pos' (Position events) and this Window."]
+[   36.9s] show me count: 3
+[   37.1s] SHOT 13-s3-broken-validated.png
+[   38.3s] SHOT 14-s3-show-me.png
+[   41.9s] valid: ['Validate', 'Valid - 11 operators, 6 partitions'] ['Plan order: src → del → kb2 → del1m → delSink → pos → kb1 → speed1m → speedSink → stuck → alertSink']
+[   41.9s] Run enabled: True
+[   42.0s] SHOT 15-s3-good-validated.png
+[   43.2s] SHOT 16-s3-editor-closed.png
+[   43.2s] S3 took 11.7
+[   43.2s] ===== S4 3:30 late/slow/kill/recover
+[   45.9s] late status: ['20 late events sent']
+[   46.0s] SHOT 17-s4-late-sent.png
+[   46.7s] dead-letter tabs: ['Rejected (20)', 'Late (20)']
+[   76.7s] FAIL late tab TimeoutError('Locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for get_by_role("button", name=re.compile(r"^Late \\(\\d+\\)")).first\n')
+[   77.9s] SHOT 18-s4-dead-letters-late.png
+[   78.7s] api late: [{"eventId":"s42-truck-003-068533972178779893737143378765509421545002957-late-27","kind":"LATE","reason":"window [1795478940000,1795479000000) already closed (watermark 1795479158490)","partition":4,"offset":279784,"eventTime":1795478984180},{"eventId":"s42-truck-006-06853397217877989373714337876550
+[   81.3s] hint: ['Output slowed: queues fill up (bounded at 1,000) and the engine pushes back.', 'Output slowed to 200 ms per record.']
+[   81.5s] SHOT 19-s4-slow-200.png
+[   90.2s] queues: ['Source queue\n32/32', 'Sink queue\n32/32', 'Source queue\n13/32', 'Sink queue\n32/32', 'Source queue\n12/32', 'Sink queue\n32/32'] True
+[   98.8s] queues: ['Source queue\n32/32', 'Sink queue\n32/32', 'Source queue\n32/32', 'Sink queue\n32/32', 'Source queue\n32/32', 'Sink queue\n32/32'] True
+[  107.4s] queues: ['Source queue\n32/32', 'Sink queue\n32/32', 'Source queue\n32/32', 'Sink queue\n32/32', 'Source queue\n32/32', 'Sink queue\n32/32'] True
+[  107.6s] SHOT 20-s4-workers-under-slow.png
+[  109.9s] SHOT 21-s4-slow-off.png
+[  110.9s] confirm text: ['Kill worker worker-1? It will crash without warning.'] ['Busiest worker (worker-1)']
+[  111.1s] SHOT 22-s4-kill-confirm.png
+[  111.8s] SHOT 23-s4-kill-clicked.png
+[  111.8s] +0.6s state: ('3 alive', '3/3 workers · healthy', 'Generation 1', 'Worker worker-1 killed.')
+[  114.6s] +3.5s state: ('3 alive', '3/3 workers · healthy', 'Generation 2', 'Recovering from checkpoint #25', 'Worker worker-1 killed.')
+[  114.7s] SHOT 24-s4-recovering.png
+[  126.7s] +15.6s state: ('3 alive', '3/3 workers · healthy', 'Generation 2', 'Worker worker-1 killed.')
+[  191.8s] SHOT 25-s4-after-kill-top.png
+[  192.6s] SHOT 26-s4-workers-after-kill.png
+[  193.2s] timeline: ['Generation 2', 'Restored from #25']
+[  193.4s] SHOT 27-s4-timeline-after-kill.png
+[  193.4s] S4 took 150.2
+[  193.4s] ===== S5 5:15 compare
+[  194.7s] SHOT 28-s5-comparing.png
+[  197.7s] compare: ['598 / 598 results match', 'Checked up to checkpoint #33 - replayed 210,405 events in 1,671 ms']
+[  197.9s] SHOT 29-s5-compare-result.png
+[  197.9s] S5 took 4.5
+[  197.9s] ===== S6 6:15 ops
+[  201.7s] savepoint: ['Take savepoint', 'Savepoint sp-exec-38e74bc1-2b8f-4fa1-84e9-5bf398657057-35 at checkpoint #35']
+[  201.8s] SHOT 30-s6-savepoint.png
+[  205.9s] restore dialog: ['Restart the pipeline from this savepoint?']
+[  205.9s] after restore: ['Restored from #35', 'exec-38e74bc1-2b8f-4fa1-84e9-5bf398657057-35', 'Restore', 'exec-725f2388-c43b-459d-a75d-b51eac49336e-25', 'Restore', 'exec-20261119-024857-d958-426']
+[  208.0s] SHOT 31-s6-restore.png
+[  213.0s] rescale: ['Rescale', 'Pauses at the next checkpoint, moves partitions, resumes - a controlled pause, not live migration.', 'execution exec-ad96d2d2-5c15-4def-ac5d-e91753c4c9e8 does not need a rebalance']
+[  215.2s] SHOT 32-s6-rescale.png
+[  216.2s] api current: (200, '{"id":"exec-ad96d2d2-5c15-4def-ac5d-e91753c4c9e8","pipelineId":"logistics-demo","pipelineVersion":4,"state":"RUNNING","generation":1,"restoredFromCheckpoint":35,"lastCompletedCheckpoint":1,"createdAt":"2026-11-19T04:17:43.007Z"}')
+[  216.2s] S6 took 18.3
+[  216.2s] ===== S7 7:15 scenarios
+[  222.1s] Rush hour -> ['Active: Rush hour']
+[  226.4s] SHOT 33-s7-rush-hour.png
+[  230.2s] Breakdown -> ['Active: Breakdown']
+[  234.3s] SHOT 34-s7-breakdown.png
+[  238.2s] Surge -> ['Active: Surge']
+[  242.5s] SHOT 35-s7-surge.png
+[  246.3s] Reset -> ['Active: Reset']
+[  250.5s] SHOT 36-s7-reset.png
+[  251.4s] sim state: {"running":true,"timeScale":10.0,"simTime":1795481235910,"emitted":32226,"scenario":"none","trucks":[{"truckId":"truck-001","x":999.4,"y":800.0,"speedKmh":0.0,"heading":180.0,"routeId":"r-001-1","stat
+[  251.4s] S7 took 35.3
+[  251.4s] ===== S8 8:00 tour + footer
+[  254.6s] tour: [] ['Chaos', 'Compare with reference']
+[  258.7s] SHOT 37-s8-tour-1.png
+[  261.7s] tour: [] ['Chaos', 'Compare with reference']
+[  263.7s] SHOT 38-s8-tour-2.png
+[  266.8s] tour: [] ['Chaos', 'Compare with reference']
+[  268.7s] SHOT 39-s8-tour-3.png
+[  271.8s] tour: [] ['Chaos', 'Compare with reference']
+[  273.8s] SHOT 40-s8-tour-4.png
+[  276.9s] tour: [] ['Chaos', 'Compare with reference']
+[  280.9s] SHOT 41-s8-tour-5.png
+[  284.0s] tour: [] ['Chaos', 'Compare with reference']
+[  288.0s] SHOT 42-s8-tour-6.png
+[  291.0s] tour: [] ['Chaos', 'Compare with reference']
+[  295.1s] SHOT 43-s8-tour-7.png
+[  298.1s] tour: [] ['Chaos', 'Compare with reference']
+[  302.1s] SHOT 44-s8-tour-8.png
+[  306.9s] footer: ['Deployed version: 0383701'] api: (200, '{"commit":"038370142ee02caa9334021076231f75b8bcb061","builtAt":""}')
+[  310.4s] SHOT 45-s8-footer.png
+[  310.4s] S8 took 58.9
+[  310.4s] ===== S9 8:45 CD run
+[  315.6s] SHOT 46-s9-cd-run.png
+[  315.7s] cd run: ['publish', 'deploy', 'Success', 'publish', 'deploy'] schema: remove semicolons from org_id comments (naive splitter broke … · VivekTiwary-25/AetherStream
+[  315.7s] S9 took 5.3
+[  315.7s] ===== S10 10:00 containers + grafana
+[  316.7s] grafana via tunnel: 200
+[  316.7s] ===== S11 10:45 tests
+[  320.1s] unit 44439772370 ['Success'] engine test: wait for lastCheckpointId after ack (set after coordinat… · VivekTiwary-25/AetherStream
+[  320.2s] SHOT 47-s11-unit.png
+[  323.6s] testcontainers 44395770221 ['Success'] task t261119-0219-af6d: T58 strengthen ITs (R05 fixes) (upendra-pc/co… · VivekTiwary-25/AetherStream
+[  323.7s] SHOT 48-s11-testcontainers.png
+[  327.1s] e2e 44410772993 ['Success'] Merge branch 'main' of https://github.com/VivekTiwary-25/AetherStream · VivekTiwary-25/AetherStream@
+[  327.2s] SHOT 49-s11-e2e.png
+[  330.5s] kind 44398295492 ['Success'] swarm: merged t261119-0209-622f · VivekTiwary-25/AetherStream@93d9415 · GitHub
+[  330.6s] SHOT 50-s11-kind.png
+[  333.8s] terraform 44395471523 ['Success'] swarm: merged t261119-0209-c673 · VivekTiwary-25/AetherStream@815c172 · GitHub
+[  333.9s] SHOT 51-s11-terraform.png
+[  337.2s] compose 44439772374 ['Success'] engine test: wait for lastCheckpointId after ack (set after coordinat… · VivekTiwary-25/AetherStream
+[  337.3s] SHOT 52-s11-compose.png
+[  337.3s] S11 took 20.6
+[  337.3s] console errors (first 30):
+[  337.3s]    error: Failed to load resource: the server responded with a status of 409 ()
+[  337.3s] total console errs 1
+[  337.3s] TOTAL 337.3
