@@ -13,7 +13,7 @@ if ($Action -ne 'late' -or $Count -notmatch '^[1-9][0-9]*$') {
 try {
     $body = @{ count = [int]$Count; lateByMs = 180000 } | ConvertTo-Json -Compress
     Invoke-RestMethod -Method Post -Uri "$base/api/chaos/late-events" -ContentType 'application/json' -Body $body -TimeoutSec 10 | Out-Null
-    Write-Output "Sent $Count late events (they appear in Analytics → Failed Records if the engine classifies them late)"
+    Write-Output "Sent $Count late events (they appear in Analytics -> Failed Records if the engine classifies them late)"
 } catch {
     $message = $_.ErrorDetails.Message
     if (-not $message) { $message = $_.Exception.Message }

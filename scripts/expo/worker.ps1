@@ -23,7 +23,7 @@ try {
     $body = @{ workerId = "worker-$WorkerNumber" } | ConvertTo-Json -Compress
     $response = Invoke-RestMethod -Method Post -Uri "$base/api/chaos/kill-worker" -ContentType 'application/json' -Body $body -TimeoutSec 10
     $id = if ($response.workerId) { $response.workerId } else { "worker-$WorkerNumber" }
-    Write-Output "Killed $id (engine will recover; watch Settings → Logs & Recovery)"
+    Write-Output "Killed $id (engine will recover; watch Settings -> Logs & Recovery)"
 } catch {
     $message = $_.ErrorDetails.Message
     if (-not $message) { $message = $_.Exception.Message }
