@@ -4,11 +4,12 @@ import { describePipeline, DISPLAY_NAMES, isNodeKind, type Pipeline } from './mo
 export function PipelineReview({ pipeline }: { pipeline: Pipeline }) {
   const steps = describePipeline(pipeline)
   return <ol className="gl-review" aria-label={`Steps of ${pipeline.name}`}>
-    <li className="gl-review__source">Live truck positions</li>
+    <li className="gl-review__source"><span className="gl-review__eyebrow">Source</span>Live truck positions</li>
     {steps.map((step, index) => {
       const previous = index === 0 ? undefined : steps[index - 1]!.id
       const branch = step.inputs.length > 0 && !step.inputs.includes(previous ?? '')
       return <li key={step.id} className={`gl-review__step gl-review__step--${step.type}`}>
+        <span className="gl-review__eyebrow">Step {index + 1}</span>
         <span className="gl-review__kind">{isNodeKind(step.type) ? DISPLAY_NAMES[step.type] : step.type}</span>
         <span>{step.text.replace(/^[^:]+: /, '')}</span>
         {branch && <small className="gl-muted">from {step.inputs.join(', ')}</small>}
