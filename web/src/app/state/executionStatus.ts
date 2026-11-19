@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import type { StatusState } from '../ui/StatusPill'
-import { useDashboard } from './store'
+import { isRebalanced, useDashboard } from './store'
 
-/** Minimum time the UI keeps showing Recovering, so a sub-second recovery is still visible (visual QA X4). */
+/** Minimum time the UI keeps showing Recovering, so a sub-second recovery is still visible (visual QA X4; >= 1.5 s). */
 export const RECOVERY_HOLD_MS = 3000
 const CHECKPOINT_FLASH_MS = 1500
 
@@ -11,23 +11,39 @@ export type ExecutionStatus = StatusState | 'stopped'
 /**
  * One source of truth for the header badge and the execution banner (visual QA X3): both derive their state from
  * the same execution, last execution event and workers, with the same minimum recovery hold.
+ *
+ * The hold starts when recovery is first seen, either live (execution/event RECOVERING, a worker RESTORING) or via
+ * the store's `recoveries` counter (RECOVERING and RECOVERED delivered in one React batch never render as live).
+ * It is measured from that first sighting, so repeated signals cannot keep re-arming it, and it is dropped as soon
+ * as the execution stops or fails. A REBALANCED event (partitions moved without a WORKER_DEAD) is not a recovery.
  */
 export function useExecutionStatus() {
-  const { execution, lastExecutionEvent, workers } = useDashboard()
-  const liveRecovering = execution?.state === 'RECOVERING' || lastExecutionEvent?.event === 'RECOVERING' || workers.some((worker) => worker?.alive && worker?.state === 'RESTORING')
+  const { execution, lastExecutionEvent, workers, recoveries, recoveryCheckpoint } = useDashboard()
+  const rebalanced = isRebalanced(lastExecutionEvent)
+  const liveRecovering = execution?.state === 'RECOVERING'
+    || lastExecutionEvent?.event === 'RECOVERING'
+    || (!rebalanced && execution?.state !== 'RUNNING' && workers.some((worker) => worker?.alive && worker?.state === 'RESTORING'))
   const liveCheckpoint = lastExecutionEvent?.event === 'RECOVERING' && typeof lastExecutionEvent.checkpointId === 'number'
     ? lastExecutionEvent.checkpointId
     : execution?.restoredFromCheckpoint ?? execution?.lastCompletedCheckpoint ?? 0
+
+  // Latest checkpoint values, read by the hold effect without making it re-run (a re-run would cancel the hold).
+  const checkpoints = useRef({ live: liveCheckpoint, counted: recoveryCheckpoint })
+  useEffect(() => {
+    checkpoints.current = { live: liveCheckpoint, counted: recoveryCheckpoint }
+  })
+
   const startedAt = useRef(0)
   const heldCheckpoint = useRef(0)
+  const seenRecoveries = useRef(recoveries)
   const [held, setHeld] = useState<number | null>(null)
   useEffect(() => {
-    if (liveRecovering) {
-      heldCheckpoint.current = liveCheckpoint
+    const counted = recoveries !== seenRecoveries.current
+    seenRecoveries.current = recoveries
+    if (liveRecovering || counted) {
       if (!startedAt.current) startedAt.current = Date.now()
+      heldCheckpoint.current = liveRecovering ? checkpoints.current.live : checkpoints.current.counted ?? checkpoints.current.live
     }
-  }, [liveRecovering, liveCheckpoint])
-  useEffect(() => {
     if (liveRecovering || !startedAt.current) return
     const remaining = startedAt.current + RECOVERY_HOLD_MS - Date.now()
     startedAt.current = 0
@@ -38,7 +54,8 @@ export function useExecutionStatus() {
       window.clearTimeout(timer)
       setHeld(null)
     }
-  }, [liveRecovering])
+  }, [liveRecovering, recoveries])
+
   const [checkpointFlash, setCheckpointFlash] = useState(false)
   useEffect(() => {
     if (lastExecutionEvent?.event !== 'CHECKPOINT_COMPLETED') return
@@ -46,7 +63,9 @@ export function useExecutionStatus() {
     const timer = window.setTimeout(() => setCheckpointFlash(false), CHECKPOINT_FLASH_MS)
     return () => window.clearTimeout(timer)
   }, [lastExecutionEvent])
-  const isRecovering = liveRecovering || held !== null
+
+  const ended = execution?.state === 'STOPPED' || execution?.state === 'FAILED'
+  const isRecovering = liveRecovering || (held !== null && !ended)
   const backpressured = workers.some((worker) => worker?.alive && worker?.backpressured)
   const status: ExecutionStatus = execution?.state === 'FAILED'
     ? 'failed'
@@ -61,4 +80,3 @@ export function useExecutionStatus() {
             : 'stopped'
   return { status, isRecovering, recoveringCheckpoint: liveRecovering ? liveCheckpoint : held ?? liveCheckpoint }
 }
-

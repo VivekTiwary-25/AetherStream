@@ -15,3 +15,4 @@ Current public link (quick tunnel, changes if the PC restarts): https://trance-c
    Not blocking: the boss routes its work to other PCs.
 7. [08:20] upendra-pc is asleep or offline (no heartbeat 10 min). Wake it / check power + internet, then run: `swarm up`
    Not blocking: its queued tasks move to other PCs automatically.
+8. [08:55] vimlesh-pc is asleep or offline again (since ~08:45). Wake it, then run: `swarm up`. Not blocking (work is rerouted).

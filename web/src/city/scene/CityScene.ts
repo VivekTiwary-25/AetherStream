@@ -1,7 +1,7 @@
 // Owns the Pixi application: layers, camera input, and the per-frame update that reads the CityModel.
 import { Application, Container, Graphics, Sprite, Text } from 'pixi.js'
 import { CameraRig, type Screen } from '../camera'
-import { buildCityLayout, WORLD_HEIGHT, WORLD_WIDTH } from '../cityLayout'
+import { buildCityLayout, CITY_SIZE, WORLD_HEIGHT, WORLD_WIDTH } from '../cityLayout'
 import { partitionForTruck, streamStyle, zoomFade } from '../cityLogic'
 import { stalledLanes, type CityModel } from '../cityModel'
 import type { CityPoint } from '../cityTypes'
@@ -39,6 +39,7 @@ export class CityScene {
   private readonly beacon: Sprite
   private readonly fx = new Graphics({ blendMode: 'add' })
   private readonly truckLayer = new Container()
+  private readonly miniMap = new Graphics()
   private readonly engine = new EngineCore()
   private readonly flow: FlowLayer
   private readonly trucks = new Map<string, RenderedTruck>()
@@ -70,7 +71,7 @@ export class CityScene {
     canvas.style.cssText = 'display:block;width:100%;height:100%;touch-action:none;cursor:grab'
     host.appendChild(canvas)
     this.world.addChild(drawStaticCity(buildCityLayout()), this.stopsLayer, this.depotLayer, this.engine.root, this.truckLayer, this.flow.root, this.fx)
-    this.app.stage.addChild(this.world)
+    this.app.stage.addChild(this.world, this.miniMap)
     this.cleanupInput = this.bindInput(canvas)
     this.app.ticker.add((ticker) => this.frame(Math.min(ticker.deltaMS / 1000, 0.05)))
   }
@@ -88,6 +89,7 @@ export class CityScene {
     const rect = this.app.canvas.getBoundingClientRect()
     return this.camera.screenToWorld(clientX - rect.left, clientY - rect.top, this.screen)
   }
+  resetView(): void { this.camera.reset() }
 
   /** Truck under the pointer (screen-space radius so it works at every zoom). */
   pick(clientX: number, clientY: number): string | null {
@@ -106,6 +108,10 @@ export class CityScene {
 
   private bindInput(canvas: HTMLCanvasElement): () => void {
     let last = { x: 0, y: 0, t: 0 }
+    const keydown = (e: KeyboardEvent) => {
+      if (e.key !== '0' || e.altKey || e.ctrlKey || e.metaKey || e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
+      this.camera.reset()
+    }
     const local = (e: { clientX: number; clientY: number }) => { const r = canvas.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top } }
     const wheel = (e: WheelEvent) => {
       e.preventDefault()
@@ -137,7 +143,9 @@ export class CityScene {
     canvas.addEventListener('pointerup', up)
     canvas.addEventListener('pointercancel', up)
     canvas.addEventListener('dblclick', dbl)
+    window.addEventListener('keydown', keydown)
     return () => {
+      window.removeEventListener('keydown', keydown)
       canvas.removeEventListener('wheel', wheel)
       canvas.removeEventListener('pointerdown', down)
       canvas.removeEventListener('pointermove', move)
@@ -168,11 +176,12 @@ export class CityScene {
     frame.flow = this.model.flow
     frame.style = streamStyle(status.mode)
     stalledLanes(this.model.workers, frame.stalled)
-    frame.sizeScale = clamp(1 / view.scale, 1.2, 4)
     frame.fade = zoomFade(this.camera.zoom)
+    this.engine.setLabelScale(Math.min(1.8, 0.55 / view.scale))
     this.flow.update(dt, frame)
     const checkpoint = this.model.lastCheckpoint
     this.engine.update({ seconds, dt, flow: this.model.flow, workers: this.model.workers, status, checkpointAge: checkpoint ? (now - checkpoint.at) / 1000 : null, reducedMotion: this.reducedMotion, stalled: frame.stalled })
+    this.drawMiniMap(screen)
     this.drawEffects(now, seconds)
   }
 
@@ -294,6 +303,24 @@ export class CityScene {
       if (this.dropValid) g.circle(x, y, 6).fill({ color, alpha: 0.8 })
       else g.moveTo(x - 10, y - 10).lineTo(x + 10, y + 10).moveTo(x + 10, y - 10).lineTo(x - 10, y + 10).stroke({ color, width: 3, alpha: 0.9 })
     }
+  }
+  /** Draw a low-contrast, screen-space overview without allocating in the frame loop. */
+  private drawMiniMap(screen: Screen): void {
+    const g = this.miniMap.clear()
+    if (screen.width < 600) return
+    const width = 132, height = 132, x = screen.width - width - 18, y = screen.height - height - 62
+    const scale = width / WORLD_WIDTH
+    g.roundRect(x, y, width, height, 8).fill({ color: 0x07111a, alpha: 0.78 }).stroke({ color: 0x7892a0, width: 1, alpha: 0.28 })
+    g.rect(x + 5, y + 5, CITY_SIZE * scale, CITY_SIZE * scale).fill({ color: 0x203744, alpha: 0.42 })
+    for (const truck of this.trucks.values()) {
+      if (truck.x >= 0 && truck.x <= CITY_SIZE && truck.y >= 0 && truck.y <= CITY_SIZE)
+        g.circle(x + 5 + truck.x * scale, y + 5 + truck.y * scale, 1.8).fill({ color: 0x6af2f5, alpha: 0.85 })
+    }
+    const a = this.camera.screenToWorld(0, 0, screen), b = this.camera.screenToWorld(screen.width, screen.height, screen)
+    const left = Math.max(0, a.x), top = Math.max(0, a.y), right = Math.min(CITY_SIZE, b.x), bottom = Math.min(CITY_SIZE, b.y)
+    if (right > left && bottom > top)
+      g.rect(x + 5 + left * scale, y + 5 + top * scale, (right - left) * scale, (bottom - top) * scale)
+        .stroke({ color: 0xc5e4eb, width: 1.5, alpha: 0.75 })
   }
 }
 

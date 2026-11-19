@@ -74,9 +74,45 @@ button {
   padding: var(--space-4) var(--space-6);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  background: var(--color-panel);
+  background: var(--color-panel-strong);
   box-shadow: var(--shadow-panel);
-  backdrop-filter: blur(16px);
+}
+
+/* Same reason as .glass-panel below: the city's HUD chips sit directly on the animated canvas (higher specificity
+   than city.css's .city__glass, so source order does not matter). */
+.app-city .city__glass {
+  background: linear-gradient(160deg, rgb(20 38 54 / 94%), rgb(8 18 29 / 92%));
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+/* Static stand-in for the live city when WebGL is software-rendered (see app/shell/CityStage.tsx). */
+.city-static {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background:
+    radial-gradient(circle at 50% 50%, rgb(79 240 242 / 10%), transparent 38%),
+    repeating-linear-gradient(0deg, transparent 0 78px, rgb(126 205 222 / 9%) 78px 82px),
+    repeating-linear-gradient(90deg, transparent 0 78px, rgb(126 205 222 / 9%) 78px 82px),
+    #07101b;
+}
+.city-static__notice {
+  /* Mid-left: the only area the header row, panel grid and footer row never cover on desktop widths. */
+  position: absolute;
+  top: 50%;
+  left: var(--space-5);
+  max-width: min(420px, calc(100% - 2 * var(--space-5)));
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-panel-strong);
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
 }
 
 .app-heading { flex-wrap: wrap; max-width: 100%; }
@@ -100,8 +136,7 @@ button {
   padding: var(--space-3) var(--space-4);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  background: rgb(11 18 32 / 82%);
-  backdrop-filter: blur(14px);
+  background: rgb(11 18 32 / 94%);
 }
 .execution-banner {
   /* Slim glass bar matching the heading card (visual QA: banner was a bare row). */
@@ -151,8 +186,10 @@ button {
   /* Rows size to their content (no fixed track heights), so panels can never overlap (visual QA X1). */
   grid-template-columns: repeat(6, minmax(0, 1fr));
   grid-auto-rows: auto;
+  /* Speed windows (tall list) spans two rows; deliveries and alerts stack beside it, so no panel is a tall empty box (QA-2 P1-3). */
   grid-template-areas:
-    "speed speed deliveries deliveries alerts alerts"
+    "speed speed speed deliveries deliveries deliveries"
+    "speed speed speed alerts alerts alerts"
     "workers workers workers dead-letters dead-letters dead-letters"
     "chaos chaos chaos compare compare compare"
     "timeline timeline timeline timeline timeline timeline"
@@ -160,7 +197,9 @@ button {
   align-items: stretch;
   gap: var(--space-3);
   width: min(100%, 980px);
-  margin: auto 0 0 auto;
+  /* First screen belongs to the city (QA-2 P1-1): panels start in the lower part of the viewport, with the top row
+     still clearly visible as a hint that the dashboard continues below. */
+  margin: max(0px, calc(100vh - 34rem)) 0 0 auto;
 }
 
 .panel-slot { position: relative; min-width: 0; min-height: 0; }
@@ -180,7 +219,7 @@ button {
 .panel-collapse { position: absolute; z-index: 2; top: 12px; right: 10px; min-width: 28px; min-height: 28px; border: 0; border-radius: var(--radius-sm); padding: 0 7px; color: var(--color-text-muted); background: rgb(8 15 27 / 80%); cursor: pointer; }
 .panel-collapse:hover { color: var(--color-text); }
 .panel-chip { min-height: 44px; }
-.panel-chip { width: 100%; height: 100%; border: 1px solid var(--color-border); border-radius: var(--radius-lg); color: var(--color-text); background: rgb(16 25 41 / 82%); backdrop-filter: blur(12px); cursor: pointer; }
+.panel-chip { width: 100%; height: 100%; border: 1px solid var(--color-border); border-radius: var(--radius-lg); color: var(--color-text); background: rgb(16 25 41 / 94%); cursor: pointer; }
 
 .app-footer {
   position: relative;
@@ -238,12 +277,16 @@ button {
   background: rgb(120 76 0 / 20%);
 }
 
+/*
+ * No backdrop blur on dashboard surfaces: they sit over the full-screen city canvas, which redraws every frame, so
+ * each blur would be recomputed every frame. Without a GPU (CI runners, some presenter laptops) that starved the
+ * renderer to ~1 fps: clicks never settled and screenshots timed out. Near-opaque fills keep the glass look cheaply.
+ */
 .glass-panel {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  background: var(--color-panel);
+  background: var(--color-panel-strong);
   box-shadow: var(--shadow-panel);
-  backdrop-filter: blur(16px);
 }
 
 .glass-panel__header {
@@ -299,6 +342,8 @@ button {
     margin: 0 0 0 auto;
     padding: 0;
   }
+  /* The city stays visible on the first screen; the first panel header peeks above the fold (QA-2 P1-2). */
+  .panel-grid { margin-top: max(12rem, calc(100svh - 30rem)); }
   .panel-slot { min-height: 0; max-height: 70vh; flex: 0 0 auto; }
   .panel-slot > .glass-panel { max-height: 70vh; }
   .app-footer { align-self: end; }
@@ -318,7 +363,11 @@ button {
   .execution-banner__full { display: none; }
   .execution-banner__short { display: inline; }
   .app-footer { justify-self: stretch; justify-content: center; }
-  .app-city .city__title { bottom: 66px; left: 12px; }
+  /* Phone: the city fills the first screen, its title and Add-truck dock sit above the first panel header,
+     which peeks in at the bottom edge as a hint to scroll (QA-2 P1-2). */
+  .app-city .city__title { bottom: 138px; left: 12px; }
+  .app-city .city__dock { bottom: 82px; left: 12px; }
+  .panel-grid { margin-top: max(12rem, calc(100svh - 21rem)); }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -37,6 +37,12 @@
 .city__title span { color: #86a6b9; font-variant-numeric: tabular-nums; }
 
 .city__status { top: 16px; right: 18px; display: flex; align-items: center; gap: 8px; font-weight: 600; transition: color 300ms ease; }
+
+.city__view-controls { top: 58px; right: 18px; z-index: 2; padding: 4px; }
+.city__reset { border: 0; padding: 5px 9px; color: #b8cbd4; background: transparent; font: inherit; cursor: pointer; }
+.city__reset kbd { margin-left: 5px; padding: 1px 4px; border: 1px solid rgb(169 198 214 / 22%); border-radius: 4px; color: #8299a6; font: inherit; font-size: 10px; }
+.city__reset:hover { color: #e6f8fb; }
+.city__reset:focus-visible { outline: 2px solid #6af2f5; outline-offset: 1px; border-radius: 5px; }
 .city__dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
 .city__status--recovering .city__dot, .city__status--failed .city__dot { animation: city-blink 1.4s ease-in-out infinite; }
 

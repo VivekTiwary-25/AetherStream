@@ -1,0 +1,18 @@
+# T167: Long-run stability - 60 minutes of demo load, no memory growth, no slowdown  [expo safety]
+
+Lane 8. The demo stack will run all day at the expo on a laptop with limited RAM. Add .github/workflows/ci-longrun.yml
+(workflow_dispatch + push to task/** when these files change) and infra/scripts/longrun.sh: start the stack like ci-e2e,
+run demo-ready.sh, then for 60 minutes every 60 s record `docker stats --no-stream` (memory, CPU per container), events/s and
+windows written (API), last completed checkpoint, Kafka disk usage (du in the kafka container) and Postgres table sizes. Every
+10 minutes run POST /api/compare (must match). Fail if any container's memory grows > 30% between minute 10 and minute 60, if
+checkpoints stop advancing for > 60 s, or if compare mismatches. Write a Markdown table and a simple ASCII trend to the step
+summary; upload the raw CSV. Summarise the result and the per-container peak memory in docs/expo/long-run.md (link the run).
+
+Files (edit only these): .github/workflows/ci-longrun.yml (new), infra/scripts/longrun.sh (new), docs/expo/long-run.md (new).
+
+Acceptance check: ci-longrun green on your branch (60-minute run) with the table in the summary.
+
+## Rules (apply to every task)
+- Read every file in docs/contracts/ first and follow them exactly. Do not edit docs/contracts/ or infra/db/schema.sql (if a contract looks wrong, say so in your report).
+- Do not read or change anything in swarm/ (except your own report file if the swarm asks you to write one).
+- Only edit the files listed. If you are on vivek-pc: do NOT start Docker containers or kind there (the live demo runs on it). Acceptance runs in GitHub Actions on your task branch.

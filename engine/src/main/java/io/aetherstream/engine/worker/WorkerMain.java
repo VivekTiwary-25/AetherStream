@@ -32,6 +32,9 @@ public final class WorkerMain {
         String coordinatorUrl = env("COORDINATOR_URL", "http://coordinator:8081");
         String host = env("WORKER_HOST", defaultHost());
         String requestedId = env("WORKER_ID", null);
+        // Default contract capacity; Compose opts into smaller queues for the low-rate interactive demo.
+        int queueCapacity = Integer.parseInt(env("WORKER_QUEUE_CAPACITY",
+                Integer.toString(TaskRuntime.QUEUE_CAPACITY)));
 
         HikariDataSource dataSource = DataSources.fromEnv("worker-sink");
         CheckpointStore store = connectStore();
@@ -44,7 +47,7 @@ public final class WorkerMain {
 
         RecordSourceFactory sources = topic -> new KafkaRecordSource(bootstrap, topic, "worker-" + workerId);
         Worker worker = new Worker(workerId, sources, new PostgresResultSink(dataSource), store, coordinator,
-                () -> Runtime.getRuntime().halt(137));
+                () -> Runtime.getRuntime().halt(137), queueCapacity);
         HttpServer health = startHealthServer(HEALTH_PORT, worker::metrics);
         Shutdown shutdown = new Shutdown(worker, coordinator, dataSource, health, Thread.currentThread());
         Runtime.getRuntime().addShutdownHook(new Thread(shutdown, "worker-shutdown"));

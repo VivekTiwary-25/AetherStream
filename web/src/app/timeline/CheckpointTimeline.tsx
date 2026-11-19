@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { getCheckpoints, getCurrentExecution } from '../../api/client'
-import type { CheckpointInfo, ExecutionEvent, ExecutionInfo, WorkerInfo } from '../../api/types'
-import { useAetherSocket } from '../../api/ws'
+import type { CheckpointInfo, ExecutionEvent, ExecutionInfo, WebSocketMessage, WorkerInfo } from '../../api/types'
+import { useAetherMessages } from '../../api/ws'
 import { GlassPanel } from '../ui/GlassPanel'
 import { buildTimelineModel, formatApiDuration, humanState, type TimedExecutionEvent } from './timelineModel'
 
@@ -17,7 +17,6 @@ function timePosition(timestamp: number, now: number) {
 }
 
 export function CheckpointTimeline() {
-  const { lastMessage } = useAetherSocket()
   const [execution, setExecution] = useState<ExecutionInfo | null>(null)
   const [checkpoints, setCheckpoints] = useState<CheckpointInfo[]>([])
   const [events, setEvents] = useState<TimedExecutionEvent[]>([])
@@ -54,36 +53,39 @@ export function CheckpointTimeline() {
     }
   }, [])
 
-  useEffect(() => {
-    if (!lastMessage) return
-    if (lastMessage.type === 'snapshot') {
+  // Every frame, in order: a WORKER_DEAD -> RECOVERING -> RECOVERED burst must leave all three entries.
+  useAetherMessages((lastMessage: WebSocketMessage) => {
+    if (lastMessage.type === 'snapshot' && lastMessage.data != null && typeof lastMessage.data === 'object') {
       const snapshot = lastMessage.data as { execution?: ExecutionInfo | null; workers?: WorkerInfo[] }
       if (snapshot.execution !== undefined) {
         executionRef.current = snapshot.execution
         setExecution(snapshot.execution)
       }
-      snapshot.workers?.forEach((worker) => workersAlive.current.set(worker.workerId, worker.alive))
+      if (Array.isArray(snapshot.workers)) snapshot.workers.forEach((worker) => { if (worker) workersAlive.current.set(worker.workerId, worker.alive) })
     }
-    if (lastMessage.type === 'workers') {
+    if (lastMessage.type === 'workers' && Array.isArray(lastMessage.data)) {
       const workers = lastMessage.data as WorkerInfo[]
       workers.forEach((worker) => {
+        if (!worker) return
         const wasAlive = workersAlive.current.get(worker.workerId)
-        if (wasAlive && !worker.alive && executionRef.current) {
-          setEvents((current) => addEvent(current, {
-            ...executionRef.current!, event: 'WORKER_DEAD', workerId: worker.workerId, ts: lastMessage.ts,
+        const current = executionRef.current
+        if (wasAlive && !worker.alive && current) {
+          setEvents((events) => addEvent(events, {
+            ...current, event: 'WORKER_DEAD', workerId: worker.workerId, ts: lastMessage.ts,
           }))
         }
         workersAlive.current.set(worker.workerId, worker.alive)
       })
     }
-    if (lastMessage.type === 'execution') {
+    if (lastMessage.type === 'execution' && lastMessage.data != null && typeof lastMessage.data === 'object') {
       const data = lastMessage.data as ExecutionEvent
       executionRef.current = data
       setExecution(data)
       setEvents((current) => addEvent(current, { ...data, ts: lastMessage.ts }))
     }
-    setNow(lastMessage.ts)
-  }, [lastMessage])
+    // Truck frames (every 250 ms) carry nothing for the timeline; the 1 s clock below keeps it moving.
+    if (lastMessage.type !== 'trucks') setNow(lastMessage.ts)
+  })
 
   useEffect(() => {
     if (!execution) return
@@ -127,7 +129,7 @@ export function CheckpointTimeline() {
             })}
             {model.workerDeaths.map((death, index) => <span key={`dead-${death.timestamp}-${index}`} title={`${death.workerId} lost`} style={{ position: 'absolute', left: `${timePosition(death.timestamp, now)}%`, top: 32, zIndex: 2, color: '#f87171', fontSize: 11, whiteSpace: 'nowrap', transform: 'translateX(-50%)' }}>✕ {death.workerId} lost</span>)}
             {model.recovered.map((marker, index) => <span key={`recovered-${marker.timestamp}-${index}`} title={`Recovered in ${formatApiDuration(marker.durationMs)}`} style={{ position: 'absolute', left: `${timePosition(marker.timestamp, now)}%`, top: 73, zIndex: 2, color: '#4ade80', fontSize: 11, whiteSpace: 'nowrap', transform: 'translateX(-50%)' }}>✓ Recovered in {formatApiDuration(marker.durationMs)}</span>)}
-            {model.checkpoints.map(({ checkpoint, timestamp }) => <span key={`label-${checkpoint.checkpointId}`} style={{ position: 'absolute', left: `${timePosition(timestamp, now)}%`, top: 72, color: '#c4b5fd', fontSize: 10, whiteSpace: 'nowrap', transform: 'translateX(-50%)' }}>#{checkpoint.checkpointId}</span>)}
+            {model.checkpoints.map(({ checkpoint, timestamp }) => <span key={`label-${checkpoint.checkpointId}`} style={{ position: 'absolute', left: `${timePosition(timestamp, now)}%`, top: 72, color: '#c4b5fd', fontSize: 11, whiteSpace: 'nowrap', transform: 'translateX(-50%)' }}>#{checkpoint.checkpointId}</span>)}
           </div>
         </div>
         <div aria-live="polite" aria-atomic="true" style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: '4px 18px' }}>

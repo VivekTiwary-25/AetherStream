@@ -1,0 +1,80 @@
+# Docker Compose >= 2.24.4 (!reset). Merge with docker-compose.yml.
+# Tags match CD's GHCR names; EXPO_TAG is recorded by expo-prepull.sh.
+x-offline-engine: &offline-engine
+  image: ghcr.io/vivektiwary-25/aetherstream-engine:${EXPO_TAG:?Run expo-prepull.sh with a published tag or SHA first}
+  pull_policy: never
+
+services:
+  kafka:
+    pull_policy: never
+  kafka-init:
+    pull_policy: never
+  postgres:
+    pull_policy: never
+  minio:
+    pull_policy: never
+  minio-init:
+    pull_policy: never
+
+  coordinator:
+    <<: *offline-engine
+    build: !reset null
+    environment:
+      GIT_SHA: ${EXPO_TAG}
+  worker-1:
+    <<: *offline-engine
+    environment:
+      GIT_SHA: ${EXPO_TAG}
+  worker-2:
+    <<: *offline-engine
+    environment:
+      GIT_SHA: ${EXPO_TAG}
+  worker-3:
+    <<: *offline-engine
+    environment:
+      GIT_SHA: ${EXPO_TAG}
+  simulator:
+    image: ghcr.io/vivektiwary-25/aetherstream-simulator:${EXPO_TAG}
+    pull_policy: never
+    build: !reset null
+    environment:
+      GIT_SHA: ${EXPO_TAG}
+  control-api:
+    image: ghcr.io/vivektiwary-25/aetherstream-control-api:${EXPO_TAG}
+    pull_policy: never
+    build: !reset null
+    environment:
+      GIT_SHA: ${EXPO_TAG}
+  web:
+    image: ghcr.io/vivektiwary-25/aetherstream-web:${EXPO_TAG}
+    pull_policy: never
+    build: !reset null
+
+  prometheus:
+    pull_policy: never
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:9090/-/ready"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+  grafana:
+    pull_policy: never
+    environment:
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES: "false"
+      GF_ANALYTICS_FEEDBACK_LINKS_ENABLED: "false"
+      GF_SECURITY_DISABLE_GRAVATAR: "true"
+      GF_NEWS_NEWS_FEED_ENABLED: "false"
+      GF_PLUGINS_PUBLIC_KEY_RETRIEVAL_DISABLED: "true"
+      GF_PLUGINS_PREINSTALL_DISABLED: "true"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:3000/api/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+# Do not reuse the normal/live stack's explicitly named network.
+networks:
+  aether:
+    name: ${COMPOSE_PROJECT_NAME:-aether-offline}_aether

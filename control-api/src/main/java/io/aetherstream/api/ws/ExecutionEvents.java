@@ -5,8 +5,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -18,9 +20,9 @@ import java.util.function.LongSupplier;
  * <p>Events are ordered STARTED (for a replacement execution), WORKER_DEAD (in previous worker
  * order), the state/recovery event, then CHECKPOINT_COMPLETED. Independent transitions are never
  * collapsed: a worker death, recovery and checkpoint completion can share an observation. The first
- * checkpoint is a baseline, not a completion. Recovery metadata changes while RUNNING imply a
- * recovery that completed between polls. CREATED-to-RUNNING is STARTED; STOPPED and FAILED both
- * produce STOPPED. Changes to recovery metadata in other states use that state's event.
+ * checkpoint is a baseline, not a completion. Without an observed death, generation changes emit
+ * one REBALANCED, not RECOVERING/RECOVERED. CREATED-to-RUNNING is STARTED; STOPPED and FAILED both
+ * produce STOPPED.
  *
  * <p>Only id, state, generation, restoredFromCheckpoint and lastCompletedCheckpoint participate in
  * execution change detection. Payloads contain the complete current execution, copied independently
@@ -28,14 +30,17 @@ import java.util.function.LongSupplier;
  * observations are ignored; missing worker observations preserve the last known live worker set.
  *
  * <p>RECOVERED includes durationMs from the first observed worker death, using a monotonic server
- * clock. Timing belongs to the current execution and is cleared on recovery, termination,
- * replacement or reset; without an observed death, durationMs is omitted.
+ * clock. Timing is cleared on recovery, termination, replacement or reset. REBALANCED carries
+ * oldGeneration/newGeneration and the worker most recently joining or gaining partitions (null
+ * when unavailable). A recovering baseline cannot identify an earlier death or generation change.
  */
 public final class ExecutionEvents {
     private final ObjectMapper mapper;
     private final LongSupplier nanoTime;
     private Snapshot previous;
     private Set<String> aliveWorkers = Set.of();
+    private Map<Integer, String> partitionOwners = Map.of();
+    private String assignmentWorkerId;
     private long workerDeadAt;
     private boolean recoveryPending;
 
@@ -56,19 +61,29 @@ public final class ExecutionEvents {
         Snapshot current = Snapshot.of(execution);
         boolean replacement = previous != null && !Objects.equals(previous.id(), current.id());
         boolean baseline = previous == null || replacement;
-        if (baseline) recoveryPending = false;
+        if (baseline) {
+            recoveryPending = false;
+            assignmentWorkerId = null;
+            partitionOwners = Map.of();
+        }
         boolean checkpointChanged = !baseline
                 && !Objects.equals(previous.checkpoint(), current.checkpoint());
-        String stateEvent = stateEvent(current, baseline);
         boolean started = replacement || (previous == null
                 && ("RUNNING".equals(current.state()) || "CREATED".equals(current.state())));
 
         Set<String> observedAlive = workers != null && workers.isArray()
                 ? liveWorkers(workers) : aliveWorkers;
         boolean workerDied = !observedAlive.containsAll(aliveWorkers);
-        previous = current;
+        updateAssignmentWorker(workers, observedAlive, baseline);
         Set<String> previouslyAlive = aliveWorkers;
         aliveWorkers = observedAlive;
+        if (workerDied && !recoveryPending) {
+            workerDeadAt = nanoTime.getAsLong();
+            recoveryPending = true;
+        }
+        String stateEvent = stateEvent(current, baseline);
+        Long oldGeneration = baseline ? null : previous.generation();
+        previous = current;
 
         if (!started && !workerDied && stateEvent == null && !checkpointChanged) {
             return List.of();
@@ -78,10 +93,6 @@ public final class ExecutionEvents {
             events.add(event(execution, "STARTED"));
         }
         if (workerDied) {
-            if (!recoveryPending) {
-                workerDeadAt = nanoTime.getAsLong();
-                recoveryPending = true;
-            }
             for (String workerId : previouslyAlive) {
                 if (!observedAlive.contains(workerId)) {
                     events.add(event(execution, "WORKER_DEAD").put("workerId", workerId));
@@ -100,8 +111,16 @@ public final class ExecutionEvents {
                             TimeUnit.NANOSECONDS.toMillis(nanoTime.getAsLong() - workerDeadAt));
                 }
                 recoveryPending = false;
+                assignmentWorkerId = null;
             } else if ("STOPPED".equals(stateEvent)) {
                 recoveryPending = false;
+                assignmentWorkerId = null;
+            } else if ("REBALANCED".equals(stateEvent)) {
+                payload.put("workerId", assignmentWorkerId);
+                payload.put("oldGeneration", oldGeneration);
+                payload.put("newGeneration", current.generation());
+                payload.remove("durationMs");
+                assignmentWorkerId = null;
             }
             events.add(payload);
         }
@@ -120,25 +139,61 @@ public final class ExecutionEvents {
     public synchronized void reset() {
         previous = null;
         aliveWorkers = Set.of();
+        partitionOwners = Map.of();
+        assignmentWorkerId = null;
         recoveryPending = false;
     }
 
     private String stateEvent(Snapshot current, boolean baseline) {
         boolean stateChanged = baseline || !Objects.equals(previous.state(), current.state());
-        boolean recoveryChanged = !baseline
-                && (!Objects.equals(previous.generation(), current.generation())
+        boolean generationChanged = !baseline
+                && !Objects.equals(previous.generation(), current.generation());
+        boolean recoveryChanged = !baseline && (generationChanged
                 || !Objects.equals(previous.restored(), current.restored()));
         if (!stateChanged && !recoveryChanged) {
             return null;
         }
         return switch (current.state() == null ? "" : current.state()) {
-            case "RECOVERING" -> "RECOVERING";
-            case "RUNNING" -> !baseline && ("RECOVERING".equals(previous.state()) || recoveryChanged)
-                    ? "RECOVERED" : "STARTED";
+            case "RECOVERING" -> recoveryPending ? "RECOVERING"
+                    : generationChanged ? "REBALANCED" : null;
+            case "RUNNING" -> {
+                if (baseline || "CREATED".equals(previous.state())) yield "STARTED";
+                if (recoveryPending && ("RECOVERING".equals(previous.state()) || recoveryChanged)) {
+                    yield "RECOVERED";
+                }
+                yield generationChanged ? "REBALANCED" : null;
+            }
             case "STOPPED", "FAILED" -> "STOPPED";
             case "CREATED" -> "STARTED";
             default -> null;
         };
+    }
+
+    private void updateAssignmentWorker(JsonNode workers, Set<String> observedAlive, boolean baseline) {
+        if (workers == null || !workers.isArray()) return;
+        String joined = null;
+        if (!baseline) {
+            for (String id : observedAlive) {
+                if (!aliveWorkers.contains(id)) {
+                    joined = id;
+                    break;
+                }
+            }
+        }
+        Map<Integer, String> owners = new HashMap<>();
+        String gained = null;
+        for (JsonNode worker : workers) {
+            String id = worker.path("workerId").asText(null);
+            if (!observedAlive.contains(id)) continue;
+            for (JsonNode partition : worker.path("partitions")) {
+                int number = partition.asInt();
+                owners.put(number, id);
+                if (!baseline && !Objects.equals(partitionOwners.get(number), id)) gained = id;
+            }
+        }
+        partitionOwners = owners;
+        if (joined != null) assignmentWorkerId = joined;
+        else if (assignmentWorkerId == null && gained != null) assignmentWorkerId = gained;
     }
 
     private ObjectNode event(JsonNode execution, String name) {

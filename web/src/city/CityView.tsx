@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import './city.css'
-import { useAetherSocket } from '../api/ws'
+import { useAetherMessages } from '../api/ws'
 import { toCityEnvelope } from './citySocket'
 import { CityModel, type EngineStatus } from './cityModel'
 import type { CityPoint, CityTruck } from './cityTypes'
@@ -38,12 +38,11 @@ export function CityView() {
   const [notice, setNotice] = useState<Notice | null>(null)
   const [dragOver, setDragOver] = useState<DragState>(null)
 
-  const { lastMessage, status: socketStatus } = useAetherSocket()
-
-  useEffect(() => {
-    const message = toCityEnvelope(lastMessage)
+  // Every frame reaches the model in arrival order (no collapsing to the last frame of a React batch).
+  const socketStatus = useAetherMessages((frame) => {
+    const message = toCityEnvelope(frame)
     if (message?.data != null) model.current.apply(message, performance.now())
-  }, [lastMessage])
+  })
 
   useEffect(() => {
     // 'connecting' on first load is normal; only a dropped link counts as offline.
@@ -152,6 +151,9 @@ export function CityView() {
 
     <div className={`city__glass city__status city__status--${status.mode}`} role="status" title={status.label} style={{ color: status.color }}>
       <i className="city__dot" style={{ background: status.color, boxShadow: `0 0 10px ${status.color}` }} />{status.label}
+    </div>
+    <div className="city__glass city__view-controls">
+      <button type="button" className="city__reset" onClick={() => scene.current?.resetView()} title="Reset city view (0)">Reset view <kbd>0</kbd></button>
     </div>
 
     {hover && <div className="city__glass city__tooltip" style={{ left: hover.x, top: hover.y }}>

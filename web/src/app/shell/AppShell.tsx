@@ -1,5 +1,4 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { CityView } from '../../city/CityView'
 import { ChaosPanel, ComparePanel } from '../chaos'
 import PipelineEditor from '../editor/PipelineEditor'
 import { OpsPanel } from '../ops'
@@ -10,6 +9,7 @@ import { AlertsPanel, DeadLettersPanel, DeliveriesPanel, ExecutionBanner, Execut
 import { useExecutionStatus } from '../state/executionStatus'
 import { useDashboard, DashboardProvider } from '../state/store'
 import { ClayButton } from '../ui/ClayButton'
+import { CityStage } from './CityStage'
 import { Footer } from './Footer'
 
 type PanelKey = 'speed' | 'deliveries' | 'alerts' | 'workers' | 'dead-letters' | 'chaos' | 'compare' | 'timeline' | 'ops' | 'scenarios'
@@ -63,7 +63,7 @@ function DashboardShell() {
 
   return (
     <main className={`app-shell${socketStatus === 'disconnected' ? ' app-shell--offline' : ''}`}>
-      <div className="app-city" data-tour="city"><CityView /></div>
+      <div className="app-city" data-tour="city"><CityStage /></div>
       <header className="app-topbar">
         <div className="app-heading">
           <div><p className="app-eyebrow">STREAM PROCESSING CONTROL</p><h1>AetherStream</h1></div>
