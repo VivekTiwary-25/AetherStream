@@ -2,6 +2,26 @@
 
 Run these commands from the repository root. On the demo PC, use Docker Desktop with its Linux engine running and Git Bash for the Bash commands. The PowerShell examples use native PowerShell commands where quoting or variables differ. Local Compose commands deliberately use project `aether`, the same project name used by CD; do not start a second project under another name.
 
+## Autostart
+
+On the expo laptop, enable Docker Desktop's **Start when you sign in** option. Use a persistent checkout with Git Bash at `C:/Users/Arena/AppData/Local/Programs/Git/bin/bash.exe`, `curl` and `jq` on its PATH, and Docker Compose supporting `--wait`. Autostart reuses CD project `aether`, `docker-compose.yml` and `infra/deploy/docker-compose.deploy.yml`; it never builds images. Set the Arena user environment variable `AETHER_TAG` to a published commit SHA, or keep `infra/deploy/.last-deployed` from a successful CD deployment in this checkout. It does not choose a newer image tag automatically.
+
+From PowerShell in that checkout, preview safely before the boss registers the task:
+
+```powershell
+powershell.exe -NoProfile -File infra/deploy/expo-autostart.ps1 -DryRun
+# Boss only; registers the task without starting it:
+powershell.exe -NoProfile -File infra/deploy/register-expo-autostart.ps1
+# Remove the logon task without stopping containers:
+powershell.exe -NoProfile -File infra/deploy/register-expo-autostart.ps1 -Unregister
+```
+
+`AetherStream-Expo-Autostart` runs with Arena's interactive, non-elevated token 30 seconds after Arena logs on, including on battery. Keep the registered checkout in place; rerun registration to change its path. Registration replaces only this named task and never starts Docker or Compose.
+
+The script waits up to five minutes for Docker, then waits up to 180 seconds for Compose health and runs `infra/scripts/demo-ready.sh http://localhost:8088` via Git Bash with `EXPECT_SHA` set to the chosen image SHA. That readiness check may start/restart a missing or stalled demo pipeline. Every command, captured output line and exit code is timestamped in `C:/Users/Arena/aether-autostart.log` (native output is collected when each command finishes). Success opens a console with the final `DEMO READY ...` line and **http://localhost:8088**; failure opens a `DEMO FAILED` console and returns exit code 1.
+
+Set the Arena user environment variable `AETHER_OFFLINE=1` before sign-in to force offline mode; otherwise a five-second GHCR connectivity probe selects it when no HTTP response is received. Offline mode appends root `docker-compose.offline.yml` after the CD override if that file exists, and always uses `--pull never --no-build`. Without the offline file it uses cached CD images. Pre-cache every required image for the selected SHA; missing images fail rather than trigger a download/build. `-DryRun` prints both branches without contacting Docker/network, writing logs, starting the pipeline or opening a result console.
+
 ## Expo quick fixes (21 Nov)
 
 Run from the repository root. Do not put credentials in commands or logs.
