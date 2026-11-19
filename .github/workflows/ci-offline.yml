@@ -155,7 +155,13 @@ jobs:
             await page.goto('http://localhost:8088', { waitUntil: 'networkidle' });
             await expect(page.getByRole('region', { name: 'Speed windows', exact: true })).toBeVisible();
             await expect(page.getByRole('region', { name: 'Workers', exact: true })).toBeVisible();
-            await expect(page.locator('canvas')).toBeVisible();
+            // Software WebGL intentionally uses CityStage's static fallback on CI.
+            // Require a real city surface or its explicit automatic-fallback notice.
+            const city = page.getByRole('region', { name: 'Live delivery city', exact: true });
+            const pausedCity = city.getByRole('status').filter({
+              hasText: /^Live city paused: (no GPU acceleration detected|this browser rendered it too slowly)\./,
+            });
+            await expect(city.locator('canvas').or(pausedCity)).toBeVisible();
             await expect.poll(() => liveFrames, { timeout: 15000 }).toBeGreaterThan(1);
             await page.screenshot({ path: '../../offline-web.png', fullPage: true });
             // Also exercise the provisioned monitoring surface, not Grafana's news home.
