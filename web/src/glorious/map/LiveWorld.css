@@ -1,7 +1,7 @@
 .gl-live-world { position: absolute; inset: 0; overflow: hidden; color: var(--gl-text, #292d25); background: #e4e7dd; }
 .gl-live-world__map { position: absolute; inset: 0; }
 .gl-live-world__heading { position: absolute; z-index: 2; left: calc(var(--gl-sidebar-width) + 44px); top: 30px; pointer-events: none; text-shadow: 0 1px 12px #fff, 0 1px 3px #fff; }
-.gl-live-world__heading h1 { margin: 0; font-size: clamp(24px, 3vw, 36px); font-weight: 650; letter-spacing: -1px; }
+.gl-live-world__heading h1 { margin: 0; font-size: clamp(24px, 3vw, 36px); font-weight: 600; letter-spacing: -0.8px; }
 .gl-live-world__heading p { margin: 6px 0 0; font-size: 13px; }
 .gl-live-world__search { position: absolute; z-index: 6; top: 88px; right: 24px; width: 300px; max-width: calc(100% - var(--gl-sidebar-width) - 56px); }
 .gl-live-world__search > .gl-surface { overflow: hidden; border-radius: 20px; }
@@ -27,21 +27,27 @@
 .gl-map-truck img { position: absolute; width: 78px; height: 54px; inset: 0; object-fit: contain; transform: scaleX(var(--truck-facing)); opacity: 0; pointer-events: none; filter: drop-shadow(0 3px 3px #2224); }
 .gl-map-truck__placeholder { position: absolute; width: 28px; height: 16px; left: 25px; top: 19px; border-radius: 5px; background: #d0d2ca; border: 2px solid #fff; }
 .gl-map-truck__label { position: absolute; top: 49px; left: 50%; transform: translateX(-50%); border-radius: 9px; padding: 3px 7px; background: #f9faf1ec; border: 1px solid #fff; border-left: 4px solid var(--truck-color); font-size: 10px; font-weight: 700; color: #34392f; white-space: nowrap; box-shadow: 0 2px 6px #1723141a; }
-.gl-live-world__card { position: absolute; z-index: 7; left: 0; top: 0; width: 288px; max-width: calc(100% - 24px); visibility: hidden; }
-.gl-live-world__card > .gl-surface { padding: 14px; max-height: calc(100dvh - 130px); overflow-y: auto; border-radius: 22px; }
-.gl-live-world__card-title { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 8px; }
-.gl-live-world__card-title h2 { margin: 0; font-size: 19px; }
-.gl-live-world__card-title button { min-width: 36px; min-height: 36px; border: 0; border-radius: 12px; color: inherit; font-size: 24px; background: #ffffff66; cursor: pointer; }
-.gl-live-world__photo { display: block; width: 100%; height: 102px; object-fit: cover; border-radius: 12px; margin-bottom: 12px; }
+.gl-live-world__card { position: absolute; z-index: 7; left: 0; top: 0; width: 372px; max-width: calc(100% - 24px); visibility: hidden; }
+.gl-live-world__card > .gl-surface { padding: 12px; max-height: calc(100dvh - 130px); overflow-y: auto; border-radius: 24px; box-shadow: 0 14px 40px rgba(38, 36, 28, 0.18), inset 0 1px 1px rgba(255, 255, 255, 0.9); }
+.gl-live-world__card-body { display: flex; gap: 14px; align-items: stretch; }
+.gl-live-world__photo { display: block; flex: 0 0 116px; width: 116px; height: 116px; object-fit: cover; border-radius: 16px; box-shadow: 0 2px 8px rgba(30, 30, 26, 0.14); }
 .gl-live-world__photo[hidden] { display: none; }
-.gl-live-world__card dl { margin: 0; font-size: 12px; }
-.gl-live-world__card dl > div { display: grid; grid-template-columns: 76px 1fr; gap: 8px; margin: 7px 0; }
-.gl-live-world__card dt { color: #626758; }
-.gl-live-world__card dd { margin: 0; overflow-wrap: anywhere; }
-.gl-live-world__status { display: inline-block; padding: 4px 8px; border-radius: 10px; font-size: 11px; font-weight: 650; }
-.gl-live-world__status--moving { background: #dbebd4; color: #29412a; }
+.gl-live-world__card-main { flex: 1; min-width: 0; padding-top: 2px; }
+.gl-live-world__card-title { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.gl-live-world__card-title h2 { flex: 1; min-width: 0; margin: 0; font-size: 18px; font-weight: 600; letter-spacing: -0.3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gl-live-world__card-title button { flex: 0 0 auto; display: grid; place-items: center; width: 32px; height: 32px; min-width: 32px; padding: 0; border: 0; border-radius: 11px; color: var(--gl-muted, #41473d); background: transparent; font-size: 22px; line-height: 1; cursor: pointer; }
+.gl-live-world__card-title button:hover { background: #ffffff8c; color: inherit; }
+.gl-live-world__card dl { margin: 0; font-size: 13px; }
+.gl-live-world__card dl > div { display: grid; grid-template-columns: 18px 1fr; align-items: start; gap: 10px; margin: 6px 0; }
+.gl-live-world__card dt { display: contents; }
+.gl-live-world__card dt svg { width: 18px; height: 18px; margin-top: 1px; color: #4d5347; }
+.gl-live-world__card dd { margin: 0; overflow-wrap: anywhere; font-weight: 500; line-height: 1.45; }
+.gl-live-world__card dd small { display: block; font-size: 11px; font-weight: 400; color: #626758; }
+.gl-live-world__status { flex: 0 0 auto; display: inline-block; padding: 3px 11px; border-radius: 999px; border: 1px solid #ffffffcc; font-size: 12px; font-weight: 600; text-transform: lowercase; box-shadow: inset 0 1px 2px #ffffffb3; }
+.gl-live-world__status::first-letter { text-transform: uppercase; }
+.gl-live-world__status--moving { background: #cdeec3; color: #1f4422; }
 .gl-live-world__status--stopped { background: #e1e3de; color: #3a4039; }
-.gl-live-world__mapping { margin: 12px 0 0; font-size: 10px; line-height: 1.5; color: #626758; }
+.gl-live-world__mapping { margin: 10px 2px 0; font-size: 10px; line-height: 1.5; color: #626758; }
 .gl-live-world__actions { border-top: 1px solid #74796830; padding-top: 12px; margin-top: 12px; }
 .gl-live-world__actions button { width: 100%; min-height: 44px; padding: 10px; border: 1px solid #fff; border-radius: 12px; background: #f2dfb3; color: #493714; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
 .gl-live-world__actions button:disabled { opacity: .5; cursor: not-allowed; }
