@@ -9,6 +9,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Locale;
 
 /** Writes the supplied measurements without inventing values for unfinished phases. */
 final class BenchReport {
@@ -25,6 +26,23 @@ final class BenchReport {
         StringBuilder markdown = new StringBuilder("# Engine benchmark report\n\n");
         markdown.append("Only supplied values are reported. Missing fields indicate unavailable measurements, ")
                 .append("including phases not completed after a failure; they are not zero.\n\n");
+        markdown.append("| Workers | Run | Events/s | Checkpoint p50 ms | Checkpoint p95 ms | CP samples | Kill → RUNNING ms | Workers after kill | Reference match |\n")
+                .append("| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |\n");
+        for (JsonNode run : data.path("runs")) {
+            for (String phase : new String[] {"baseline", "recovery"}) {
+                JsonNode metrics = run.path(phase);
+                JsonNode checkpoints = metrics.path("checkpointDurationMs");
+                markdown.append("| ").append(number(run.path("workers"))).append(" | ").append(phase)
+                        .append(" | ").append(number(metrics.path("recordsPerSecond")))
+                        .append(" | ").append(number(checkpoints.path("p50")))
+                        .append(" | ").append(number(checkpoints.path("p95")))
+                        .append(" | ").append(number(checkpoints.path("samples")))
+                        .append(" | ").append(number(metrics.path("recoveryMs")))
+                        .append(" | ").append(number(metrics.path("workersAfterKill")))
+                        .append(" | ").append(match(metrics)).append(" |\n");
+            }
+        }
+        markdown.append('\n');
         Iterator<Map.Entry<String, JsonNode>> sections = data.fields();
         while (sections.hasNext()) {
             Map.Entry<String, JsonNode> section = sections.next();
@@ -34,18 +52,35 @@ final class BenchReport {
         }
         markdown.append("## Measurement scope and limitations\n\n")
                 .append("- This is a single-CI-runner benchmark, not a multi-host scalability claim. ")
-                .append("Coordinator and worker process roles run in the same JVM; infrastructure shares the runner.\n")
-                .append("- Baseline throughput includes checkpoint waiting, but excludes preproduction ")
-                .append("and reference comparison. Recovery is measured separately.\n")
-                .append("- Latency is baseline only: PostgreSQL `written_at` minus the local producer send ")
-                .append("timestamp. PostgreSQL uses a transaction timestamp, not a commit timestamp. ")
-                .append("This assumes clocks on the same host; startup and backlog are included.\n")
-                .append("- Percentiles are nearest-rank (NN-rank) values supplied by the caller; ")
-                .append("the report writer does not recompute them. Sample counts and percentile values ")
-                .append("appear only when supplied. Latency and checkpoint-duration values are in milliseconds.\n")
-                .append("- The recovery workload intentionally delays the sink by 1 ms before the crash; ")
-                .append("that delay is removed afterward. Recovery figures must not be treated as baseline throughput.\n");
+                .append("Coordinator runs in the test JVM; workers run in separate 512 MiB JVMs; Docker services share the runner.\n")
+                .append("- Baseline events/s includes execution startup, durable sink writes, checkpoint completion ")
+                .append("and up to 100 ms observation delay. Input is preloaded; production and reference replay are excluded.\n")
+                .append("- Checkpoint percentiles are nearest-rank persisted durations from completed positive-ID ")
+                .append("checkpoints, separated by execution. Sample counts are shown; small samples are not stable tail estimates.\n")
+                .append("- Recovery uses a separate execution with 1 ms sink delay to retain backlog. ")
+                .append("Time starts immediately before Process.destroyForcibly() and ends on observed RUNNING in a newer generation; ")
+                .append("it includes heartbeat failure detection, restore, reassignment and observation, but not backlog drain. ")
+                .append("The delay is removed after the kill.\n")
+                .append("- One worker requires a replacement, launched only after the coordinator declares the victim DEAD; ")
+                .append("that JVM startup is included. Two/three workers recover with one/two survivors, without replacement.\n")
+                .append("- Both executions at each worker count must match reference windows/counts, alert payloads ")
+                .append("and dead letters. Missing or unfinished measurements are unavailable, never zero.\n")
+                .append("- Worker counts run in order 1, 2, 3 with no dedicated warmup or repetitions; JVM/JIT, ")
+                .append("shared service caches, runner contention and checkpoint cadence affect comparisons.\n");
         Files.writeString(directory.resolve("report.md"), markdown, StandardCharsets.UTF_8);
+    }
+
+    private static String number(JsonNode value) {
+        if (!value.isNumber()) return "unavailable";
+        return value.isIntegralNumber() ? value.asText() : String.format(Locale.ROOT, "%.3f", value.asDouble());
+    }
+
+    private static String match(JsonNode metrics) {
+        JsonNode comparison = metrics.path("comparison").path("match");
+        JsonNode deadLetters = metrics.path("deadLettersMatch");
+        JsonNode alerts = metrics.path("alertPayloadsMatch");
+        if (!comparison.isBoolean() || !deadLetters.isBoolean() || !alerts.isBoolean()) return "unavailable";
+        return comparison.asBoolean() && deadLetters.asBoolean() && alerts.asBoolean() ? "PASS" : "FAIL";
     }
 
     private static void render(StringBuilder markdown, JsonNode value, int depth) {
