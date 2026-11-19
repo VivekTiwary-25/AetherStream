@@ -86,3 +86,11 @@ jobs:
           docker compose up -d --wait
           bash infra/scripts/expo-reset.sh --api http://localhost:18080
           bash infra/scripts/demo-ready.sh http://localhost:18080
+      - name: Check documented safe commands
+        env:
+          GIT_SHA: ${{ github.sha }}
+          EXPECT_SHA: ${{ github.sha }}
+        run: |
+          trap 'docker compose down -v' EXIT
+          docker compose up -d --wait
+          bash infra/scripts/doc-commands-check.sh
