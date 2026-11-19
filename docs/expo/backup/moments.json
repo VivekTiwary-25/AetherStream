@@ -1,0 +1,44 @@
+{
+  "url": "https://trance-cover-acrobat-submissions.trycloudflare.com",
+  "version": {
+    "builtAt": "",
+    "commit": "669d5ff4a66fe341668797fb2b4cbac718f2089c"
+  },
+  "footer": "Deployed version: 669d5ff",
+  "moments": {
+    "city": [
+      5.96,
+      16.07
+    ],
+    "panels": [
+      16.07,
+      44.15
+    ],
+    "kill_recovery": [
+      44.15,
+      92.65
+    ],
+    "trucks_after_recovery": [
+      92.65,
+      111.23
+    ],
+    "compare": [
+      113.43,
+      124.25
+    ],
+    "backpressure_wait": [
+      131.4,
+      131.43
+    ],
+    "backpressure": [
+      124.25,
+      144.15
+    ],
+    "footer": [
+      144.15,
+      152.32
+    ]
+  },
+  "cdRun": "https://github.com/VivekTiwary-25/AetherStream/actions/runs/44452672776",
+  "recordedAt": "2026-11-19T09:30:56+0530"
+}
