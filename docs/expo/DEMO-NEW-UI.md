@@ -15,10 +15,16 @@ Vivek drives; keep the browser on the new UI at `http://localhost:8088`. Use onl
   $env:PATH = "$PWD\scripts\expo;$env:PATH"
   ```
   In cmd instead: `set PATH=%CD%\scripts\expo;%PATH%`. Bash: `export PATH="$PWD/scripts/expo:$PATH"`.
-- Check the app and API are already running at `http://localhost:8088`; the worker commands use that URL by default. Check the AI bridge health at `http://127.0.0.1:18090/health`.
+- Check that the app and API are running at `http://localhost:8088`; the worker commands use that URL by default. Check the AI bridge at `http://127.0.0.1:18090/health`. There is no preflight health-check command in `scripts/expo/`; these are manual checks.
 - In the expo terminal, run `worker status`. Expect the current worker IDs, states and partitions; do not kill a worker during setup.
 - Know the demo commands (run only at the indicated step): `worker kill 2` and `events late 10`. `worker kill` sends the existing API action; it is not a Docker command. Never repeat it during recovery. Late-event classification depends on the engine watermark.
 - If the new UI or API is unavailable, use `http://localhost:8088/?ui=classic`; the classic controls remain available.
+
+For the 06:00 checkpoint, set `PIPELINES_MODE` in `web/src/glorious/pipelines/mode.ts` to `'full'` (Ask AI + editor), `'editor'` (editor only), or `'hidden'` (no Pipelines screen).
+
+Window behavior: Analytics and Settings switch to Live World; their submenu choices open floating windows over the map. Escape closes the front window and restores focus to its opener. Lazy-loaded Live World, Pipelines, and editor screens briefly show **Loading…**.
+
+The map’s **Simulate breakdown** action currently sends the request immediately; there is no confirmation dialog in this code. Do not promise a confirmation step.
 
 ## Seven-step run of show
 
@@ -41,8 +47,8 @@ Vivek drives; keep the browser on the new UI at `http://localhost:8088`. Use onl
 - **If it fails:** Try another marker or focus it with Tab. If telemetry is stale, call that out; do not present a frozen speed as current.
 
 ### 4. Analytics — truck speeds (about 3 minutes)
-- **Click:** Click **Analytics**, then **Truck Speeds**, then click a truck row.
-- **Audience sees:** Current truck speed, completed-window average and reading count; selecting a row opens that truck’s speed history in the same window. Use **Back** to return to the list.
+- **Click:** Click **Analytics** (the app switches to **Live World**), then **Truck Speeds**; click a truck row.
+- **Audience sees:** Current truck speed, completed-window average and reading count; selecting a row opens that truck’s speed history in the same floating window. Use **Back** to return to the list.
 - **Say:** “This combines the current simulator reading with completed speed windows and the recent history.”
 - **If it fails:** Wait for live samples and completed windows. If the list is empty, say the stream has not produced the required data; use `?ui=classic` only if needed to continue.
 
@@ -59,9 +65,10 @@ Vivek drives; keep the browser on the new UI at `http://localhost:8088`. Use onl
 - **If it fails:** If AI is unavailable, use the displayed saved example only when marked **Showing a saved example: AI was unavailable**; review it before running. If the editor or run fails, show the error and continue—do not claim a successful result.
 
 ### 7. Settings — logs and recovery (about 4 minutes)
-- **Click:** Return to the app tab. Click **Settings** → **Logs & Recovery**. In the expo terminal, run `worker kill 2` once.
+- **Click:** Click **Settings** (the app switches to **Live World**) → **Logs & Recovery**. In the expo terminal, run `worker kill 2` once.
 - **Audience sees:** Worker 2’s dead state, the recovery pause, checkpoint restore, partition ownership changes, surviving workers and (if it restarts) the rejoined state. The failure remains in history.
 - **Say:** “The engine recovers from a completed checkpoint and records the worker failure; the visible pause is part of recovery.”
 - **If it fails:** Do not repeat the kill. Wait for the live recovery feed; if the command reports an error, use the classic UI’s **Kill worker** flow once, then watch **Logs & Recovery** if available. If recovery is still in progress, describe only the state visible on screen.
 
 Keep the remaining time for questions. Never describe unobserved recovery phases or pipeline results as completed.
+
