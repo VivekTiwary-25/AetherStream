@@ -48,6 +48,25 @@ describe('recovery feed cutover', () => {
     expect(result.current.historyLoaded).toBe(true)
   })
 
+  it('retries failed history hydration and clears the error when the backend returns', async () => {
+    vi.useFakeTimers()
+    const fetch = vi.fn()
+      .mockRejectedValueOnce(new Error('service unavailable'))
+      .mockResolvedValue(response([{ id: 1, event: 'WORKER_DEAD', at: 10, workerId: 'worker-1', executionId: execution.id }]))
+    vi.stubGlobal('fetch', fetch)
+    const { result } = renderHook(useRecoveryFeed)
+    await act(async () => { await Promise.resolve(); await Promise.resolve() })
+    expect(result.current.historyError).toBe('service unavailable')
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5_000)
+      await Promise.resolve()
+    })
+    expect(result.current.historyError).toBeNull()
+    expect(result.current.history.map((entry) => entry.id)).toEqual([1])
+    vi.useRealTimers()
+  })
+
   it('does not replace a live execution with a stale REST result and shows only completed checkpoints', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response([])))
     vi.mocked(getCheckpoints).mockResolvedValue([
