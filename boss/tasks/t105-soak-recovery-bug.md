@@ -1,0 +1,27 @@
+# T105: Engine bug - worker not RUNNING after the 3rd kill in the chaos soak  [engine, hard]
+
+Lane 1. The chaos soak (infra/scripts/soak.sh + .github/workflows/ci-soak.yml, on branch origin/task/t261119-0718-f365) kills a
+worker every ~90 s against the full compose stack. GitHub Actions run 44440052641 (https://github.com/VivekTiwary-25/AetherStream/actions/runs/44440052641):
+kill 1 -> "PASS worker-2 recovered in 6s", kill 2 -> "PASS worker-3 recovered in 7s", kill 3 ->
+"FAIL worker-1 did not recover RUNNING in 30s after generation 3". main already has T81 coordinator hardening (ASSIGN resend
+for members on an old generation or IDLE for 4 s; same-WORKER_ID rejoin during RECOVERING). So something else is wrong on the
+2nd recovery of the same execution or the 3rd generation.
+
+Do this:
+1. Download the run's artifacts (gh run download 44440052641) and read coordinator + worker-1 logs around 01:59 UTC. Find why worker-1
+   (restarted by compose with the same WORKER_ID) did not reach RUNNING in generation 3 (e.g. stuck in recovery, waiting for a
+   checkpoint that never completes, partitions never re-assigned, worker restart backoff, fencing rejecting it).
+2. Reproduce it in an engine unit test (fake clock / in-memory deps like CoordinatorStressTest): three sequential kills of
+   different workers with restarts reusing WORKER_ID; assert every worker is RUNNING in the newest generation within the
+   deadline. The test must fail before your fix.
+3. Fix it with the smallest change. If the cause is in the soak check itself (e.g. it reads the wrong field, or compose restart
+   takes longer than 30 s and logs prove recovery completes), say so with log evidence instead and do not change engine code.
+
+Files (edit only these): engine/src/main/java/io/aetherstream/engine/**, engine/src/test/java/io/aetherstream/engine/**.
+
+Acceptance check: ci-java green on your branch; report the root cause with the log lines that prove it.
+
+## Rules (apply to every task)
+- Read every file in docs/contracts/ first and follow them exactly. Do not edit docs/contracts/ or infra/db/schema.sql (if a contract looks wrong, say so in your report).
+- Do not read or change anything in swarm/ (except your own report file if the swarm asks you to write one).
+- Only edit the files listed. If you are on vivek-pc: do NOT start Docker containers or kind there (the live demo runs on it). Acceptance runs in GitHub Actions on your task branch.
