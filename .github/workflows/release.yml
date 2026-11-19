@@ -1,0 +1,140 @@
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version without the leading v"
+        required: true
+        type: string
+      dry_run:
+        description: "Build images and print notes without publishing"
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Resolve version and extract release notes
+        id: release
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+          TAG_NAME: ${{ github.ref_name }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          if [[ "$EVENT_NAME" == "push" ]]; then
+            version="${TAG_NAME#v}"
+          else
+            version="${INPUT_VERSION#v}"
+          fi
+          if [[ -z "$version" ]]; then
+            echo "Release version must not be empty" >&2
+            exit 1
+          fi
+          tag="v$version"
+          notes_file="$RUNNER_TEMP/release-notes.md"
+          awk -v version="$version" '
+            $0 == "## [" version "]" || index($0, "## [" version "] - ") == 1 { found = 1; next }
+            found && /^## / { exit }
+            found { print }
+            END { if (!found) exit 1 }
+          ' CHANGELOG.md > "$notes_file"
+          if [[ ! -s "$notes_file" ]]; then
+            echo "No changelog notes found for version $version" >&2
+            exit 1
+          fi
+          {
+            echo "version=$version"
+            echo "tag=$tag"
+            echo "notes_file=$notes_file"
+          } >> "$GITHUB_OUTPUT"
+          {
+            echo "## Release notes for $tag"
+            cat "$notes_file"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GHCR
+        if: inputs.dry_run != true
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and publish engine image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: infra/docker/engine.Dockerfile
+          push: ${{ inputs.dry_run != true }}
+          tags: |
+            ghcr.io/vivektiwary-25/aetherstream-engine:${{ steps.release.outputs.version }}
+            ghcr.io/vivektiwary-25/aetherstream-engine:${{ github.sha }}
+          build-args: GIT_SHA=${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: false
+
+      - name: Build and publish simulator image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: infra/docker/simulator.Dockerfile
+          push: ${{ inputs.dry_run != true }}
+          tags: |
+            ghcr.io/vivektiwary-25/aetherstream-simulator:${{ steps.release.outputs.version }}
+            ghcr.io/vivektiwary-25/aetherstream-simulator:${{ github.sha }}
+          build-args: GIT_SHA=${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: false
+
+      - name: Build and publish control-api image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: infra/docker/control-api.Dockerfile
+          push: ${{ inputs.dry_run != true }}
+          tags: |
+            ghcr.io/vivektiwary-25/aetherstream-control-api:${{ steps.release.outputs.version }}
+            ghcr.io/vivektiwary-25/aetherstream-control-api:${{ github.sha }}
+          build-args: GIT_SHA=${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: false
+
+      - name: Build and publish web image
+        if: hashFiles('web/package.json') != ''
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: infra/docker/web.Dockerfile
+          push: ${{ inputs.dry_run != true }}
+          tags: |
+            ghcr.io/vivektiwary-25/aetherstream-web:${{ steps.release.outputs.version }}
+            ghcr.io/vivektiwary-25/aetherstream-web:${{ github.sha }}
+          build-args: VITE_GIT_SHA=${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: false
+
+      - name: Create GitHub Release
+        if: inputs.dry_run != true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+          RELEASE_NOTES: ${{ steps.release.outputs.notes_file }}
+        run: gh release create "$RELEASE_TAG" --title "$RELEASE_TAG" --notes-file "$RELEASE_NOTES" --target "$GITHUB_SHA"
