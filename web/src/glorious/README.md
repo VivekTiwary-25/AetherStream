@@ -1,66 +1,81 @@
-# Glorious shell API
+# Glorious UI guide
 
-Each track edits only its own folder: `map/`, `analytics/`, `recovery/`, or `pipelines/`.
-The integration owner maintains `shell/`, `home/`, `GloriousApp.tsx`, and routing.
+`GloriousApp.tsx` assembles the app. Feature folders own their screens and data;
+the integration owner maintains `shell/`, `home/`, `GloriousApp.tsx`, and routing.
 
-## Windows
+## Folder map
 
-```tsx
-import { useWindows } from '../shell/windows'
-const windows = useWindows()
-windows.open('analytics.speeds', {
-  title: 'Truck Speeds', strong: true,
-  render: () => <Speeds />,
-  initial: { x: 260, y: 110, w: 560, h: 420 }, // optional
-})
-windows.close('analytics.speeds')
-windows.isOpen('analytics.speeds')
-```
+- `shell/`: shared windows, sidebar, status pill, router, icons, surfaces, tokens, and motion.
+- `home/`: landing screen and reduced-motion video/poster behavior.
+- `map/`: Live World map, route/landmark data, fleet display, and breakdown action.
+- `analytics/`: speed, delivery, alert, throughput, and failed-record views and charts.
+- `recovery/`: worker/recovery history and truck-breakdown controls.
+- `pipelines/`: pipeline prompt/review, visual editor, validation, run results, and mode switch.
 
-`WindowManager` is already mounted. IDs must be stable and track-prefixed.
-`open` on an existing ID brings it forward without replacing its content.
-`update(id, { title, onBack, render })` changes header/content without resetting geometry.
-For drill-down, keep selection in the rendered component and use `update` for the
-header/back callback; pass `onBack: undefined` when returning to the list.
-Do not call `open`/`update` during render. Frames support drag, resize, Escape,
-focus-to-front, arrow-key movement and Shift+arrow-key resizing on the title bar.
-Escape closes only the frontmost window. Closing restores the opener's focus.
-`GlassWindow`, `GlassSurface` and `ClayButton` are named exports in `shell/`.
-Use `strong` surfaces for dense text. Tokens are `--gl-*` in `shell/tokens.css`.
+## Shell API
 
-## Sidebar
+`useWindows()` in `shell/windows.ts` exposes `open(id, options)`, `close(id)`,
+`isOpen(id)`, and `update(id, partialOptions)`. `WindowManager` is mounted by
+`GloriousApp`; IDs should be stable and feature-prefixed. Reopening an ID brings
+its existing window forward. `update` changes title, back callback, or content
+without resetting geometry. Do not open or update windows during render.
 
-Analytics owns `analytics/menu.ts` (`analyticsMenu`); Logs & Recovery owns `recovery/menu.ts`
-(`settingsMenu`). Both export `SidebarItem[]` from `shell/sections.ts`:
-`{ id, label, icon?: ReactNode, onSelect: (windows: WindowsApi) => void }`.
-Use window IDs `analytics.<item.id>` or `settings.<item.id>` for active styling.
-No central registry edits or second sidebar needed.
+`shell/sections.ts` defines `SidebarItem` as `{ id, label, icon?, onSelect }`.
+`analytics/menu.ts` contributes Truck Speeds, Deliveries, Alerts, Events
+Processed, and Failed Records. `recovery/menu.ts` contributes Logs & Recovery
+and Truck breakdown. The sidebar's main sections are Home, Live World,
+Analytics, Pipelines, and Settings; Analytics and Settings open their own
+submenus. The window IDs use `analytics.<id>` and `settings.<id>`.
 
-## Status and routing
+`useEngineStatus()` in `shell/status.ts` reads dashboard state and reports a
+label and events-per-second rate; a disconnected socket is unavailable, not
+zero. The `DashboardProvider` in `app/state/store.tsx` consumes `/ws` frames
+and hydrates from REST. `shell/router.ts` handles `/`, `/live`, `/pipelines`,
+and `/pipelines/editor` with browser history. `GloriousApp.tsx` lazy-loads
+LiveWorld, PipelinesPanel, and EditorPage; the editor route has no sidebar.
+Opening an Analytics or Settings window navigates to Live World without
+reloading or closing existing windows. `?ui=classic` selects the old app.
 
-`useEngineStatus()` from `shell/status` returns `{ label, eventsPerSec }`.
-It consumes the existing `useDashboard()` under `DashboardProvider`: `/ws`
-snapshot/execution/workers/flow frames and REST `/api/results/summary` hydration.
-Disconnected transport means `Disconnected` and an unavailable rate, not zero.
-StatusPill is mounted on every screen, including the standalone editor.
+## Feature data and assets
 
-Routes: `/` Home, `/live` Live World, `/pipelines` panel, `/pipelines/editor`
-standalone new-tab editor (no sidebar). Tracks replace the named placeholder
-exports without editing the router. Vite dev/preview and production nginx
-already support SPA fallback. `?ui=classic` selects the untouched old `<App />`.
-Home video and fonts are local. Reduced motion shows the poster and fades only.
-Selecting Analytics or Settings, or opening any `analytics.*` / `settings.*` window,
-navigates to `/live` without reloading or closing existing windows. Sidebar
-sub-options stay selected. From Home this uses the usual slide-up; reduced motion
-uses a fade instead.
+- Map: `map/useLiveFleet.ts` consumes `snapshot` and `trucks` frames from
+  `api/ws.ts` (`api/types.ts` simulator types) and polls `/api/simulator/state`.
+  `map/LiveWorld.tsx` posts `/api/simulator/scenario` for breakdowns. It loads
+  `/glorious/map/style.json`, `routes.geojson`, and `landmarks.json`; the style
+  references local `mysuru.pmtiles` and `fonts/` glyph files. The MapLibre
+  worker is bundled with `maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url`.
+- Analytics: `analytics/AnalyticsPanel.tsx` reads shared dashboard state and
+  `/ws` `snapshot`, `trucks`, `flow`, and result frames via `api/types.ts`.
+  Dashboard hydration in `app/state/store.tsx` uses `/api/results/windows`,
+  `/api/results/alerts`, `/api/results/dead-letters`, `/api/results/summary`,
+  and `/api/workers`; `analytics/data.ts` groups windows and dead letters.
+- Recovery: `recovery/useRecoveryFeed.ts` reads `/ws` `recovery`, `snapshot`,
+  and `execution` frames, polls `/api/recovery/history`, and uses
+  `getCurrentExecution()` and `getCheckpoints()` from `api/client.ts`.
+  `recovery/TruckBreakdown.tsx` uses simulator state and the scenario endpoint.
+- Pipelines: `pipelines/api.ts` calls
+  `/api/glorious/pipelines/fields`, `/api/glorious/pipelines/validate`,
+  `/api/glorious/pipelines/runs`, and `/api/glorious/pipelines/runs/:id/results`
+  and `/stop`, plus `/api/glorious/ai/generate`. `useRunPipeline.tsx` opens
+  results windows; `ResultsView.tsx` retrieves pages by sequence cursor.
+- Home: `home/Home.tsx` uses `/glorious/home-loop.mp4` and
+  `/glorious/home-poster.jpg`; reduced motion displays the poster instead.
 
-Pipelines checkpoint: change `PIPELINES_MODE` in `pipelines/mode.ts` (default `'full'`).
-`'full'` keeps Ask AI + Open Editor; `'editor'` shows only Open Editor and its description.
-`'hidden'` removes the sidebar item and redirects `/pipelines` and `/pipelines/editor` to Home.
+Vite serves files in `web/public/` from the site root. Keep required source
+assets out of paths matched by the root `.gitignore` `logs/` pattern: it is
+unanchored and silently ignores matching directories anywhere in the tree.
 
-## Classic Playwright limitation
+## Modes, responsive behavior, and checks
 
-The existing tests call `page.goto('/')`. URL resolution drops a baseURL query,
-so `baseURL: 'http://localhost:8088/?ui=classic'` cannot select classic mode.
-Playwright config has no context init-script option. Preserving those tests
-requires a shared fixture/setup imported by the specs, outside this task's scope.
+Set `PIPELINES_MODE` in `pipelines/mode.ts` to `'full'`, `'editor'`, or
+`'hidden'` (default `'full'`). Full mode offers AI generation and the editor;
+editor mode offers only the manual editor path; hidden mode removes Pipelines
+from the sidebar and routes hidden pipeline paths home.
+
+There is no 768px phone breakpoint. The shell adjusts at `max-width: 600px`,
+map controls at `max-width: 800px`, pipeline editor layout at `max-width: 900px`,
+and analytics charts at `max-width: 560px`.
+
+From `web/`, run `npm run dev` to develop, `npm run lint` for ESLint,
+`npm test` for Vitest, and `npm run build` for TypeScript plus Vite production
+build. `npm run preview` serves the built app.
