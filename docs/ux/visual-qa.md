@@ -192,3 +192,9 @@ against the dev mock server with headless Edge at 1440×900 and 390×844, plus `
 - mobile-04b recovering pill covers "AETHER CITY" — Fixed in T98: the city title card moved down above the dock, and the status pill is ellipsized to the viewport width. Double-click selecting heading text — Fixed in T98: `preventDefault` on multi-click mousedown on the canvas host.
 - legend Stopped vs Rejected both red dots — Fixed in T98: Rejected/Late use square marks, truck states keep round dots.
 - reduced motion — kept: alert and checkpoint flashes are skipped under `prefers-reduced-motion`, and the global rule disables CSS animation/transition (including the new city dimming). Canvas motion is lane 5.
+
+---
+
+## T121 (round 2)
+Round-2 findings and their status are in [`visual-qa-2.md`](visual-qa-2.md). Round-1 items still open after T98: X3/X4
+(the Workers panel and dropped WS frames, which need `web/src/api/ws.ts`) and the city-scene items — Left, see visual-qa-2 P2-7…P2-9.

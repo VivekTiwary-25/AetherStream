@@ -58,6 +58,7 @@ export function ScenarioPanel() {
             )}
             <ClayButton
               type="button"
+              variant="ghost"
               className={activeScenario === scenario.name ? 'scenario-panel__button scenario-panel__button--active' : 'scenario-panel__button'}
               disabled={pending}
               aria-pressed={activeScenario === scenario.name}
@@ -74,8 +75,8 @@ export function ScenarioPanel() {
         .scenario-panel__controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); }
         .scenario-panel__option { min-width: 0; }
         .scenario-panel__button { width: 100%; }
-        .scenario-panel__button--active { box-shadow: 0 0 0 1px var(--color-cyan), 0 0 18px rgb(34 211 238 / 42%); }
-        .scenario-panel__option p { margin: var(--space-2) 0 0; color: var(--color-muted, #aebdca); font-size: 0.85rem; line-height: 1.35; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .scenario-panel__button--active { color: var(--color-cyan); border-color: rgb(94 234 212 / 55%); box-shadow: 0 0 0 1px var(--color-cyan), 0 0 18px rgb(34 211 238 / 42%); }
+        .scenario-panel__option p { margin: var(--space-2) 0 0; color: var(--color-muted, #aebdca); font-size: 0.85rem; line-height: 1.35; }
         .scenario-panel__active { color: var(--color-cyan); font-size: 0.85rem; text-shadow: 0 0 10px rgb(34 211 238 / 45%); }
         .scenario-panel__truck-picker { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-2); font-size: 0.8rem; }
         .scenario-panel__truck-picker select { min-width: 0; padding: 0.3rem; color: inherit; background: rgb(15 23 42 / 75%); border: 1px solid rgb(148 163 184 / 35%); border-radius: var(--radius-sm); }

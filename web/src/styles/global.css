@@ -151,8 +151,10 @@ button {
   /* Rows size to their content (no fixed track heights), so panels can never overlap (visual QA X1). */
   grid-template-columns: repeat(6, minmax(0, 1fr));
   grid-auto-rows: auto;
+  /* Speed windows (tall list) spans two rows; deliveries and alerts stack beside it, so no panel is a tall empty box (QA-2 P1-3). */
   grid-template-areas:
-    "speed speed deliveries deliveries alerts alerts"
+    "speed speed speed deliveries deliveries deliveries"
+    "speed speed speed alerts alerts alerts"
     "workers workers workers dead-letters dead-letters dead-letters"
     "chaos chaos chaos compare compare compare"
     "timeline timeline timeline timeline timeline timeline"
@@ -160,7 +162,9 @@ button {
   align-items: stretch;
   gap: var(--space-3);
   width: min(100%, 980px);
-  margin: auto 0 0 auto;
+  /* First screen belongs to the city (QA-2 P1-1): panels start in the lower part of the viewport, with the top row
+     still clearly visible as a hint that the dashboard continues below. */
+  margin: max(0px, calc(100vh - 34rem)) 0 0 auto;
 }
 
 .panel-slot { position: relative; min-width: 0; min-height: 0; }
@@ -299,6 +303,8 @@ button {
     margin: 0 0 0 auto;
     padding: 0;
   }
+  /* The city stays visible on the first screen; the first panel header peeks above the fold (QA-2 P1-2). */
+  .panel-grid { margin-top: max(12rem, calc(100svh - 30rem)); }
   .panel-slot { min-height: 0; max-height: 70vh; flex: 0 0 auto; }
   .panel-slot > .glass-panel { max-height: 70vh; }
   .app-footer { align-self: end; }
@@ -318,7 +324,11 @@ button {
   .execution-banner__full { display: none; }
   .execution-banner__short { display: inline; }
   .app-footer { justify-self: stretch; justify-content: center; }
-  .app-city .city__title { bottom: 66px; left: 12px; }
+  /* Phone: the city fills the first screen, its title and Add-truck dock sit above the first panel header,
+     which peeks in at the bottom edge as a hint to scroll (QA-2 P1-2). */
+  .app-city .city__title { bottom: 138px; left: 12px; }
+  .app-city .city__dock { bottom: 82px; left: 12px; }
+  .panel-grid { margin-top: max(12rem, calc(100svh - 21rem)); }
 }
 
 @media (prefers-reduced-motion: reduce) {

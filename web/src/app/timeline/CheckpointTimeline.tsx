@@ -127,7 +127,7 @@ export function CheckpointTimeline() {
             })}
             {model.workerDeaths.map((death, index) => <span key={`dead-${death.timestamp}-${index}`} title={`${death.workerId} lost`} style={{ position: 'absolute', left: `${timePosition(death.timestamp, now)}%`, top: 32, zIndex: 2, color: '#f87171', fontSize: 11, whiteSpace: 'nowrap', transform: 'translateX(-50%)' }}>✕ {death.workerId} lost</span>)}
             {model.recovered.map((marker, index) => <span key={`recovered-${marker.timestamp}-${index}`} title={`Recovered in ${formatApiDuration(marker.durationMs)}`} style={{ position: 'absolute', left: `${timePosition(marker.timestamp, now)}%`, top: 73, zIndex: 2, color: '#4ade80', fontSize: 11, whiteSpace: 'nowrap', transform: 'translateX(-50%)' }}>✓ Recovered in {formatApiDuration(marker.durationMs)}</span>)}
-            {model.checkpoints.map(({ checkpoint, timestamp }) => <span key={`label-${checkpoint.checkpointId}`} style={{ position: 'absolute', left: `${timePosition(timestamp, now)}%`, top: 72, color: '#c4b5fd', fontSize: 10, whiteSpace: 'nowrap', transform: 'translateX(-50%)' }}>#{checkpoint.checkpointId}</span>)}
+            {model.checkpoints.map(({ checkpoint, timestamp }) => <span key={`label-${checkpoint.checkpointId}`} style={{ position: 'absolute', left: `${timePosition(timestamp, now)}%`, top: 72, color: '#c4b5fd', fontSize: 11, whiteSpace: 'nowrap', transform: 'translateX(-50%)' }}>#{checkpoint.checkpointId}</span>)}
           </div>
         </div>
         <div aria-live="polite" aria-atomic="true" style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: '4px 18px' }}>

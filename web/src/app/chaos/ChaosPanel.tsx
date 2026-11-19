@@ -72,7 +72,7 @@ export function ChaosPanel() {
   return (
     <GlassPanel title="Chaos controls" status={<StatusPill state={backpressured ? 'backpressured' : 'healthy'} />}>
       <div className="chaos-panel__actions">
-        <ClayButton disabled={pending} onClick={() => void perform(sendLateEvents, () => '20 late events sent')}>
+        <ClayButton variant="ghost" disabled={pending} onClick={() => void perform(sendLateEvents, () => '20 late events sent')}>
           Send late events
         </ClayButton>
         <div className="chaos-panel__secondary">
