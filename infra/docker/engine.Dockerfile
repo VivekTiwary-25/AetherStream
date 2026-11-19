@@ -11,7 +11,9 @@ COPY simulator/build.gradle.kts simulator/build.gradle.kts
 COPY tests/build.gradle.kts tests/build.gradle.kts
 RUN chmod +x gradlew
 COPY . .
-RUN sh infra/docker/with-proxy.sh ./gradlew --no-daemon :engine:installDist
+# Share downloads across Java images; lock the cache across isolated Gradle processes.
+RUN --mount=type=cache,id=aetherstream-gradle,target=/root/.gradle,sharing=locked \
+    sh infra/docker/with-proxy.sh ./gradlew --no-daemon :engine:installDist
 
 FROM eclipse-temurin:21-jre
 ARG GIT_SHA=dev
