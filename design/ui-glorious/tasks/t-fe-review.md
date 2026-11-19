@@ -1,0 +1,5 @@
+# Frontend bug review + fixes: analytics, pipelines, recovery (new UI)
+
+Files: web/src/glorious/analytics/**, web/src/glorious/pipelines/**, web/src/glorious/recovery/** (fix inside the owning folder only). Do NOT read or describe swarm/. Node: if not on PATH prepend %USERPROFILE%\tools\node. Before finishing: in web/ `npm run lint`, `npm test -- --maxWorkers=2`, `npm run build`, `npm run check:no-mock` must pass. Only real data; no mock data; no fake controls.
+
+These folders were built tonight and only partly seen with live data. Look for real bugs that would show in a 20-minute live demo and fix them with a test each: polling/interval/WebSocket listeners not cleaned up when a window closes (leaks, double subscriptions after reopen), unbounded arrays growing over 20 min, stale closures showing old data, wrong units or labels, timestamps from the wrong clock (sim time vs wall time must be labelled), results-window polling continuing after Stop/close, error states that never clear after the backend comes back, keyboard traps. Do not restyle. Report each finding as fixed / not a bug, with file:line.

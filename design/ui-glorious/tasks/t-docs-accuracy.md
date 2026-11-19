@@ -1,0 +1,5 @@
+# Check the expo docs against the real scripts and UI (docs only, small)
+
+Files: docs/expo/CHEATSHEET.md (only its "New UI" section), docs/expo/DEMO-NEW-UI.md, scripts/expo/README.md, scripts/ai-bridge/README.md. Read: scripts/expo/*, scripts/ai-bridge/*, web/src/glorious/** (labels only). Do NOT read or describe swarm/. Keep it small: this PC has little Codex usage left.
+
+Vivek will follow these docs live at the expo. For every command, path, env var, port, button label and menu name in the four files, check it against the real scripts and UI code. Fix every mismatch (wrong label text, wrong path, wrong default port, a step that does not exist). Do not add new features or claims. Report a short table: claim -> OK/fixed.

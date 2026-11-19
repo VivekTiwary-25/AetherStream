@@ -41,6 +41,13 @@ Fresh boss session: read swarm/BOSS.md, then design/ui-glorious/BOSS_PROMPT.md (
 - Grok watermark: crop it (b).
 - CORRECTION 03:40: vivek-pc workers stay ENABLED (disable reverted: main 1574ad8). Instead vivek-pc has "max_busy": 1 (main 1111cd1, listener caps concurrent tasks per machine). Boss session + live demo must never be starved; do not queue heavy work (builds/stacks) to vivek-pc yourself.
 
+## 04:22 status
+- vimlesh-pc DOWN since ~04:15 (heartbeat >5 min; Vivek push-notified 04:20 to call Vimlesh). Its running tasks t261120-0355-fca7 (a11y, claude) and t261120-0355-a603 (code-split, luna) are stranded; the swarm auto-moves after 10 min. NEVER let a moved build task run on vivek-pc: if one lands there, reject + requeue elsewhere at once (vivek-pc max_busy=1 delays its start).
+- main dd0f8ee: routing "no_auto_pick_machines": ["vivek-pc"] (pick_worker skips it for kind-queues and moves; explicit targets still work). Listeners use it after idle restart.
+- Fed: upendra-pc/codex-sol t261120-0418-25cb gap review -> design/ui-glorious/GAPS.md; upendra-pc/codex-luna t261120-0422-6c6f frontend bug review (moved from vimlesh 4443); vivek-pc/codex-sol t261120-0416-fa24 PS 5.1 script review (light).
+- Merged 04:13-04:21: presenter script docs/expo/DEMO-NEW-UI.md (3041), merge guide docs/expo/MERGE-UI-GLORIOUS.md (7c48), docs accuracy fixes (d1a2), DEMO/README/CHANGELOG pointers (6662). Closed e100 (build #2 artifact; preview html already extracted).
+- Watcher (Vivek 04:15 rules): queue empty = IDLE alert (must feed); DOWN needs 2 checks (~30 s).
+
 ## Docker + live tests chain on utkarsh-pc (queued 04:08-04:11, Vivek: TOP PRIORITY)
 - utkarsh-pc/codex-luna: t261120-0408-c1a7 Docker up (start DD, fix safely, prune; report exact click if human needed) -> then t261120-0411-0830 pipelines live test (3 examples via API, Ask AI->Run, editor Validate/Run, screenshots in design/ui-glorious/proof/pipelines/)
 - utkarsh-pc/codex-sol: t261120-0409-2aa3 full stack (preview-up.ps1, :8089 + tunnel, glorious + classic Playwright) -> then t261120-0410-1e14 REAL kill test (worker kill 2 + 1, timed screenshots, recovery history JSON, events late) -> proof in design/ui-glorious/proof/kill/
