@@ -46,6 +46,11 @@ Fresh boss session: read swarm/BOSS.md, then design/ui-glorious/BOSS_PROMPT.md (
 - ONLY thing to protect: the boss session's tokens (ran out briefly tonight). Keep context lean, delegate, warn Vivek early if low.
 - GOTCHA: pushing swarm .py code while long tasks run stalls dispatch on that PC until they finish (_first_runnable waits for restart). Config JSON pushes are safe.
 
+## 05:25 BLOCKER
+- utkarsh-pc DISK FULL again (OSError 28): Docker image build consumed the ~4.6 GB. Stack t261120-0409-2aa3 FAILED, pipelines-live t261120-0514-4f1f FAILED (worktree add), kill test 1e14 running but will fail (no stack). Asked Vivek 05:25: (1) Utkarsh frees >=15 GB (Downloads 6.6 GB, Docker Desktop Troubleshoot > Clean/Purge data, old images) then `swarm fix`; or (2) Vivek OKs a ui-glorious stack on vivek-pc next to the live demo (compose -p aether-preview, NO host ports except web 8089, memory risk) -> needs his explicit OK (touches live-demo machine).
+- Merged 05:15-05:23: AI robustness e92b (re-verified real generation 10 s), final docs 65c1, pipelines polish eb78, glorious README 9581, FINAL_REPORT.md skeleton 2690.
+- HELD mobile: 5796, 2db4 (combine task 0d13 running), aed1 running.
+
 ## 05:13
 - Merged 04:56-05:12: visual polish 933d, demo doc r2 28b4, preflight a41a (+ boss PS5.1 fix 770024d; live run: workers PASS, new endpoints FAIL as expected on main), demo-path spec 71e8, gap10+tests 25bb (boss kept 39d4 recovery fix; tsc OK, glorious vitest 92/92).
 - Verified: full web suite 256/256 twice on 770024d (55b7, closed); Java 786 pass 0 fail on JDK 21 (3a95, closed). Container ITs (EngineMatchesReferenceIT, WorkerCrashRecoveryIT, CoordinatorRestartIT, IncompleteCheckpointIT) NOT run yet -> need Docker (utkarsh) at 07:00.
