@@ -10,6 +10,7 @@ on:
       - "tests/**"
       - "benchmarks/**"
       - ".github/workflows/bench.yml"
+      - "docs/report/benchmarks.md"
       - "build.gradle.kts"
       - "gradle/**"
       - "reference/**"
@@ -27,7 +28,7 @@ permissions:
 
 jobs:
   benchmark:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
@@ -36,6 +37,21 @@ jobs:
           distribution: temurin
           java-version: "21"
       - uses: gradle/actions/setup-gradle@v6
+      - name: Record runner specifications
+        shell: bash
+        run: |
+          mkdir -p build/reports/benchmark
+          {
+            echo "Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            echo "Commit: $GITHUB_SHA"
+            echo "Runner: $RUNNER_OS/$RUNNER_ARCH; image: ${ImageOS:-unknown} ${ImageVersion:-unknown}"
+            uname -a
+            lscpu
+            free -b
+            df -h .
+            java -version 2>&1
+            docker version
+          } | tee build/reports/benchmark/runner.txt
       - name: Run engine benchmark
         run: ./gradlew :tests:benchmarkTest --console=plain
       - name: Append benchmark summary
