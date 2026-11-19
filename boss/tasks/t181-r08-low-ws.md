@@ -14,3 +14,11 @@ Acceptance check: ci-java and ci-e2e green on your branch.
 - Do not read or change anything in swarm/ (except your own report file if the swarm asks you to write one).
 - Only edit the files listed. If you are on vivek-pc: do NOT start Docker containers or kind there (the live demo runs on it). Acceptance runs in GitHub Actions on your task branch.
 - If you are on vivek-pc: it runs the live demo. Do NOT run builds, test suites, Gradle, npm build/test, Playwright or any browser/renderer locally there - read code, edit, and rely on GitHub Actions for every check.
+
+## Update from the boss (10:50) - 3rd attempt, previous two failed ci-java
+Attempt 1: ExecutionEvents.java:136 "illegal character: '#'" (syntax). Attempt 2 failed ci-java with:
+863492Z ExecutionEventsTest > staleWorkerDeathDoesNotLabelLaterGenerationChangeAsRecovery() FAILED
+868617Z     and others were not expected:
+887790Z NewRowsTrackerTest > treatsAChangedTimestampForTheSamePrimaryKeyAsFresh() FAILED
+837312Z > Task :control-api:test FAILED
+Start from current main (T178 + T177 changed this package). Keep the change minimal and compile-clean.

@@ -47,7 +47,7 @@ docs/expo/backup/), cold-start timer (T159), autostart scripts (T163; registrati
 20-kill run green (T164), compare OOM fix (T177), R08 MEDIUM fixes (T178). Pending: T179 (e2e), T181 (redo), longrun rerun on
 main 44462983759 (pre-T177 run showed control-api memory +94%). Boss TODO ~12:45: expo-prepull + laptop cold-start timing.
 
-## UTKARSH-PC HEALTH CHECK (Vivek, 10:27) - in progress
+## UTKARSH-PC HEALTH CHECK (Vivek, 10:27) - DONE 10:50: T182b pushed OK, both workers work. Low C: disk -> NEEDS_VIVEK 11.
 T183 result: git healthy (no locks, fsck clean, fetch + push dry-run OK). ROOT CAUSE: C: has only 1.157 GB free (D: 243.8 GB);
 the swarm checkout is on C:. Second Luna test T182b queued (t261119-1041-b684).
 1. T182 tiny test queued to utkarsh-luna (t261119-1027-80ba). 2. If it fails with "cannot lock ref 'HEAD'" / "worktree add failed":
