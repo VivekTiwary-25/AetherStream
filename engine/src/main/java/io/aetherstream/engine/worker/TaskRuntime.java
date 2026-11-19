@@ -93,8 +93,19 @@ public final class TaskRuntime {
         this.sinkDelayMs = sinkDelayMs;
         this.listener = listener == null ? (r, why) -> { } : listener;
         // A checkpoint restored from counts as the last one this runtime knows about.
-        this.lastCheckpointId = assign.restoreCheckpointId();
-        this.highestCheckpointRequested = assign.restoreCheckpointId();
+        this.lastCheckpointId = checkpointBaseline(assign);
+        this.highestCheckpointRequested = checkpointBaseline(assign);
+    }
+
+    /**
+     * Highest checkpoint id already known for this execution. A savepoint restore uses another execution's manifest
+     * whose checkpoint id is unrelated to this execution's numbering (which starts again at 1), so it counts as 0;
+     * otherwise TRIGGER_CHECKPOINT 1, 2, ... of the restored execution would be ignored as old.
+     */
+    static long checkpointBaseline(Command.Assign assign) {
+        String key = assign.manifestKey();
+        boolean ownExecution = key == null || key.startsWith("executions/" + assign.executionId() + "/");
+        return ownExecution ? assign.restoreCheckpointId() : 0;
     }
 
     // ------------------------------------------------------------------ lifecycle
