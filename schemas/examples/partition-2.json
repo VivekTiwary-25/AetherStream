@@ -1,0 +1,12 @@
+{
+  "prompt": "Show only trucks on partition 2 with their speed",
+  "pipeline": {
+    "name": "Partition 2 truck speeds",
+    "nodes": [
+      {"id": "filter", "type": "filter", "params": {"field": "partition", "op": "==", "value": 2}},
+      {"id": "project", "type": "pickFields", "params": {"fields": ["truckId", "speedKmh"]}},
+      {"id": "output", "type": "output", "params": {"name": "Partition 2 speeds"}}
+    ],
+    "edges": [{"from": "filter", "to": "project"}, {"from": "project", "to": "output"}]
+  }
+}

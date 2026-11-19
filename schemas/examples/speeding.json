@@ -1,0 +1,12 @@
+{
+  "prompt": "Alert me when any truck goes over 60 km/h",
+  "pipeline": {
+    "name": "Speeding alert",
+    "nodes": [
+      {"id": "filter", "type": "filter", "params": {"field": "speedKmh", "op": ">", "value": 60}},
+      {"id": "alert", "type": "thresholdAlert", "params": {"field": "speedKmh", "op": ">", "value": 60, "message": "Truck over 60 km/h"}},
+      {"id": "output", "type": "output", "params": {"name": "Speeding trucks"}}
+    ],
+    "edges": [{"from": "filter", "to": "alert"}, {"from": "alert", "to": "output"}]
+  }
+}
