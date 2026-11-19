@@ -41,6 +41,13 @@ Fresh boss session: read swarm/BOSS.md, then design/ui-glorious/BOSS_PROMPT.md (
 - Grok watermark: crop it (b).
 - CORRECTION 03:40: vivek-pc workers stay ENABLED (disable reverted: main 1574ad8). Instead vivek-pc has "max_busy": 1 (main 1111cd1, listener caps concurrent tasks per machine). Boss session + live demo must never be starved; do not queue heavy work (builds/stacks) to vivek-pc yourself.
 
+## Watcher + tasks 04:00
+- Idle-worker watcher (Vivek's rules): scratchpad\watcher\watcher.py, READ-ONLY, reads only ~/.swarm/state/view.json, every 15 s, lock port 47991, log capped 200 KB, alerts -> scratchpad\watcherlerts.txt (DOWN/DEAD/IDLE-no-reason). Boss reads ONLY alerts.txt (Monitor tail) and clears it after acting. Restart if dead: `python -I watcher.py` in that folder (single instance). `--once` prints a classification.
+- AVOID list in watcher: vivek-pc/grok (12%), vivek-pc/vachana-claude (reserved for Ask AI, no kinds). vivek-pc max_busy=1.
+- Queue-empty counts as an OK idle reason -> boss must keep the backlog filled.
+- Queued 03:55 (all --base ui-glorious): t261120-0354-3041 utkarsh/luna presenter script docs/expo/DEMO-NEW-UI.md; t261120-0355-e8e2 utkarsh/sol backend correctness review (executor + recovery); t261120-0355-fca7 vimlesh/claude a11y pass; t261120-0355-a603 vimlesh/luna code-split (lazy screens); t261120-0355-12e2 upendra/luna pipelines contract check (upendra Codex ~12%).
+- Running since 03:23: t261120-0323-e480 vimlesh/sol map polish.
+
 ## Progress 03:50
 - Preview :8089 now serves build #2 (task/t261120-0323-e100, from ui-glorious 8e84499): basemap renders with live trucks (map fix verified with live data). Old html kept in scratchpad\preview\html.old. Rejected 9f5b (build #1) and 4b72 (failed docker diag).
 - Watermark cropped + merged (t261120-0332-b2f9; verified corner clean). utkarsh disk task merged (C: 6.0 GB free; report design/ui-glorious/disk-utkarsh.md).
