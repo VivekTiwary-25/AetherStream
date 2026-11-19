@@ -1,0 +1,91 @@
+{
+  "phase": "after",
+  "fixture": "Deterministic HTTP/WebSocket responses; production build; UTC fixed clock",
+  "results": [
+    {
+      "name": "analytics-trucks",
+      "mobile": true,
+      "width": 372,
+      "scrollWidth": 372
+    },
+    {
+      "name": "analytics-truck-detail",
+      "mobile": true,
+      "width": 372,
+      "scrollWidth": 372
+    },
+    {
+      "name": "analytics-deliveries",
+      "mobile": true,
+      "width": 372,
+      "scrollWidth": 372
+    },
+    {
+      "name": "analytics-alerts",
+      "mobile": true,
+      "width": 372,
+      "scrollWidth": 372
+    },
+    {
+      "name": "analytics-events",
+      "mobile": true,
+      "width": 372,
+      "scrollWidth": 372
+    },
+    {
+      "name": "analytics-failed",
+      "mobile": true,
+      "width": 372,
+      "scrollWidth": 372
+    },
+    {
+      "name": "analytics-failure-detail",
+      "mobile": true,
+      "width": 372,
+      "scrollWidth": 372
+    },
+    {
+      "name": "recovery-workers",
+      "mobile": true,
+      "width": 372,
+      "scrollWidth": 372
+    },
+    {
+      "name": "recovery-partitions",
+      "mobile": true,
+      "width": 372,
+      "scrollWidth": 372
+    },
+    {
+      "name": "recovery-checkpoints",
+      "mobile": true,
+      "width": 372,
+      "scrollWidth": 372
+    },
+    {
+      "checkpointScroll": {
+        "width": 324,
+        "scrollWidth": 640,
+        "scrollLeft": 316
+      }
+    },
+    {
+      "name": "recovery-checkpoints-scrolled",
+      "mobile": true,
+      "width": 372,
+      "scrollWidth": 372
+    },
+    {
+      "name": "recovery-history",
+      "mobile": true,
+      "width": 372,
+      "scrollWidth": 372
+    },
+    {
+      "name": "recovery-breakdown",
+      "mobile": true,
+      "width": 372,
+      "scrollWidth": 372
+    }
+  ]
+}

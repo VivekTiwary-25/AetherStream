@@ -8,4 +8,11 @@
 .an-chart__bar { fill: #416d58; }
 .an-chart__empty { margin: 0; color: #4c4f47; font-size: 13px; }
 .an-chart-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-@media (max-width: 560px) { .an-chart-row { grid-template-columns: 1fr; } }
+
+@media (max-width: 768px) {
+  .an-chart-row { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .an-chart figcaption { font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; }
+  .an-chart figcaption span { font-size: 12px; }
+  /* The 480-unit viewBox scales down on phones; retain readable axis labels. */
+  .an-chart__tick { font-size: 18px; }
+}

@@ -18,3 +18,16 @@ button.an-row:hover { background: rgba(255, 255, 255, .78); }
 .an-details dt { color: #494c44; font-weight: 600; }
 .an-details dd { margin: 0; overflow-wrap: anywhere; }
 .an-window :focus-visible { outline: 3px solid #145a3b; outline-offset: 2px; }
+
+@media (max-width: 768px) {
+  .an-window { min-width: 0; font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; }
+  .an-window button.an-row, .an-window .an-tabs button, .an-window .an-back { min-width: 44px; min-height: 44px; }
+  .an-row { display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; min-height: 44px; padding: 12px; }
+  .an-row strong, .an-row span, .an-row time { min-width: 0; }
+  .an-tabs { flex-wrap: wrap; }
+  .an-tabs button { flex: 1; padding: 8px 12px; font: inherit; }
+  .an-detail-heading { align-items: flex-start; }
+  .an-detail-heading span { align-self: center; min-width: 0; }
+  .an-back { flex-shrink: 0; }
+  .an-details div { grid-template-columns: minmax(0, 1fr); gap: 4px; padding: 12px 0; }
+}

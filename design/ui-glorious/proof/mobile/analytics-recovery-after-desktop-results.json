@@ -1,0 +1,54 @@
+{
+  "phase": "after",
+  "fixture": "Deterministic HTTP/WebSocket responses; production build; UTC fixed clock",
+  "results": [
+    {
+      "name": "analytics-trucks",
+      "changedPixels": 0
+    },
+    {
+      "name": "analytics-truck-detail",
+      "changedPixels": 0
+    },
+    {
+      "name": "analytics-deliveries",
+      "changedPixels": 0
+    },
+    {
+      "name": "analytics-alerts",
+      "changedPixels": 0
+    },
+    {
+      "name": "analytics-events",
+      "changedPixels": 0
+    },
+    {
+      "name": "analytics-failed",
+      "changedPixels": 0
+    },
+    {
+      "name": "analytics-failure-detail",
+      "changedPixels": 0
+    },
+    {
+      "name": "recovery-workers",
+      "changedPixels": 0
+    },
+    {
+      "name": "recovery-partitions",
+      "changedPixels": 0
+    },
+    {
+      "name": "recovery-checkpoints",
+      "changedPixels": 0
+    },
+    {
+      "name": "recovery-history",
+      "changedPixels": 0
+    },
+    {
+      "name": "recovery-breakdown",
+      "changedPixels": 0
+    }
+  ]
+}
