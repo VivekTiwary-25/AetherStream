@@ -16,6 +16,10 @@ Vivek drives; keep the browser on the new UI at `http://localhost:8088`. Use onl
   ```
   In cmd instead: `set PATH=%CD%\scripts\expo;%PATH%`. Bash: `export PATH="$PWD/scripts/expo:$PATH"`.
 - Check the app and API are already running at `http://localhost:8088`; the worker commands use that URL by default. Check the AI bridge health at `http://127.0.0.1:18090/health`.
+- Run `scripts/expo/preflight.cmd` from cmd/PowerShell, or
+  `scripts/expo/preflight` from Bash. Resolve any FAIL before the slot; WARN
+  means the AI bridge may need `powershell -ExecutionPolicy Bypass -File
+  scripts/ai-bridge/start.ps1`. This check uses GET requests only.
 - In the expo terminal, run `worker status`. Expect the current worker IDs, states and partitions; do not kill a worker during setup.
 - Know the demo commands (run only at the indicated step): `worker kill 2` and `events late 10`. `worker kill` sends the existing API action; it is not a Docker command. Never repeat it during recovery. Late-event classification depends on the engine watermark.
 - If the new UI or API is unavailable, use `http://localhost:8088/?ui=classic`; the classic controls remain available.

@@ -1,0 +1,111 @@
+#!/usr/bin/env bash
+set -u
+base=${AETHER_URL:-http://localhost:8088}
+base=${base%/}
+exec python3 - "$base" <<'PY'
+import json
+import sys
+import urllib.request
+
+base = sys.argv[1]
+failed = False
+
+
+def get(path):
+    request = urllib.request.Request(base + path, method="GET")
+    with urllib.request.urlopen(request, timeout=10) as response:
+        return response.read(), response.headers.get_content_type()
+
+
+def check(name, fn, warn=False):
+    global failed
+    try:
+        result = fn()
+        if isinstance(result, tuple) and result[0]:
+            print("WARN {} - {}".format(name, result[1]))
+        else:
+            reason = result[1] if isinstance(result, tuple) else result
+            print("PASS {} - {}".format(name, reason))
+    except Exception as error:
+        if warn:
+            print("WARN {} - {}".format(name, error))
+        else:
+            failed = True
+            print("FAIL {} - {}".format(name, error))
+
+
+def web():
+    body, content_type = get("/")
+    if content_type != "text/html" and b"<html" not in body.lower() and b"<!doctype html" not in body.lower():
+        raise RuntimeError("response is not HTML")
+    return "HTML returned"
+
+
+def health():
+    body, _ = get("/api/health")
+    state = json.loads(body).get("status")
+    if state not in ("UP", "OK"):
+        raise RuntimeError("health status is {!r}".format(state))
+    return "status={}".format(state)
+
+
+def execution():
+    body, _ = get("/api/executions/current")
+    state = json.loads(body).get("state")
+    if state != "RUNNING":
+        raise RuntimeError("state is {!r}".format(state))
+    return "state=RUNNING"
+
+
+def workers():
+    body, _ = get("/api/workers")
+    items = json.loads(body)
+    if not isinstance(items, list):
+        raise RuntimeError("response is not a worker list")
+    alive = [worker for worker in items if worker.get("alive") is True]
+    partitions = {str(partition) for worker in alive for partition in (worker.get("partitions") or [])}
+    if len(items) != 3 or len(alive) != 3 or len(partitions) != 6:
+        raise RuntimeError("workers={}, alive={}, covered partitions={} (expected 3, 3, 6)".format(len(items), len(alive), len(partitions)))
+    return "3 workers alive; 6 partitions covered"
+
+
+def simulator():
+    body, _ = get("/api/simulator/state")
+    trucks = json.loads(body).get("trucks") or []
+    count = len(trucks)
+    if count != 6:
+        return True, "trucks={} (expected 6)".format(count)
+    return False, "trucks={}".format(count)
+
+
+def answers(path, reason):
+    get(path)
+    return reason
+
+
+def ai_health():
+    try:
+        body, _ = get("/api/glorious/ai/health")
+        if json.loads(body).get("ok") is not True:
+            raise RuntimeError("AI bridge reports ok=false")
+    except Exception as error:
+        raise RuntimeError("{}; start with powershell -ExecutionPolicy Bypass -File scripts/ai-bridge/start.ps1".format(error))
+    return "AI bridge answered and reports ok=true"
+
+
+
+
+check("web /", web)
+check("/api/health", health)
+check("/api/executions/current", execution)
+check("/api/workers", workers)
+check("/api/simulator/state", simulator)
+check("/api/recovery/history", lambda: answers("/api/recovery/history", "new UI backend answered"))
+check("/api/glorious/pipelines/fields", lambda: answers("/api/glorious/pipelines/fields", "answered"))
+check("/api/glorious/ai/health", ai_health, warn=True)
+
+if failed:
+    print("VERDICT FAIL")
+    sys.exit(1)
+print("VERDICT PASS (warnings may need attention)")
+PY

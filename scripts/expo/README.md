@@ -13,3 +13,7 @@ queues the existing worker-kill API action; the engine handles recovery.
 classification as late depends on the engine watermark. `worker status` only
 reads worker IDs, alive/state, and partitions. API errors are printed and exit
 nonzero; keep the classic UI available at `?ui=classic` as fallback.
+Run `preflight` (Bash) or `preflight.cmd` (Windows) before the demo slot for
+read-only app, API, worker, simulator, recovery, pipeline, and AI-bridge checks.
+Set `AETHER_URL` to check a different app host; the default is
+`http://localhost:8088`. A missing AI bridge warns with its start command.
