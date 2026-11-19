@@ -11,6 +11,8 @@ export default defineConfig({
   outputDir: 'test-results',
   reporter: [['list'], ['html', { open: 'never' }], ['json', { outputFile: 'results.json' }]],
   use: {
+    // Specs use page.goto('/'), which drops a baseURL query. Selecting ?ui=classic
+    // requires an init script in a shared fixture; config has no init-script option.
     baseURL: 'http://localhost:8088',
     actionTimeout: 10_000,
     navigationTimeout: 30_000,
