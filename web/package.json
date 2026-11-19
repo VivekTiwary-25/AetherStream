@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "check:no-mock": "node scripts/check-no-mock.mjs",
     "lint": "eslint .",
     "test": "vitest run",
     "preview": "vite preview"
