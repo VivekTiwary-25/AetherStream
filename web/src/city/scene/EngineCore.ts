@@ -25,6 +25,8 @@ export interface EngineFrame {
   status: EngineStatus
   checkpointAge: number | null
   reducedMotion: boolean
+  /** Lanes whose worker is dead (index = partition). */
+  stalled?: boolean[]
 }
 
 export class EngineCore {
@@ -36,12 +38,13 @@ export class EngineCore {
   private readonly dim = new Graphics()
   private readonly title = new Text({ text: 'STREAM ENGINE', resolution: 2, style: { ...font(30, 0xbfe3f2, '700'), letterSpacing: 6 } })
   private readonly rate = new Text({ text: '0.0 ev/s', resolution: 2, style: font(46, 0xeaf8ff, '700') })
-  private readonly state = new Text({ text: '', resolution: 2, style: { ...font(23, 0x9fc0d2), wordWrap: true, wordWrapWidth: PANEL.w - 40, align: 'center' } })
+  private readonly state = new Text({ text: '', resolution: 2, style: { ...font(28, 0x9fc0d2), wordWrap: true, wordWrapWidth: PANEL.w - 40, align: 'center' } })
   private readonly laneLabels: Text[] = []
   private readonly laneRates: Text[] = []
   private readonly workerLabels: Text[] = []
   private readonly levels = new Array<number>(PARTITIONS).fill(0)
   private readonly hits = new Array<number>(PARTITIONS).fill(0)
+  private readonly rates = new Array<number>(PARTITIONS).fill(0)
   private activity = 0
   private flash = 0
   private dimLevel = 0
@@ -61,9 +64,9 @@ export class EngineCore {
       body.roundRect(LANES.x + 20, y + LANES.height - 32, LANES.w - 40, 12, 6).fill(0x102838)
       const inlet = laneInlet(lane)
       body.roundRect(inlet.x - 14, inlet.y - 13, 32, 26, 8).fill(0x123041).stroke({ color: 0x3fb7c9, width: 1.5, alpha: 0.6 })
-      const label = new Text({ text: `P${lane}`, resolution: 2, style: font(26, 0x8fb7c9, '700') })
+      const label = new Text({ text: `P${lane}`, resolution: 2, style: font(32, 0x8fb7c9, '700') })
       label.position.set(LANES.x + 20, y + 18)
-      const rate = new Text({ text: '0.0/s', resolution: 2, style: font(23, 0x8fb7c9) })
+      const rate = new Text({ text: '0.0/s', resolution: 2, style: font(32, 0xa9cbdb) })
       rate.anchor.set(1, 0)
       rate.position.set(LANES.x + LANES.w - 20, y + 20)
       this.laneLabels.push(label); this.laneRates.push(rate)
@@ -76,7 +79,7 @@ export class EngineCore {
     this.rate.anchor.set(0.5, 0); this.rate.position.set(HUB.x, HUB.y + HUB.ring + 68)
     this.state.anchor.set(0.5, 0); this.state.position.set(HUB.x, HUB.y + HUB.ring + 128)
     for (let i = 0; i < MAX_WORKER_LABELS; i += 1) {
-      const t = new Text({ text: '', resolution: 2, style: font(19, 0xffffff) })
+      const t = new Text({ text: '', resolution: 2, style: font(24, 0xffffff) })
       t.anchor.set(0.5); t.visible = false
       this.workerLabels.push(t)
     }
@@ -93,8 +96,9 @@ export class EngineCore {
     const { dt, flow, workers, status, seconds } = frame
     const recovering = status.mode === 'recovering'
     const halted = status.mode === 'stopped' || status.mode === 'failed' || status.mode === 'idle'
-    const rates = Array.from({ length: PARTITIONS }, (_, p) => flow?.byPartition?.[String(p)] ?? 0)
-    const peak = Math.max(1, ...rates)
+    const rates = this.rates
+    let peak = 1
+    for (let p = 0; p < PARTITIONS; p += 1) { rates[p] = flow?.byPartition?.[String(p)] ?? 0; peak = Math.max(peak, rates[p]) }
     this.activity = damp(this.activity, Math.min(1, (flow?.eventsPerSec ?? 0) / 150), 3, dt)
     this.flash = damp(this.flash, 0, 4, dt)
     this.dimLevel = damp(this.dimLevel, recovering ? 1 : halted ? 0.6 : 0, 5, dt)
@@ -113,7 +117,11 @@ export class EngineCore {
         const inlet = laneInlet(lane)
         glow.circle(inlet.x + 2, inlet.y, 9 + heat * 6).fill({ color: 0x6af2f5, alpha: 0.25 + heat * 0.5 })
       }
-      setText(this.laneRates[lane], `${rates[lane].toFixed(1)}/s`)
+      const stalled = frame.stalled?.[lane] ?? false
+      // Dead worker: a muted red outline and "stalled" until recovery hands the partition to a live worker.
+      if (stalled) g.roundRect(LANES.x, y, LANES.w, LANES.height, 14).stroke({ color: 0xff5e6c, width: 2, alpha: 0.45 })
+      setText(this.laneRates[lane], stalled ? 'stalled' : `${rates[lane].toFixed(1)}/s`)
+      setFill(this.laneRates[lane], stalled ? 0xff8b97 : 0xa9cbdb)
       setFill(this.laneLabels[lane], heat > 0.3 ? 0xdffcff : 0x8fb7c9)
     }
 
@@ -129,10 +137,11 @@ export class EngineCore {
     }
 
     // Worker health ring: one arc per worker with a label outside it.
-    const shown = workers.slice(0, MAX_WORKER_LABELS)
-    const n = Math.max(shown.length, 1), slice = (Math.PI * 2) / n
-    if (shown.length === 0) g.circle(HUB.x, HUB.y, HUB.ring).stroke({ color: 0x2a3d4c, width: 10 })
-    shown.forEach((worker, i) => {
+    const shown = Math.min(workers.length, MAX_WORKER_LABELS)
+    const slice = (Math.PI * 2) / Math.max(shown, 1)
+    if (shown === 0) g.circle(HUB.x, HUB.y, HUB.ring).stroke({ color: 0x2a3d4c, width: 10 })
+    for (let i = 0; i < shown; i += 1) {
+      const worker = workers[i]
       const start = -Math.PI / 2 + i * slice + 0.06, end = start + slice - 0.12
       const color = workerColor(worker)
       g.moveTo(HUB.x + Math.cos(start) * HUB.ring, HUB.y + Math.sin(start) * HUB.ring).arc(HUB.x, HUB.y, HUB.ring, start, end).stroke({ color, width: 10, cap: 'round' })
@@ -142,8 +151,8 @@ export class EngineCore {
       label.position.set(HUB.x + Math.cos(mid) * (HUB.ring + 62), HUB.y + Math.sin(mid) * (HUB.ring + 40))
       setText(label, shortWorker(worker.workerId) + (worker.alive ? '' : ' ✕'))
       setFill(label, color)
-    })
-    for (let i = shown.length; i < MAX_WORKER_LABELS; i += 1) this.workerLabels[i].visible = false
+    }
+    for (let i = shown; i < MAX_WORKER_LABELS; i += 1) this.workerLabels[i].visible = false
 
     setText(this.rate, `${(flow?.eventsPerSec ?? 0).toFixed(1)} ev/s`)
     setText(this.state, status.label)

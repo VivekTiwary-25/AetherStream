@@ -1,5 +1,5 @@
 // Plain-TS model of everything the city shows. The socket feeds it; the Pixi scene reads it every frame.
-import { TruckTrack } from './motion'
+import { SampleClock, TruckTrack } from './motion'
 import type { CityEnvelope, CityExecution, CityPoint, CitySnapshot, CityStop, CityTruck, CityWorker, ExecutionMessage, FlowData, TruckUpdate } from './cityTypes'
 
 export interface TruckEntry {
@@ -10,7 +10,7 @@ export interface TruckEntry {
 }
 export interface Delivery { stopId: string; x: number; y: number; at: number }
 
-export type EngineMode = 'idle' | 'running' | 'backpressured' | 'checkpointing' | 'recovering' | 'stopped' | 'failed'
+export type EngineMode = 'disconnected' | 'idle' | 'running' | 'backpressured' | 'checkpointing' | 'recovering' | 'stopped' | 'failed'
 export interface EngineStatus { mode: EngineMode; label: string; color: string }
 
 const STOP_RADIUS = 60
@@ -27,6 +27,9 @@ export class CityModel {
   simTime = 0
   deliveries: Delivery[] = []
   lastCheckpoint: { id: number; at: number } | null = null
+  /** False while the live WebSocket is down: the stream stops instead of replaying a stale rate. */
+  connected = true
+  private readonly clock = new SampleClock()
   private expected = new Map<string, CityPoint & { at: number }>()
 
   apply(message: CityEnvelope<unknown>, now: number): void {
@@ -36,14 +39,14 @@ export class CityModel {
         this.stops = snap.simulator.stops ?? []
         this.depot = snap.simulator.depot ?? this.depot
         this.simTime = snap.simulator.simTime ?? 0
-        this.ingest(snap.simulator.trucks ?? [], now)
+        this.ingest(snap.simulator.trucks ?? [], now, this.clock.stamp(now))
       }
       this.workers = snap.workers ?? []
       this.execution = snap.execution ?? null
     } else if (message.type === 'trucks') {
       const update = message.data as TruckUpdate
       this.simTime = update.simTime
-      this.ingest(update.trucks ?? [], now)
+      this.ingest(update.trucks ?? [], now, this.clock.stamp(now))
     } else if (message.type === 'workers') this.workers = (message.data as CityWorker[]) ?? []
     else if (message.type === 'flow') this.flow = message.data as FlowData
     else if (message.type === 'execution') {
@@ -60,21 +63,22 @@ export class CityModel {
     if (entry && entry.track.size <= 1) entry.track = trackFrom(at, now - 250, entry.truck, now)
   }
 
-  ingest(trucks: CityTruck[], now: number): void {
+  /** `sampleTime` is the de-jittered time of this frame (SampleClock); `now` is wall time for fades. */
+  ingest(trucks: CityTruck[], now: number, sampleTime = now): void {
     const seen = new Set<string>()
     for (const truck of trucks) {
       seen.add(truck.truckId)
       let entry = this.trucks.get(truck.truckId)
       if (!entry || entry.removedAt !== null) {
         const drop = this.expected.get(truck.truckId)
-        const track = drop && now - drop.at < 5000 ? trackFrom(drop, now - 250, truck, now) : new TruckTrack()
+        const track = drop && now - drop.at < 5000 ? trackFrom(drop, sampleTime - 250, truck, sampleTime) : new TruckTrack()
         entry = { truck, track, bornAt: now, removedAt: null }
         this.trucks.set(truck.truckId, entry)
         this.expected.delete(truck.truckId)
       }
       if (entry.truck.status === 'UNLOADING' && truck.status !== 'UNLOADING') this.recordDelivery(truck, now)
       entry.truck = truck
-      entry.track.push(now, truck.x, truck.y)
+      entry.track.push(sampleTime, truck.x, truck.y)
     }
     for (const [id, entry] of this.trucks) {
       if (!seen.has(id) && entry.removedAt === null) entry.removedAt = now
@@ -88,13 +92,22 @@ export class CityModel {
     if (stop) this.deliveries.push({ stopId: stop.stopId, x: stop.x, y: stop.y, at: now })
   }
 
+  /** Live trucks (not fading out). */
+  activeTrucks(): number {
+    let n = 0
+    for (const entry of this.trucks.values()) if (entry.removedAt === null) n += 1
+    return n
+  }
+
   status(now: number): EngineStatus {
+    if (!this.connected) return { mode: 'disconnected', label: 'Live link lost · reconnecting', color: '#ffbd69' }
     return engineStatus(this.execution, this.workers, this.lastCheckpoint && now - this.lastCheckpoint.at < CHECKPOINT_FLASH_MS ? this.lastCheckpoint.id : null)
   }
 }
 
 function trackFrom(start: CityPoint, startTime: number, truck: CityTruck, now: number): TruckTrack {
-  const track = new TruckTrack(8, Number.POSITIVE_INFINITY)
+  // No corner snapping: the glide from a drop point is a straight line onto the nearest street.
+  const track = new TruckTrack(8, Number.POSITIVE_INFINITY, 0)
   track.push(startTime - 250, start.x, start.y)
   track.push(startTime, start.x, start.y)
   if (now > startTime) track.push(now, truck.x, truck.y)
@@ -120,6 +133,21 @@ export function engineStatus(execution: CityExecution | null, workers: CityWorke
   if (workers.some((w) => w.alive && w.backpressured)) return { mode: 'backpressured', label: 'Backpressured', color: '#ffbd69' }
   if (recentCheckpoint !== null) return { mode: 'checkpointing', label: `Checkpoint #${recentCheckpoint} saved`, color: '#5fd8ff' }
   return { mode: 'running', label: 'Running', color: '#6ee7a8' }
+}
+
+/** Partitions owned by a dead worker: their lane in the engine is stalled until recovery reassigns them. */
+export function stalledLanes(workers: CityWorker[], out: boolean[]): boolean[] {
+  out.fill(false)
+  for (const worker of workers) {
+    if (worker.alive) continue
+    for (const p of worker.partitions) if (p >= 0 && p < out.length) out[p] = true
+  }
+  // A live, running worker that already owns the partition wins (recovery reassigned it).
+  for (const worker of workers) {
+    if (!worker.alive || worker.state !== 'RUNNING') continue
+    for (const p of worker.partitions) if (p >= 0 && p < out.length) out[p] = false
+  }
+  return out
 }
 
 export function workerColor(worker: CityWorker): number {

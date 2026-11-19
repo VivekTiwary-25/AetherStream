@@ -2,12 +2,13 @@
 import { Application, Container, Graphics, Sprite, Text } from 'pixi.js'
 import { CameraRig, type Screen } from '../camera'
 import { buildCityLayout, WORLD_HEIGHT, WORLD_WIDTH } from '../cityLayout'
-import type { CityModel } from '../cityModel'
+import { partitionForTruck, streamStyle, zoomFade } from '../cityLogic'
+import { stalledLanes, type CityModel } from '../cityModel'
 import type { CityPoint } from '../cityTypes'
 import { clamp, dampAngle, easeOutBack, easeOutCubic, headingToRotation, INTERPOLATION_DELAY_MS, type TrackPose } from '../motion'
 import { drawStaticCity } from './drawCity'
 import { EngineCore } from './EngineCore'
-import { FlowLayer, type FlowSource } from './FlowLayer'
+import { FlowLayer, PARTITIONS, type FlowFrame, type FlowSource } from './FlowLayer'
 import { glowScale, glowTexture, releaseTextures } from './textures'
 import { TRUCK_LENGTH, TruckSprite } from './TruckSprite'
 
@@ -15,15 +16,22 @@ const FADE_IN_MS = 750
 const FADE_OUT_MS = 600
 const MIN_TRUCK_PX = 26
 const PICK_RADIUS_PX = 24
+/** Truck ids are drawn only once they are at least this tall on screen (px). */
+const LABEL_MIN_PX = 9
 
-interface RenderedTruck { sprite: TruckSprite; x: number; y: number; rotation: number | null }
-interface Ripple { x: number; y: number; at: number }
+export type RippleTone = 'ok' | 'error'
+const RIPPLE_COLORS: Record<RippleTone, number> = { ok: 0x6af2f5, error: 0xff5e6c }
+
+interface RenderedTruck extends FlowSource { sprite: TruckSprite; rotation: number | null }
+interface Ripple { x: number; y: number; at: number; tone: RippleTone }
 
 export class CityScene {
   readonly camera = new CameraRig(WORLD_WIDTH, WORLD_HEIGHT)
   hoveredId: string | null = null
   /** World point under a dragged "add truck" chip, or null. */
   dropTarget: CityPoint | null = null
+  /** False while the chip is over a spot where a drop would be rejected (outside the city). */
+  dropValid = true
   private readonly app = new Application()
   private readonly world = new Container()
   private readonly stopsLayer = new Graphics()
@@ -36,7 +44,12 @@ export class CityScene {
   private readonly trucks = new Map<string, RenderedTruck>()
   private readonly ripples: Ripple[] = []
   private readonly pose: TrackPose = { x: 0, y: 0, vx: 0, vy: 0 }
-  private stopsKey = ''
+  // Reused every frame so the hot loop does not allocate.
+  private readonly flowFrame: FlowFrame = {
+    flow: null, lanes: Array.from({ length: PARTITIONS }, () => []), all: [], style: streamStyle('idle'),
+    stalled: new Array<boolean>(PARTITIONS).fill(false), sizeScale: 1, fade: 1,
+  }
+  private stops: CityModel['stops'] | null = null
   private depotKey = ''
   private ready = false
   private disposed = false
@@ -89,7 +102,7 @@ export class CityScene {
     return best
   }
 
-  ripple(at: CityPoint): void { this.ripples.push({ ...at, at: performance.now() }) }
+  ripple(at: CityPoint, tone: RippleTone = 'ok'): void { this.ripples.push({ x: at.x, y: at.y, at: performance.now(), tone }) }
 
   private bindInput(canvas: HTMLCanvasElement): () => void {
     let last = { x: 0, y: 0, t: 0 }
@@ -149,25 +162,35 @@ export class CityScene {
     this.world.position.set(view.x, view.y)
 
     this.syncStatics()
-    const sources = this.updateTrucks(dt, now, seconds, view.scale)
+    this.updateTrucks(dt, now, seconds, view.scale)
     const status = this.model.status(now)
-    this.flow.update(dt, this.model.flow, sources, status.mode !== 'idle', clamp(1 / view.scale, 1.2, 4))
+    const frame = this.flowFrame
+    frame.flow = this.model.flow
+    frame.style = streamStyle(status.mode)
+    stalledLanes(this.model.workers, frame.stalled)
+    frame.sizeScale = clamp(1 / view.scale, 1.2, 4)
+    frame.fade = zoomFade(this.camera.zoom)
+    this.flow.update(dt, frame)
     const checkpoint = this.model.lastCheckpoint
-    this.engine.update({ seconds, dt, flow: this.model.flow, workers: this.model.workers, status, checkpointAge: checkpoint ? (now - checkpoint.at) / 1000 : null, reducedMotion: this.reducedMotion })
+    this.engine.update({ seconds, dt, flow: this.model.flow, workers: this.model.workers, status, checkpointAge: checkpoint ? (now - checkpoint.at) / 1000 : null, reducedMotion: this.reducedMotion, stalled: frame.stalled })
     this.drawEffects(now, seconds)
   }
 
-  private updateTrucks(dt: number, now: number, seconds: number, viewScale: number): FlowSource[] {
+  /** Moves every truck sprite and refills the flow sources (live trucks, grouped by partition lane). */
+  private updateTrucks(dt: number, now: number, seconds: number, viewScale: number): void {
     const renderTime = now - INTERPOLATION_DELAY_MS
     // Keep trucks legible when zoomed out: never smaller than MIN_TRUCK_PX on screen.
     const baseScale = clamp(MIN_TRUCK_PX / (TRUCK_LENGTH * viewScale), 1, 3.4)
-    const sources: FlowSource[] = []
+    const showLabels = 10 * baseScale * viewScale >= LABEL_MIN_PX
+    const { lanes, all } = this.flowFrame
+    all.length = 0
+    for (const lane of lanes) lane.length = 0
     for (const [id, entry] of this.model.trucks) {
       const pose = entry.track.poseAt(renderTime, this.pose)
       if (!pose) continue
       let rendered = this.trucks.get(id)
       if (!rendered) {
-        rendered = { sprite: new TruckSprite(id), x: pose.x, y: pose.y, rotation: null }
+        rendered = { truckId: id, lane: partitionForTruck(id, PARTITIONS), sprite: new TruckSprite(id), x: pose.x, y: pose.y, rotation: null }
         this.trucks.set(id, rendered)
         this.truckLayer.addChild(rendered.sprite.root)
       }
@@ -182,23 +205,23 @@ export class CityScene {
         alpha: easeOutCubic(born) * gone,
         scale: baseScale * (0.6 + 0.4 * easeOutBack(born)),
         hovered: this.hoveredId === id,
+        showLabel: showLabels,
         reducedMotion: this.reducedMotion,
       })
-      if (entry.removedAt === null) sources.push({ truckId: id, x: pose.x, y: pose.y })
+      if (entry.removedAt === null) { all.push(rendered); lanes[rendered.lane].push(rendered) }
     }
     for (const [id, rendered] of this.trucks) {
       if (this.model.trucks.has(id)) continue
       rendered.sprite.destroy()
       this.trucks.delete(id)
     }
-    return sources
   }
 
   /** Stops and depot only change when a snapshot says so; redraw them then. */
   private syncStatics(): void {
-    const stopsKey = this.model.stops.map((s) => `${s.stopId}:${s.x}:${s.y}`).join('|')
-    if (stopsKey !== this.stopsKey) {
-      this.stopsKey = stopsKey
+    // The model replaces the stops array only on a snapshot, so identity is enough (no per-frame string building).
+    if (this.model.stops !== this.stops) {
+      this.stops = this.model.stops
       const g = this.stopsLayer.clear()
       for (const stop of this.model.stops) {
         g.roundRect(stop.x - 15 + 2, stop.y - 15 + 3, 30, 30, 8).fill({ color: 0x000000, alpha: 0.35 })
@@ -253,19 +276,23 @@ export class CityScene {
       for (let k = 0; k < 3; k += 1) {
         const t = clamp((age - k * 0.16) / 0.95, 0, 1)
         if (t <= 0 || t >= 1) continue
-        g.circle(r.x, r.y, 12 + easeOutCubic(t) * 110).stroke({ color: 0x6af2f5, width: 4 - k, alpha: 0.9 * (1 - t) })
+        g.circle(r.x, r.y, 12 + easeOutCubic(t) * 110).stroke({ color: RIPPLE_COLORS[r.tone], width: 4 - k, alpha: 0.9 * (1 - t) })
+        if (this.reducedMotion) break
       }
-      if (age < 0.5) g.circle(r.x, r.y, 26 * (1 - age * 2)).fill({ color: 0xbffcff, alpha: 0.5 * (1 - age * 2) })
+      if (age < 0.5) g.circle(r.x, r.y, 26 * (1 - age * 2)).fill({ color: r.tone === 'ok' ? 0xbffcff : 0xffb3bb, alpha: 0.5 * (1 - age * 2) })
     }
     // Reticle while the "add truck" chip is dragged over the map.
+    // Cyan = a truck will be added here; red cross = outside the city, the drop would be rejected.
     if (this.dropTarget) {
-      const { x, y } = this.dropTarget, spin = this.reducedMotion ? 0 : seconds * 1.4
+      const { x, y } = this.dropTarget, spin = this.reducedMotion || !this.dropValid ? 0 : seconds * 1.4
+      const color = this.dropValid ? 0x6af2f5 : 0xff5e6c
       for (let k = 0; k < 4; k += 1) {
         const a = spin + k * Math.PI / 2
         g.moveTo(x + Math.cos(a) * 34, y + Math.sin(a) * 34).arc(x, y, 34, a, a + 0.9)
       }
-      g.stroke({ color: 0x6af2f5, width: 3, alpha: 0.9 })
-      g.circle(x, y, 6).fill({ color: 0x6af2f5, alpha: 0.8 })
+      g.stroke({ color, width: 3, alpha: 0.9 })
+      if (this.dropValid) g.circle(x, y, 6).fill({ color, alpha: 0.8 })
+      else g.moveTo(x - 10, y - 10).lineTo(x + 10, y + 10).moveTo(x + 10, y - 10).lineTo(x - 10, y + 10).stroke({ color, width: 3, alpha: 0.9 })
     }
   }
 }

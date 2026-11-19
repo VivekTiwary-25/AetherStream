@@ -39,6 +39,64 @@ export function visualRate(eventsPerSec: number, reducedMotion: boolean): number
   return Math.min(reducedMotion ? 8 : 60, rate)
 }
 
+/**
+ * Splits the visual rate across the 6 partition lanes in proportion to the real per-partition rates
+ * (flow.byPartition), so a quiet or stalled partition really goes quiet. Writes into `out` (no allocation).
+ * Falls back to an even split when the server sends no per-partition breakdown.
+ */
+export function laneVisualRates(flow: { eventsPerSec: number; byPartition?: Record<string, number> } | null, reducedMotion: boolean, out: number[]): number[] {
+  const total = visualRate(flow?.eventsPerSec ?? 0, reducedMotion)
+  let sum = 0
+  for (let p = 0; p < out.length; p += 1) {
+    const value = flow?.byPartition?.[String(p)] ?? 0
+    out[p] = value > 0 ? value : 0
+    sum += out[p]
+  }
+  for (let p = 0; p < out.length; p += 1) out[p] = sum > 0 ? total * out[p] / sum : total / out.length
+  return out
+}
+
+export interface StreamStyle {
+  /** Spawning on/off. */
+  active: boolean
+  /** Multiplier on particle travel time (> 1 = slower). */
+  travel: number
+  /** Tint for normal event particles. */
+  color: number
+  alpha: number
+}
+
+const STREAM_STYLES: Record<string, StreamStyle> = {
+  running: { active: true, travel: 1, color: 0x5cf1f4, alpha: 1 },
+  checkpointing: { active: true, travel: 1, color: 0x5cf1f4, alpha: 1 },
+  // Backpressure: same colour, visibly slower, a touch dimmer: the engine is not keeping up.
+  backpressured: { active: true, travel: 1.6, color: 0x8fe0d8, alpha: 0.85 },
+  // Recovering: muted lavender (matches the recovering pill), slow and faint while state is restored.
+  recovering: { active: true, travel: 1.8, color: 0xb9a2ff, alpha: 0.6 },
+  stopped: { active: false, travel: 1, color: 0x5cf1f4, alpha: 1 },
+  failed: { active: false, travel: 1, color: 0x5cf1f4, alpha: 1 },
+  idle: { active: false, travel: 1, color: 0x5cf1f4, alpha: 1 },
+  disconnected: { active: false, travel: 1, color: 0x5cf1f4, alpha: 1 },
+}
+
+/** How the event stream looks in each engine mode (cityModel EngineMode). */
+export function streamStyle(mode: string): StreamStyle {
+  return STREAM_STYLES[mode] ?? STREAM_STYLES.idle
+}
+
+/** Colour for particles heading into a lane whose worker died (until recovery reassigns it). */
+export const STALLED_COLOR = 0x6d7f92
+
+/**
+ * Packets fly over rooftops; at street-level zoom that reads as noise. Full strength up to 1.5x zoom,
+ * fading to 35% by 3x.
+ */
+export function zoomFade(zoom: number): number {
+  if (zoom <= 1.5) return 1
+  if (zoom >= 3) return 0.35
+  return 1 - (zoom - 1.5) / 1.5 * 0.65
+}
+
 /** Rejected / late events are rare; make any non-zero rate visible but bounded. */
 export function anomalyRate(perSec: number, reducedMotion: boolean): number {
   if (!(perSec > 0)) return 0
