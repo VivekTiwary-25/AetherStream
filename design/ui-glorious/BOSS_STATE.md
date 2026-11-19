@@ -27,16 +27,16 @@ Fresh boss session: read swarm/BOSS.md, then design/ui-glorious/BOSS_PROMPT.md (
 - Note: workers may refuse to write swarm/reports/<id>.md (CLAUDE.md swarm rule); the fallback report captures their final output. Fine.
 
 ## Running / queued (all --base ui-glorious). Task specs: design/ui-glorious/tasks/*.md
-- t261120-0205-2440  utkarsh-pc/codex-sol   C1-UI Logs & Recovery window + Truck breakdown in web/src/glorious/recovery/ (backend merged)
-- t261120-0139-e72a  vimlesh-pc/claude      D2 pipelines frontend
-- t261120-0139-4c1c  vimlesh-pc/codex-luna  B2: install portable Node + bring in Track B from task/t261120-0130-5be9 + verify/fix -> then t261120-0153-90ea preview on vimlesh (Docker probe)
-- t261120-0130-3a5f  vimlesh-pc/codex-sol   A map (started without node -> needs verify task afterwards)
+- t261120-0224-4b72  utkarsh-pc/codex-sol   Docker Desktop diagnose + safe fix (wsl --shutdown, restart DD)
+- t261120-0217-4cd6  utkarsh-pc/codex-luna  Home video seamless crossfade loop + web encode
+- t261120-0217-0993  vimlesh-pc/claude      Integration check (clean checkout lint/test/build) — started before map + recovery merged; rerun later
+- t261120-0218-1e31  vimlesh-pc/codex-sol   New-UI Playwright smoke tests (tests/ui/glorious.spec.ts, GLORIOUS_URL default :8089)
 - t261120-0125-ed02  upendra-pc/codex-luna  D3 AI bridge
-- UNMERGED, keep until B2 merged then `swarm reject t261120-0130-5be9`: original Track B branch.
-- Merged: audio, recon, preview scripts, SHELL, classic Playwright fix (5cf9f62), C2 terminal cmds (+7633d6a ASCII), A0 sprite, D1 backend (+ce1982e nginx per-request resolve), C1 backend (recovery history /api/recovery/history + WS, coordinator audit-only additions), a9df0fa logs/->recovery/ rename.
-- DOCKER: unavailable on utkarsh-pc (Desktop stuck, Vivek pinged 01:28, two 20-min waits failed) and upendra-pc. Preview + live kill proof + live pipeline run blocked. Probing vimlesh next.
-- GOTCHA: root .gitignore `logs/` ignores any folder named logs -> C1's first UI was lost. Never name a folder logs.
-- Known: vitest needs --maxWorkers=2 on loaded PCs. vimlesh-pc had NO node/npm in agent PATH. upendra-pc has Node 26 (needs NODE_OPTIONS=--no-experimental-webstorage for vitest).
+- Merged (all tracks' main code IN): shell, A0 sprite, A map (t261120-0130-3a5f), B analytics (verified B2), C2 terminal, C1 backend + C1-UI (recovery/), D1 backend, D2 frontend.
+- DOCKER: no worker PC has working Docker (utkarsh stuck, upendra none, vimlesh engine down + 3 GB free RAM). Vivek pinged 01:28 (no reply yet).
+- PLAN for 03:30 screenshots if Docker still down: worker builds web dist into a task branch (never merged); boss serves it on vivek-pc via throwaway nginx container on :8089 proxying /api,/ws to live API localhost:18080, READ-ONLY (no kill/breakdown/tunnel). New endpoints (recovery history, pipelines) will show 'unavailable' there because live API is main.
+- GOTCHA: root .gitignore `logs/` ignores any folder named logs. Never name a folder logs.
+- Known: vitest needs --maxWorkers=2 on loaded PCs. vimlesh-pc now has portable Node at %USERPROFILE%\tools\node (not on listener PATH). upendra-pc has Node 26 (needs NODE_OPTIONS=--no-experimental-webstorage for vitest).
 
 ## Key recon decisions
 - Worker-card bug: killed worker restarts + re-registers before 4 s timeout, never DEAD server-side; old UI used client overlay only on its own button -> terminal kill invisible. C1 adds server-side recovery history (/api/recovery/history + WS).

@@ -1,0 +1,11 @@
+# Home loop video: seamless crossfade loop + web-friendly encode
+
+Files: web/public/glorious/home-loop.mp4, web/public/glorious/home-loop.webm (new, optional), web/public/glorious/home-poster.jpg, web/src/glorious/home/Home.tsx (ONLY to add a webm <source> before the mp4 if you make one), design/ui-glorious/video/ (new: the exact ffmpeg commands in README.md). Do NOT read or describe swarm/.
+
+The Home screen plays web/public/glorious/home-loop.mp4 (1264x720, 24 fps, 6.04 s, ~10 MB, no audio) muted, looped, full screen.
+1. Check whether the loop has a visible jump: extract the first and last frames (ffmpeg) and compare them (e.g. ffmpeg `-lavfi ssim` or psnr between last and first frame). Report the numbers.
+2. If there is a jump (SSIM < 0.97), make a seamless loop: crossfade the last ~0.75 s into the first ~0.75 s (e.g. split the clip, xfade the tail over the head, keep total duration ~5.2-5.3 s) so frame N-1 flows into frame 0. Keep 1264x720, 24 fps.
+3. Encode web-friendly: H.264 High, yuv420p, CRF ~23, `-movflags +faststart`, no audio, target <= 4 MB. Also a VP9 webm (crf ~34, -b:v 0) if it is <= 4 MB. Regenerate home-poster.jpg from the new first frame (q 3).
+4. Verify with ffprobe (streams, duration, size) and re-check the seam SSIM on the result. If ffmpeg is missing, use `python -m pip install --user imageio-ffmpeg` and its binary.
+5. If you add the webm, edit Home.tsx minimally: `<source src=".../home-loop.webm" type="video/webm">` before the mp4 source (keep poster, muted, autoplay, loop, playsInline, reduced-motion behaviour unchanged). Then in web/: npm run lint, npm test -- --maxWorkers=2, npm run build must pass.
+Report: seam SSIM before/after, final sizes, what you changed.
