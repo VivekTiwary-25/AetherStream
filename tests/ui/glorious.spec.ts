@@ -6,6 +6,12 @@ test.beforeEach(async ({ page }) => {
 })
 
 test('Home media loads and Live World shows six truck markers', async ({ page }) => {
+  const workerErrors: string[] = []
+  page.on('console', (message) => {
+    if (message.type() === 'error' && message.text().includes('Worker failed to load')) {
+      workerErrors.push(message.text())
+    }
+  })
   await expect(page.locator('[aria-label="Mysuru highway"]').locator('video, img')).toBeVisible()
   await page.getByRole('button', { name: 'Live World', exact: true }).click()
 
@@ -15,6 +21,7 @@ test('Home media loads and Live World shows six truck markers', async ({ page })
     name: /^Truck T-\d+, .+, \d+(?:\.\d+)? kilometers per hour$/,
   })
   await expect(trucks).toHaveCount(6, { timeout: 20_000 })
+  expect(workerErrors, 'MapLibre worker must load without console errors').toEqual([])
 })
 
 test('Truck Speeds drills down in the same window and returns to the list', async ({ page }) => {
