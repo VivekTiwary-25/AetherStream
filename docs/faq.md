@@ -14,6 +14,10 @@ Apache Flink is the research reference for event time, watermarks, and checkpoin
 
 Contract 03 section 5, restated in `docs/architecture.md` section 8, splits the claim into three parts. Input is replayed at-least-once: after a failure the worker seeks to the checkpoint offset and may process later records more than once. Operator state is exactly-once for inputs covered by a completed checkpoint, because state and source offsets come from that same cut. Postgres window, alert, and dead-letter rows are effectively exactly-once only because those outputs are deterministic and upserted on a primary key. No other sink gets the claim, an incomplete checkpoint is not a restore point, and this is not a general transaction across Kafka and Postgres.
 
+### How do you know results are not duplicated?
+
+A second copy of an input is not a second result. Inside one key and one still-open window, an `eventId` counts at most once; the copy is ignored and is not a dead letter (`docs/architecture.md` section 4). After a failure the source may replay records past the checkpoint offset, which is at-least-once input, but operator state and those offsets come from the same completed cut, and Postgres window, alert, and dead-letter rows upsert on a primary key, so a replayed write replaces the same row (`docs/architecture.md` section 8). `docs/testing.md` maps duplicate source records to `PartitionPipelineTest` and the seeded reference oracle, and maps an extra closed window in Postgres to an `EXTRA` mismatch on compare; it also notes that no assertion independently reports a suppressed-duplicate total. `docs/runbook.md` says worker-loss recovery may replay uncheckpointed work, which is why that upsert is the duplicate guard, not a second insert. This is not a general exactly-once sink.
+
 ### Why are watermarks per partition?
 
 A watermark is the highest event time seen on one Kafka partition, minus `outOfOrdernessMs`. It is a progress policy for that partition, not a proof that no older event will arrive, and there is no minimum across partitions. Windows, dedup, and rule streaks read only that partition's log, so which worker owns it does not change the result. An idle partition is not treated as caught up, which is why a key that is not the Kafka key is rejected: a shuffle would make a per-partition cut incomplete (contract 02 section 4).
@@ -54,6 +58,10 @@ Rebalance of the existing six partitions is a controlled pause in `Coordinator.j
 
 Workers heartbeat every 1000 ms and are declared dead after 4000 ms of silence. If the dead worker owned partitions, pending checkpoints are aborted, the latest completed checkpoint is loaded, the generation is bumped, and all partitions are assigned round-robin to the workers still alive, which restore and seek to those offsets. Kafka is replayed from there, and the execution returns to `RUNNING` when every assignee reports `RUNNING` on the new generation. A restarted process gets a new worker id and does not resume the old partitions by itself; the chaos kill is a real halt with no ack.
 
+### What happens if a worker dies during a checkpoint?
+
+The checkpoint in progress is abandoned. If the dead worker owned partitions, `docs/architecture.md` section 7 aborts pending checkpoints; worker files already uploaded are not a restore point. Section 6 sets a checkpoint `ABORTED` when a failure interrupts it, or when it is not `COMPLETED` within 30 seconds, and restore uses only the latest `COMPLETED` checkpoint (checkpoint 0 if none later has completed). The generation is bumped before reassignment, so an ack from the old generation is rejected. Survivors restore that completed cut and replay Kafka from its offsets. `docs/testing.md` lists `IncompleteCheckpointIT` for abort-and-restore of the prior manifest, and `WorkerCrashRecoveryIT` for a real worker-process crash whose recovered output is compared with the reference. `docs/runbook.md` says the same operationally: worker-loss recovery restores the latest `COMPLETED` checkpoint, uncheckpointed work may be replayed, and a visible recovery pause is expected. A chaos kill is a halt with no ack, so a barrier that has not been acked by every partition never becomes the restore point.
+
 ### Why not a Kafka consumer group?
 
 The source uses `KafkaConsumer.assign`, not a consumer group. A group rebalance would move partitions without a checkpoint and without a generation bump, which would break the fence. Ownership is the coordinator's decision, scoped to an execution generation, so v1 does not subscribe (`docs/architecture.md` section 5 and contract 03).
@@ -67,6 +75,10 @@ The workers and the reference executor call the same operator code, so a compari
 ### What is the reference executor?
 
 `ReferenceExecutor` replays one offset range per partition in one process, using the same `PartitionPipeline` class the worker uses, and it does not talk to the coordinator. It is the trusted executor behind "Compare with reference", not the hot path. If worker placement changed the function, a replay with no workers would not match the distributed run over the same offsets. Unit tests are in `reference/src/test/java/io/aetherstream/reference/ReferenceExecutorTest.java`.
+
+### Why is the reference executor trustworthy?
+
+It runs the same operator code as the workers, not a second implementation. Both executors call `PartitionPipeline` (`docs/architecture.md` sections 4 and 8). `POST /api/compare` replays the half-open offset range a completed checkpoint says was consumed and requires every closed window row to match Postgres on `eventCount` and values within `1e-6`; an extra closed row is `EXTRA`. A skipped offset, state from a different cut, or a stale worker's extra row shows up as a mismatch. On a restored execution, lineage compare follows checkpoint-0 savepoint links and restores each partition snapshot between stages instead of pretending the new execution started empty (section 6). `docs/testing.md` records `ReferenceExecutorTest` (seeded interleavings and an independent batch oracle), `ResultComparatorTest`, `EngineMatchesReferenceIT`, and `demo-e2e.sh` steps 6 and 9. `docs/runbook.md` treats a clean comparison as part of `demo-ready.sh`, which is a readiness use of that check, not a stored benchmark. The check does not prove a non-Postgres sink or records after the latest completed checkpoint, and a test name is not a claim that a particular Actions run passed.
 
 ### What fault tests exist?
 
@@ -98,6 +110,10 @@ Rollback is deploy of an earlier published SHA, not a retag of `main`. Dispatch 
 
 Kubernetes and Terraform are **planned** and are not in this tree: there is no `infra/kubernetes/` directory and no Terraform file. v1 deploy is Docker Compose on the self-hosted runner, and Kubernetes would not implement the recovery protocol even if the manifests existed. An optional Compose `monitoring` profile lives under `infra/monitoring/`; that profile is not Kubernetes, and it is not the default demo path.
 
+### What if GitHub Actions is slow during the demo?
+
+Do not wait on it. The demo is the local Compose stack. `docs/runbook.md` ("GitHub Actions slow") says to open `docs/report/ci-cd-evidence.md` and use its dated prior green `ci-mock` run as the example: [run 44440449358](https://github.com/VivekTiwary-25/AetherStream/actions/runs/44440449358). A prior green run is evidence for that run only, not proof that the current commit passed. The same page says not to rely on the public tunnel or GitHub Actions while offline; the app is at `http://localhost:8088`. Before the demo, `bash infra/scripts/demo-ready.sh` checks readiness, fresh windows, a completed checkpoint, and the reference comparison on that local stack (`docs/runbook.md`, `docs/testing.md`). `docs/architecture.md` section 9: CI on a task branch stops before publish; publish and deploy run on push to `main` only. A slow or queued Actions job does not stop the local demo, and a queued run is not a pass.
+
 ## UX
 
 ### Why a city?
@@ -107,6 +123,10 @@ The demonstration workload is a simulated logistics city so an examiner can poin
 ### What accessibility choices were made?
 
 Contract 04 requires running, backpressured, checkpointing, recovering, paused or stopped, and failed to be shown as text plus colour, not colour alone, and recovering should name the checkpoint when that id is known. `docs/ux/usability-decisions.md` adds a keyboard path, visible focus, a truck list beside the canvas, reduced-motion support, confirmation before a worker kill, and WCAG AA contrast for normal text. The footer must show the commit from `GET /api/version`, and a `MOCK DATA` badge is required whenever `VITE_USE_MOCK` is `1`. These are design rules, not a completed user study; personas in `docs/ux/personas.md` are proto-personas.
+
+### What does the footer version mean?
+
+It is the commit identity of the build serving the page, not a health light. `docs/architecture.md` section 9: images are identified by the commit SHA passed in as `GIT_SHA` (web build: `VITE_GIT_SHA`), and `GET /api/version` returns `{"commit":"<GIT_SHA>","builtAt":...}`. Deploy smoke requires that `commit` to equal the SHA that was published; `/api/health` alone would pass on an old container. `docs/runbook.md` compares `curl http://localhost:8088/api/version` with `git ls-remote origin refs/heads/main` before the demo; they should match. `docs/testing.md` checks the same field: `demo-e2e.sh` step 8 requires `.commit` to equal `EXPECT_SHA` when that variable is set (CI sets it to `github.sha`), and Playwright `demo.spec.ts` checks the deployed UI version. The footer shows that commit. An empty `builtAt` is allowed. Matching `main` means the running demo is that published commit; it is not proof that a queued Actions run has passed.
 
 ## Team
 
