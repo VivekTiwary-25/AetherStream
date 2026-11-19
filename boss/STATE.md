@@ -41,6 +41,7 @@ Updated: 19 Nov 07:30 IST. M1 + M2 DONE. M3 (12:30) in progress: T92 shell integ
   `vivek-pc-deploy` is online. cloudflared at C:\Users\Arena\bin\cloudflared.exe.
 
 ## Task board (07:30)
+main CI 07:28: ci-java green again (b3e5f3e); ci-integration running.
 merged 07:15: T66 T91 T81 T86 T84 T61 T72 T80 · rejected (salvaged): T75 -> T75b, T78 -> T78b
 running / queued:
 - vivek-pc/vachana-claude: T92 shell integration (redo T26: mount ops/scenario/tour, timeline API durations, ci-ui-e2e blocking) -> T98 Claude polish pass
@@ -49,7 +50,8 @@ running / queued:
 - upendra-pc/codex-sol: T78b soak green (failed before T81: worker-3 not RUNNING after gen 3)
 - upendra-pc/codex-luna: T97 CI guard no mock in prod web build
 - vivek-pc/grok: T95 DEMO.md minute-by-minute + presentation outline
-- vivek-pc/codex-luna: T99 UX docs for new features
+- vivek-pc/codex-luna: T99 MERGED 07:24 -> T101 CI/CD evidence page + README badges
+- upendra-pc/codex-sol: T78b done (ci-soak running on branch, review when green) -> T100 demo-ready self-heal script (in ci-e2e)
 - utkarsh-pc/codex-luna: T89 web coverage (stuck: utkarsh-pc needs `swarm fix`, branch never pushed)
 - vimlesh-pc (claude, codex x2): asleep since ~06:59 - not routed to.
 next ideas: after T92 -> T98 polish; after T93 -> extended e2e on main; M4 = final README/architecture check, FINAL.md.
