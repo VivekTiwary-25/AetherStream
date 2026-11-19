@@ -10,8 +10,8 @@ A production page must not show **MOCK DATA**. That badge is only rendered when 
 
 1. From the repo root, if the stack is not already the live demo: `docker compose up -d --build`. Then `docker compose --profile monitoring up -d`. Do not run `docker compose down -v`.
 2. `docker compose ps`. Application services should be healthy. `kafka-init` and `minio-init` should be exited, not running.
-3. Open `http://localhost:8088`. Confirm **AETHER CITY**, trucks moving, a non-zero `events/s` readout, and no **MOCK DATA** badge. If a panel is a chip, click it (**Expand Speed windows**, and the same pattern for the other panel titles).
-4. If the banner says **No execution**, click **Start demo pipeline**. Leave it running so **Alerts** can show the stuck-truck line before you start. At `SIM_TIME_SCALE=10`, truck-007 stops after 5 simulated minutes (30 real seconds) and the rule needs 10 one-minute windows (another 60 real seconds).
+3. Open `http://localhost:8088`. Confirm no **MOCK DATA** badge. Confirm **AETHER CITY**, trucks, and a non-zero `events/s` only if the map is visible. The stream and engine are covered by the dashboard; open `docs/ux/screenshots/desktop-03-city-zoomed.png` for that view. Do not rely on collapsing panels. If a panel is a chip, click it (**Expand Speed windows**, and the same pattern for the other panel titles).
+4. If the banner says **No execution**, click **Start demo pipeline**. Leave it running so **Alerts** can show the stuck-truck line before you start. At `SIM_TIME_SCALE=10`, truck-007 stops after 5 simulated minutes (30 real seconds) and the rule needs 10 one-minute windows (another 60 real seconds), about 90 s in all. While you wait, a running execution shows **No alerts — every truck is moving.**
 5. `curl -fsS http://localhost:18080/api/ready` and `curl -fsS http://localhost:18080/api/version`. Write down `commit`. The footer shows the first 7 characters of that value, labelled **Deployed version:**. It is the running image, not this task branch.
 6. Open Grafana `http://localhost:13000`, dashboard **AetherStream engine**. Anonymous access is read-only. Prometheus, if asked, is `http://localhost:19090`.
 7. Open these runs in tabs. They were green when this script was written. If a newer green run is on the Actions page, use that and read it.
@@ -37,17 +37,17 @@ A production page must not show **MOCK DATA**. That badge is only rendered when 
 
 ### 0:45-2:00 — City, stream, engine panels
 
-**Click / run:** Stay on `http://localhost:8088`. Point at **AETHER CITY**, the moving trucks, the `events/s` figure, and the particle stream into the engine core. Hover one truck: **Speed**, **Route**, **Partition**. Point at **Speed windows**, **Deliveries / min**, **Alerts**, **Workers**.
+**Click / run:** Stay on `http://localhost:8088`. Point at **Speed windows**, **Deliveries / min**, **Alerts**, **Workers**. Point at **AETHER CITY**, trucks, and `events/s` only if the map is on screen. Hover one truck if you can land on it: **Speed**, **Route**, **Partition**. Do not point at the particle stream or the engine core on the live page.
 
-**Audience sees:** Legend **Driving**, **Unloading**, **Stopped**, **Rejected**, **Late**. Speed rows like `32.4 km/h`. Deliveries caption **Latest completed simulation minute**. Workers show **Running**, **Source queue**, **Sink queue**, capacity 1000. If the pipeline has been up long enough, **Alerts** contains `truck-007 has not moved for 10 min`.
+**Audience sees:** Legend **Driving**, **Unloading**, **Idle**, **Stopped**, **Event**, **Rejected**, **Late** when the legend is visible. Speed rows like `32.4 km/h`. Deliveries: **N deliveries in the last completed sim minute**, and **sim minute · latest highlighted**. Workers show **Running**, **Source queue**, **Sink queue**, capacity 1000. If the pipeline has been up long enough, **Alerts** contains `truck-007 has not moved for 10 min`. Empty, while running: **No alerts — every truck is moving.**
 
-**Say:** "The trucks are the data source. The glowing stream is those events entering the engine through Kafka, six partitions, keyed by truck. Every number in these panels is a window or alert the engine wrote, not a drawing."
+**Say:** "The trucks are the data source. Events enter the engine through Kafka, six partitions, keyed by truck. If the dashboard is covering the stream, that view is `desktop-03-city-zoomed.png`. Every number in these panels is a window or alert the engine wrote, not a drawing."
 
-**Fallback:** `docs/ux/screenshots/desktop-01-app-viewport-60s.png`, `desktop-02-app-fullpage-60s.png`, `desktop-03-city-zoomed.png`, `desktop-panel-speed-windows.png`, `desktop-panel-deliveries-min.png`, `desktop-panel-alerts.png`, `desktop-panel-workers.png`. If the socket dot is not connected, say **Live connection lost — reconnecting…** and open `curl -fsS http://localhost:18080/api/ready`.
+**Fallback:** Stream and engine covered: `docs/ux/screenshots/desktop-03-city-zoomed.png`. Also `desktop-01-app-viewport-60s.png`, `desktop-02-app-fullpage-60s.png`, `desktop-panel-speed-windows.png`, `desktop-panel-deliveries-min.png`, `desktop-panel-alerts.png`, `desktop-panel-workers.png`. If the socket dot is not connected, say **Live connection lost — reconnecting…** and open `curl -fsS http://localhost:18080/api/ready`.
 
 ### 2:00-3:30 — Pipeline editor: examples, Validate, Run
 
-**Click / run:** Click **Pipeline**. In **Examples**, choose **Broken logistics demo**. Read **This pipeline has 3 mistakes - press Validate**. Click **Validate**. Click one **Show me**. Then choose **Truck city: speed, deliveries, stuck trucks**, click **Validate**, then **Run** only after the audience has seen the success line. **Run** stops the current execution and starts a new one. If you need the stuck-truck alert to stay on screen, close with **Close pipeline editor** and say **Run** is enabled but you are not restarting.
+**Click / run:** Click **Pipeline**. In **Examples**, choose **Broken logistics demo**. Read **This pipeline has 3 mistakes - press Validate**. Click **Validate**. Click one **Show me**. Then choose **Truck city: speed, deliveries, stuck trucks**, click **Validate**. Before **Run**, say it starts a new execution, so the stuck-truck alert needs about 90 s again. Click **Run** only after the audience has seen the success line, and only if you can wait. If the alert must stay on screen, close with **Close pipeline editor** and say **Run** is enabled but you are not restarting.
 
 **Audience sees:** Dialog **Pipeline editor**. Palette **Operators**: **Source**, **Filter**, **Map**, **Key-by**, **Window**, **Rule**, **Sink**. After Validate on the broken example, region **Validation errors** with three rows and three **Show me** buttons. The messages are:
 
@@ -69,13 +69,13 @@ curl -fsS -X POST http://localhost:18080/api/pipelines/validate -H 'content-type
 
 ### 3:30-5:15 — Late events, slow output, kill, recover
 
-**Click / run:** In **Chaos controls**, click **Send late events**. Open **Dead letters**, tab **LATE**. Then set **Slow down output** to **200 ms per record**. Point at the hint and at any **Backpressured** pill (amber, `#fbbf24`). Set it back to **Off** before the kill if the queues are already in the way. Click **Kill worker**, leave **Busiest worker**, click **Confirm kill**. Watch the banner and **Checkpoint & recovery timeline**.
+**Click / run:** In **Chaos controls**, click **Send late events**. Open **Dead letters** and click tab **Late (N)** (the other tab is **Rejected (N)**). Do not wait for late rows in that tab. Set **Slow down output** to **200 ms per record**, point at the hint, and do not wait for **Backpressured**. Set it back to **Off** before the kill. Click **Kill worker**. Confirm text: **Kill worker worker-1? It will crash without warning.** Leave **Busiest worker (worker-1)**. Click **Confirm kill**. Read the id on screen if it is not worker-1. Watch the banner.
 
-**Audience sees:** Status **20 late events sent**. Late rows in **Dead letters** (**Rejected N · Late N**). Hint: **Output slowed: queues fill up (bounded at 1,000) and the engine pushes back.** A full queue blocks the upstream stage. Backpressure is a worker queue at or above 90% of 1000; the pill text is **Backpressured**. After confirm: **Worker ID killed.**, that row **Dead** (red, `#f87171`), banner **Recovering from checkpoint #N**, then **Recovered**. Timeline text: **Recovering from checkpoint #N (generation G → G+1)** and **Recovered in X.X s**. City status uses the same recovery sentence.
+**Audience sees:** Status **20 late events sent**. Tabs **Rejected (N)** / **Late (N)**. Hint: **Output slowed: queues fill up (bounded at 1,000) and the engine pushes back.** After confirm: **Worker worker-1 killed.** Banner **Recovering from checkpoint #N**, then **Recovered**. Timeline title, if you can read it: **Recovering from checkpoint #N (generation G → G+1)**. Do not expect a **Dead** row. Do not read **Recovered in -** as a duration.
 
 **Say:** "Late means the window already closed on that partition's watermark; the event is a dead letter, not a silent drop. Killing a worker is a real halt. The coordinator restores the last completed checkpoint, bumps the generation, and fences the old worker off the Postgres sink."
 
-**Fallback:** Do not wait out the minute if amber has not appeared. Open [ci-e2e 44410772993](https://github.com/VivekTiwary-25/AetherStream/actions/runs/44410772993): `4 PASS Late events reached the dead-letter sink`, `7 PASS Slow sink caused backpressure; clearing delay drained it`, `5 PASS worker-3 killed; recovered in 6s from checkpoint >= 2, generation > 1`. Screenshots: `desktop-panel-dead-letters.png`, `desktop-panel-workers-after-kill.png`, `desktop-04-recovering-viewport.png`, `desktop-05-recovering-fullpage.png`, `desktop-recovered-banner.png`, `desktop-06-after-recovery-fullpage.png`. Command equivalent, from `infra/scripts/demo-e2e.sh`:
+**Fallback:** Do not wait for **Backpressured**. It did not appear within 75 s at 200 ms per record. Late rows may stay **Late (0)** until a reload. Reload once, or read `GET /api/results/dead-letters?kind=LATE` and summary `late`. Do not call an empty tab "no late events". After the kill the worker card may disappear, then show **Idle**, then **Running**. Use banner **Recovered**. If the timeline ends on **Recovered in -**, use the e2e duration, not the dash. Open [ci-e2e 44410772993](https://github.com/VivekTiwary-25/AetherStream/actions/runs/44410772993): `4 PASS Late events reached the dead-letter sink`, `7 PASS Slow sink caused backpressure; clearing delay drained it`, `5 PASS worker-3 killed; recovered in 6s from checkpoint >= 2, generation > 1`. Screenshots: `desktop-panel-dead-letters.png`, `desktop-panel-workers-after-kill.png`, `desktop-04-recovering-viewport.png`, `desktop-05-recovering-fullpage.png`, `desktop-recovered-banner.png`, `desktop-06-after-recovery-fullpage.png`. Command equivalent, from `infra/scripts/demo-e2e.sh`:
 
 ```sh
 curl -fsS -X POST http://localhost:18080/api/chaos/late-events -H 'content-type: application/json' -d '{"count":20,"lateByMs":180000}'
@@ -103,7 +103,13 @@ Cited logs, not substitutes for a live click: e2e [44410772993](https://github.c
 
 ### 6:15-7:15 — Savepoint, restore, rescale
 
-**Click / run:** Open **Operations**. Use **Take savepoint**, **Restore**, or **Rescale**. **Restore** asks **Restart the pipeline from this savepoint?** The rescale sentence is **Pauses at the next checkpoint, moves partitions, resumes - a controlled pause, not live migration.**
+**Click / run:** Open **Operations**. Click **Take savepoint**. Before **Restore**, say it starts a new execution, so the stuck-truck alert needs about 90 s again. **Restore** asks **Restart the pipeline from this savepoint?** Click **Restore** only if you can wait. The rescale sentence is **Pauses at the next checkpoint, moves partitions, resumes - a controlled pause, not live migration.** Click **Rescale** to show the refusal.
+
+**Audience sees:** A `savepointId` and checkpoint number. Restore should return a new execution id. The same idempotency key returns that same execution. Rescale on a balanced three-worker assignment returns HTTP 409, body code `CONFLICT`, message `execution ID does not need a rebalance`. That refusal is the feature. It runs when a live worker owns no partitions, or the busiest and quietest differ by at least two, and not again within 30 seconds.
+
+**Say:** "A savepoint keeps a completed checkpoint. Restore starts a new execution from it. Rescale is a pause at the next checkpoint, not live migration. CI does not currently prove restore: `ci-e2e` sets `E2E_EXTENDED=0` and prints `9-11 SKIP extended steps`."
+
+**Fallback:** Curls, if the click fails. Then open [44410772993](https://github.com/VivekTiwary-25/AetherStream/actions/runs/44410772993) and point at that skip line. No ops screenshot is in `docs/ux/screenshots/`. An incompatible savepoint is a 409 `INCOMPATIBLE_SAVEPOINT`, not a timeout.
 
 ```sh
 curl -fsS http://localhost:18080/api/executions/current
@@ -113,17 +119,15 @@ curl -fsS -X POST "http://localhost:18080/api/executions/$ID/restore" -H 'conten
 curl -fsS -X POST "http://localhost:18080/api/executions/$ID/rescale"
 ```
 
-If the panel is on the page, the buttons are **Take savepoint**, **Restore**, **Rescale**. **Restore** asks **Restart the pipeline from this savepoint?** The rescale sentence on the panel is **Pauses at the next checkpoint, moves partitions, resumes - a controlled pause, not live migration.**
-
-**Audience sees:** A `savepointId` and checkpoint number. Restore should return a new execution id. The same idempotency key returns that same execution. Rescale on a balanced three-worker assignment returns HTTP 409, body code `CONFLICT`, message `execution ID does not need a rebalance`. That refusal is the feature. It runs when a live worker owns no partitions, or the busiest and quietest differ by at least two, and not again within 30 seconds.
-
-**Say:** "A savepoint keeps a completed checkpoint. Restore starts a new execution from it. Rescale is a pause at the next checkpoint, not live migration. CI does not currently prove restore: `ci-e2e` sets `E2E_EXTENDED=0` and prints `9-11 SKIP extended steps`."
-
-**Fallback:** Open [44410772993](https://github.com/VivekTiwary-25/AetherStream/actions/runs/44410772993) and point at that skip line. No ops screenshot is in `docs/ux/screenshots/`. An incompatible savepoint is a 409 `INCOMPATIBLE_SAVEPOINT`, not a timeout.
-
 ### 7:15-8:00 — Scenarios
 
-**Click / run:** Open **City scenarios**. Choose **Rush hour**, **Breakdown**, **Surge**, or **Reset**. **Breakdown** also has **Breakdown truck**.
+**Click / run:** Open **City scenarios**. Click **Rush hour**, **Breakdown**, **Surge**, or **Reset**. **Breakdown** also has **Breakdown truck**.
+
+**Audience sees:** Panel status **Active: Rush hour** (or the label you clicked). Do not claim a truck-count or speed change you cannot see.
+
+**Say:** "These are simulator inputs, not engine operators. Breakdown stops one truck so the stuck rule has something to see. Reset returns the scenario to none."
+
+**Fallback:** Curls below. Live labels come from `GET /api/scenarios`: **Rush hour**, **Breakdown**, **Surge**, **Reset**. **Surge (+6 trucks)** appears only when that GET returns 404. No scenario screenshot is checked in. If the simulator is down, the API returns `UPSTREAM_DOWN` / `simulator is not reachable`.
 
 ```sh
 curl -fsS http://localhost:18080/api/scenarios
@@ -131,14 +135,6 @@ curl -fsS -X POST http://localhost:18080/api/simulator/scenario -H 'content-type
 curl -fsS http://localhost:18080/api/simulator/state
 curl -fsS -X POST http://localhost:18080/api/simulator/scenario -H 'content-type: application/json' -d '{"name":"reset"}'
 ```
-
-If the panel is mounted, it renders the `label` values from `GET /api/scenarios`: **Rush hour**, **Breakdown**, **Surge**, **Reset**. **Breakdown** also has **Breakdown truck**. The built-in fallback label **Surge (+6 trucks)** appears only when that GET returns 404.
-
-**Audience sees:** Four scenario objects, then simulator state `scenario` `rush-hour`, then `none` after reset. On the city, truck count or speed changes. Do not claim a change you cannot see.
-
-**Say:** "These are simulator inputs, not engine operators. Breakdown stops one truck so the stuck rule has something to see. Reset returns the scenario to none."
-
-**Fallback:** Same curls. No scenario screenshot is checked in. If the simulator is down, the API returns `UPSTREAM_DOWN` / `simulator is not reachable`.
 
 ### 8:00-8:45 — Presenter tour and version footer
 
@@ -148,7 +144,7 @@ If the panel is mounted, it renders the `label` values from `GET /api/scenarios`
 
 **Say:** "The tour is eight sentences over this same page. The footer commit is the GIT_SHA of the image that is running, which is what the deploy smoke checks."
 
-**Fallback:** Read `web/src/app/tour/tourSteps.ts`. No tour screenshot is checked in.
+**Fallback:** If step 2, **The stream into the engine**, spotlights a covered city, use `docs/ux/screenshots/desktop-03-city-zoomed.png`. Read `web/src/app/tour/tourSteps.ts`. No tour screenshot is checked in.
 
 ### 8:45-10:00 — A push through Actions, GHCR, vivek-pc, smoke
 
@@ -199,9 +195,9 @@ Then open Grafana, dashboard **AetherStream engine**.
 
 | Clock | Click / run | Audience sees | Say |
 |---|---|---|---|
-| 0:00 | `http://localhost:8088`, **AETHER CITY**, **Speed windows** | Trucks, stream, engine km/h | "Trucks are the source. Panels are engine output." |
-| 0:30 | **Pipeline** → **Broken logistics demo** → **Validate** → good example → **Validate** | Three errors, then `Valid - 11 operators, 6 partitions` | "The compiler names the fix. **Run** starts it and stops the previous execution." Skip **Run** if you cannot afford a restart. |
-| 1:10 | **Kill worker** → **Confirm kill** | **Dead**, then **Recovering from checkpoint #N**, then **Recovered** | "Real crash, restore last completed checkpoint, new generation." |
+| 0:00 | `http://localhost:8088`, **AETHER CITY**, **Speed windows** | Trucks and panel numbers. If the stream is covered, `desktop-03-city-zoomed.png` | "Trucks are the source. Panels are engine output." |
+| 0:30 | **Pipeline** → **Broken logistics demo** → **Validate** → good example → **Validate** | Three errors, then `Valid - 11 operators, 6 partitions` | "The compiler names the fix." Before **Run**, say the stuck-truck alert needs about 90 s again. Skip **Run** if you cannot wait. |
+| 1:10 | **Kill worker** → **Confirm kill** | Banner **Recovering from checkpoint #N**, then **Recovered**. Do not wait for **Dead** | "Real crash, restore last completed checkpoint, new generation." |
 | 1:50 | **Compare with reference** | The **N / N results match** line on screen | "Same operators, one checkpoint range. This N is this click." |
 | 2:20 | Footer **Deployed version:** and [cd run 44438884629](https://github.com/VivekTiwary-25/AetherStream/actions/runs/44438884629) | `vivek-pc-deploy`, GHCR tags, smoke `PASS` | "That push published images and deployed them here. I am not pushing now." |
 | 2:45 | [44398295492](https://github.com/VivekTiwary-25/AetherStream/actions/runs/44398295492) or [44395770221](https://github.com/VivekTiwary-25/AetherStream/actions/runs/44395770221) | kind recovery line, or 811/811 | "kind and Testcontainers are the other proofs." |
@@ -221,7 +217,7 @@ If a click fails, use the fallback in the matching 12-minute step.
 9. **Is this Flink?** No. It is a scoped teaching engine: tumbling windows, two key fields, Postgres sinks, one coordinator.
 10. **Savepoint versus checkpoint?** A savepoint is a retained completed checkpoint with a compatibility check on restore. The routes are `POST /api/executions/{id}/savepoints`, `GET /api/savepoints`, and `POST /api/executions/{id}/restore`. Contract 04 does not list them; the controller and `infra/scripts/demo-e2e.sh` do. Current e2e skips those steps.
 11. **Does rescale move partitions live?** No. It pauses at the next checkpoint, bumps generation, and reassigns the six partitions. A balanced assignment is HTTP 409 `does not need a rebalance`.
-12. **Where are the scenario buttons and the tour?** Not mounted in `AppShell`. Scenario names are `rush-hour`, `breakdown`, `surge`, `reset`. Tour steps are in `web/src/app/tour/tourSteps.ts`.
+12. **Where are the scenario buttons and the tour?** On the page. **Operations**: **Take savepoint**, **Restore**, **Rescale**. **City scenarios**: **Rush hour**, **Breakdown**, **Surge**, **Reset**, and **Breakdown truck**. **Tour** opens eight steps with **Close**, **Back**, **Next**, **Finish**, and **Step N of 8**. Scenario names are `rush-hour`, `breakdown`, `surge`, `reset`. Step copy is in `web/src/app/tour/tourSteps.ts`.
 13. **Does the footer match git?** It matches `GET /api/version`, which is the image `GIT_SHA`. Compare it to the CD smoke line, not to an unpushed task branch.
 14. **Is a green `ci-ui-e2e` a passed browser test?** No. That job is `continue-on-error: true`. Open the log.
 
@@ -231,7 +227,7 @@ If a click fails, use the fallback in the matching 12-minute step.
 - Page up, no data: `curl -fsS http://localhost:18080/api/ready`. Then logs for `control-api`, `coordinator`, `simulator`, `worker-1`.
 - **Start demo pipeline** missing: an execution is already current. Use **Pipeline** then **Run**, or `GET /api/executions/current`.
 - Compare errors: wait until the banner shows a completed checkpoint, then click again. Otherwise open run 44410772993 or 44395770221.
-- Kill shows nothing in 20 seconds: show `desktop-04-recovering-viewport.png` and the e2e or kind log. Do not click **Confirm kill** twice.
+- Kill shows nothing in 20 seconds: banner **Recovered** is the proof. Do not wait for a **Dead** row or a timeline duration. Show `desktop-04-recovering-viewport.png` and the e2e or kind log. Do not click **Confirm kill** twice.
 - Rescale 409: expected when the assignment is balanced. Read the message.
 - Restore fails: read the JSON. Point at `9-11 SKIP extended steps (E2E_EXTENDED=0)` in run 44410772993. Do not call the skip a pass.
 - Grafana empty: say the profile is up but the series is absent. Do not draw a graph.
