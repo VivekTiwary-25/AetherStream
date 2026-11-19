@@ -1,0 +1,20 @@
+# T141: WebSocket sequence numbers + replay on reconnect (server side)  [control-api, hard]
+
+Lane 3. The UI must never miss an execution event (WORKER_DEAD / RECOVERING / RECOVERED) - those drive the kill-worker demo.
+The client side (process every frame in order) is being fixed by T120 in web/. Server side, the boss approves an additive
+contract 04 change: every WebSocket message gets `"seq"` (per-connection-independent, monotonically increasing per server
+process, starting at 1), and a client may connect with `?since=<seq>` to receive the retained messages after that seq (keep the
+last 500 messages in a ring buffer; if `since` is older than the buffer, send a `{"type":"resync"}` message first). Implement it
+in control-api ws (LiveHub / ExecutionEvents), add `seq` + `since` + `resync` to docs/contracts/04-control-api-rest-ws.md
+(additive, short), and tests: ordering, replay after since, resync when too old, concurrency (two producers) keeps seq unique
+and ordered per message. Do not change web/.
+
+Files (edit only these): control-api/src/main/java/io/aetherstream/api/ws/**, control-api/src/test/java/io/aetherstream/api/ws/**
+(new test classes only), docs/contracts/04-control-api-rest-ws.md (WebSocket section, additive).
+
+Acceptance check: ci-java green on your branch.
+
+## Rules (apply to every task)
+- Read every file in docs/contracts/ first and follow them exactly. Do not edit docs/contracts/ or infra/db/schema.sql (if a contract looks wrong, say so in your report).
+- Do not read or change anything in swarm/ (except your own report file if the swarm asks you to write one).
+- Only edit the files listed. If you are on vivek-pc: do NOT start Docker containers or kind there (the live demo runs on it). Acceptance runs in GitHub Actions on your task branch.
