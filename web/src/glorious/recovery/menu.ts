@@ -1,8 +1,8 @@
 import { createElement } from 'react'
 import type { SidebarItem } from '../shell/sections'
+import { LogsRecovery } from './LogsRecovery'
+import { TruckBreakdown } from './TruckBreakdown'
 
-// Settings sub-options. Owned by the Logs & Recovery track (folder renamed from logs/,
-// which the root .gitignore `logs/` rule silently ignored). Placeholder until the track lands.
 export const settingsMenu: SidebarItem[] = [
   {
     id: 'logs-recovery',
@@ -11,7 +11,19 @@ export const settingsMenu: SidebarItem[] = [
       windows.open('settings.logs-recovery', {
         title: 'Logs & Recovery',
         strong: true,
-        render: () => createElement('p', null, 'Logs & Recovery is being built.'),
+        initial: { x: 250, y: 90, w: 980, h: 720 },
+        render: () => createElement(LogsRecovery),
+      }),
+  },
+  {
+    id: 'truck-breakdown',
+    label: 'Truck breakdown',
+    onSelect: (windows) =>
+      windows.open('settings.truck-breakdown', {
+        title: 'Truck breakdown',
+        strong: true,
+        initial: { x: 280, y: 130, w: 450, h: 390 },
+        render: () => createElement(TruckBreakdown),
       }),
   },
 ]
