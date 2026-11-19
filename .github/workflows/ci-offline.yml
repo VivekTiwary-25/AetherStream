@@ -152,7 +152,8 @@ jobs:
               socket.on('framereceived', () => { liveFrames++; });
               socket.on('socketerror', error => failures.push(String(error)));
             });
-            await page.goto('http://localhost:8088', { waitUntil: 'networkidle' });
+            // CI uses SwiftShader, which defaults to a static backdrop; explicitly exercise the live canvas.
+            await page.goto('http://localhost:8088/?city=live', { waitUntil: 'networkidle' });
             await expect(page.getByRole('region', { name: 'Speed windows', exact: true })).toBeVisible();
             await expect(page.getByRole('region', { name: 'Workers', exact: true })).toBeVisible();
             await expect(page.locator('canvas')).toBeVisible();
