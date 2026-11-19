@@ -31,3 +31,6 @@ Sidebar → Settings shows "Logs & Recovery" (plus "Truck breakdown" — RECON d
 
 ## Proof
 Screenshot sequence (Playwright, against your running stack, new UI): before kill, dead, recovering, recovered — save to design/ui-glorious/proof/c1-01-before.png … c1-04-recovered.png. Add vitest tests for the per-worker state derivation, and a control-api unit test for the history recorder. Report: root cause confirmed or corrected, what changed in API/engine, test results.
+
+## If Docker is not ready on this PC
+A human is fixing Docker Desktop on utkarsh-pc right now. Check `docker info` (20 s timeout) at the start and again before the Proof step. If it never works, still build everything (API history + UI) with unit tests, skip the screenshot proof, and say so clearly in the report. Do not touch Docker Desktop settings.

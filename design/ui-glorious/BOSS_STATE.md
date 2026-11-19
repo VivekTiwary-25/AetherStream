@@ -26,15 +26,16 @@ Fresh boss session: read swarm/BOSS.md, then design/ui-glorious/BOSS_PROMPT.md (
 - 01:10 Real one-PC test PASSED: t261120-0108-1c34 (utkarsh-pc/codex-luna) stripped audio + made home-poster.jpg, merged into ui-glorious (b5fec7b); main has only swarm/** commits. All listeners on code d5d007b0.
 - Note: workers may refuse to write swarm/reports/<id>.md (CLAUDE.md swarm rule); the fallback report captures their final output. Fine.
 
-## Running / queued (all --base ui-glorious). Task sources: scratchpad\tasks\out\*.md (also in swarm/queue on main)
-- t261120-0111-1f98  utkarsh-pc/codex-sol   SHELL (blocks A, B, C1, D2)  -> then queue C1 (tC1-recovery) to utkarsh-pc/codex-sol
-- t261120-0119-6042  utkarsh-pc/codex-luna  Preview2: start Docker Desktop + preview-up (8089 + tunnel). Docker was STOPPED on utkarsh-pc. -> then B (tB-analytics) to utkarsh-pc/codex-luna
-- t261120-0123-4e81  vimlesh-pc/claude      A0 truck sprite + card photo (rembg) -> then D2 (tD2-frontend) to vimlesh-pc/claude
-- t261120-0124-4022  vimlesh-pc/codex-luna  C2 terminal commands worker kill / events late + CHEATSHEET
-- t261120-0125-ae9a  upendra-pc/codex-sol   D1 schema+validator+Kafka executor in control-api, nginx /api/glorious/ai/ -> host.docker.internal:18090
-- t261120-0125-ed02  upendra-pc/codex-luna  D3 host AI bridge scripts/ai-bridge (python stdlib, claude -p, port 18090)
-- NOT YET QUEUED (need shell merged): A map (tA-map -> vimlesh-pc/codex-sol), B, C1, D2.
-- Merged: recon (RECON.md), preview scripts (scripts/preview), audio strip.
+## Running / queued (all --base ui-glorious). Task specs: design/ui-glorious/tasks/*.md
+- t261120-0128-ed5d  utkarsh-pc/codex-luna  PREVIEW (waits up to 20 min for Docker; Vivek asked at 01:28 to fix Docker Desktop on utkarsh-pc)
+- t261120-0130-4b05  utkarsh-pc/codex-sol   C1 worker-card bug (server-side recovery history) + Logs & Recovery window
+- t261120-0123-4e81  vimlesh-pc/claude      A0 truck sprite -> then t261120-0130-3142 D2 pipelines frontend
+- t261120-0124-4022  vimlesh-pc/codex-luna  C2 terminal commands -> then t261120-0130-5be9 B analytics
+- t261120-0130-3a5f  vimlesh-pc/codex-sol   A map
+- t261120-0125-ae9a  upendra-pc/codex-sol   D1 pipeline backend (control-api)
+- t261120-0125-ed02  upendra-pc/codex-luna  D3 AI bridge
+- Merged into ui-glorious: audio strip, recon, preview scripts, SHELL (t261120-0111-1f98), boss fix 5cf9f62 (classic Playwright via storageState localStorage aether.ui=classic; main.tsx honours it; ?ui=glorious forces new UI).
+- Known: shell worker saw vitest timeouts unless `npm test -- --maxWorkers=2` (machine load); check in integration.
 
 ## Key recon decisions
 - Worker-card bug: killed worker restarts + re-registers before 4 s timeout, never DEAD server-side; old UI used client overlay only on its own button -> terminal kill invisible. C1 adds server-side recovery history (/api/recovery/history + WS).
