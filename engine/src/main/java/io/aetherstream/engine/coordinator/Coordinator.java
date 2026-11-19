@@ -68,6 +68,43 @@ public class Coordinator {
     private ExecState exec;
     private long sinkDelayMs;
 
+    // Process-lifetime counters: switching executions must not reset unlabelled Prometheus series.
+    // Checkpoint 0 has no trigger/manifest upload and is excluded; rebalances are not recoveries.
+    private long checkpointsCompleted;
+    private long checkpointsAborted;
+    private long recoveriesCompleted;
+    private final DurationHistogram checkpointDuration = new DurationHistogram();
+    private final DurationHistogram recoveryDuration = new DurationHistogram();
+
+    /** Millisecond observations, exported as cumulative Prometheus buckets in seconds. Guarded by the coordinator. */
+    private static final class DurationHistogram {
+        private static final long[] BOUNDS_MS = {5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10_000, 30_000, 60_000};
+        private final long[] buckets = new long[BOUNDS_MS.length];
+        private long count;
+        private long sumMs;
+
+        void observe(long durationMs) {
+            count++;
+            sumMs += durationMs;
+            for (int i = 0; i < BOUNDS_MS.length; i++) {
+                if (durationMs <= BOUNDS_MS[i]) {
+                    buckets[i]++;
+                }
+            }
+        }
+
+        void appendTo(StringBuilder out, String name) {
+            out.append("# TYPE ").append(name).append(" histogram\n");
+            for (int i = 0; i < BOUNDS_MS.length; i++) {
+                out.append(name).append("_bucket{le=\"").append(BOUNDS_MS[i] / 1000.0)
+                        .append("\"} ").append(buckets[i]).append('\n');
+            }
+            out.append(name).append("_bucket{le=\"+Inf\"} ").append(count).append('\n')
+                    .append(name).append("_sum ").append(sumMs / 1000.0).append('\n')
+                    .append(name).append("_count ").append(count).append('\n');
+        }
+    }
+
     private static final class WorkerEntry {
         final String id;
         final String host;
@@ -130,9 +167,6 @@ public class Coordinator {
         boolean rebalanceRequested;
         boolean rebalanceInProgress;
         long lastRebalanceMs = REBALANCE_NEVER;
-        long checkpointsCompleted;
-        long checkpointsAborted;
-        long recoveriesCompleted;
         long lastRecoveryDurationMs;
 
 
@@ -183,7 +217,7 @@ public class Coordinator {
         long now = clock.nowMs();
         for (int i = 0; i < active.size() - 1; i++) {
             ExecutionRecord old = active.get(i);
-            repo.abortPendingCheckpoints(old.id());
+            checkpointsAborted += repo.abortPendingCheckpoints(old.id());
             repo.updateState(old.id(), STOPPED);
             audit("execution.stopped", detail("executionId", old.id(), "reason", "superseded at coordinator restart"));
         }
@@ -626,20 +660,26 @@ public class Coordinator {
         return max;
     }
 
+    /**
+     * Prometheus text at /coord/metrics. All coordinator series, including empty histogram buckets, exist at boot.
+     * Durations cover trigger through manifest upload, and failure detection through RUNNING in the new generation.
+     */
     public synchronized String metricsText() {
         ExecState e = exec;
-        StringBuilder out = new StringBuilder(512);
+        StringBuilder out = new StringBuilder(4096);
         out.append("# TYPE aether_worker_records_per_sec gauge\n")
                 .append("# TYPE aether_worker_queue_size gauge\n")
                 .append("# TYPE aether_worker_backpressured gauge\n");
         metric(out, "aether_workers_alive", "gauge", workers.values().stream().filter(w -> w.alive).count());
         metric(out, "aether_execution_generation", "gauge", e == null ? 0 : e.generation);
-        metric(out, "aether_checkpoints_completed_total", "counter", e == null ? 0 : e.checkpointsCompleted);
-        metric(out, "aether_checkpoints_aborted_total", "counter", e == null ? 0 : e.checkpointsAborted);
+        metric(out, "aether_checkpoints_completed_total", "counter", checkpointsCompleted);
+        metric(out, "aether_checkpoints_aborted_total", "counter", checkpointsAborted);
         metric(out, "aether_last_checkpoint_duration_ms", "gauge",
                 e == null || e.lastDurationMs == null ? 0 : e.lastDurationMs);
-        metric(out, "aether_recoveries_total", "counter", e == null ? 0 : e.recoveriesCompleted);
+        metric(out, "aether_recoveries_total", "counter", recoveriesCompleted);
         metric(out, "aether_last_recovery_duration_ms", "gauge", e == null ? 0 : e.lastRecoveryDurationMs);
+        checkpointDuration.appendTo(out, "aether_checkpoint_duration_seconds");
+        recoveryDuration.appendTo(out, "aether_recovery_duration_seconds");
         for (WorkerEntry w : workers.values()) {
             WorkerStatus s = w.status;
             sample(out, "aether_worker_records_per_sec", "worker", w.id, null, null,
@@ -724,15 +764,16 @@ public class Coordinator {
     /** A worker owning partitions failed: RECOVERING, abort pending checkpoints, reassign when workers are available. */
     private void beginRecovery(long now) {
         ExecState e = exec;
+        // A failure during a planned rebalance starts a new failure-recovery interval.
+        if (e.recoveryStartedMs == null || e.rebalanceInProgress) {
+            e.recoveryStartedMs = now;
+        }
         if (!RECOVERING.equals(e.state)) {
             e.state = RECOVERING;
             repo.updateState(e.id, RECOVERING);
         }
         e.rebalanceRequested = false;
         e.rebalanceInProgress = false;
-        if (e.recoveryStartedMs == null) {
-            e.recoveryStartedMs = now;
-        }
         abortPending(e);
         e.assignment = new TreeMap<>();
         e.assignedOnce = true;
@@ -847,7 +888,7 @@ public class Coordinator {
         }
         e.state = RUNNING;
         repo.updateState(e.id, RUNNING);
-        long duration = e.recoveryStartedMs == null ? 0 : now - e.recoveryStartedMs;
+        long duration = e.recoveryStartedMs == null ? 0 : clock.nowMs() - e.recoveryStartedMs;
         e.recoveryStartedMs = null;
         e.lastTriggerMs = now;
         if (e.rebalanceInProgress) {
@@ -855,7 +896,8 @@ public class Coordinator {
                     "generation", e.generation, "assignment", e.assignment, "durationMs", duration));
             e.rebalanceInProgress = false;
         } else {
-            e.recoveriesCompleted++;
+            recoveriesCompleted++;
+            recoveryDuration.observe(duration);
             e.lastRecoveryDurationMs = duration;
             audit("execution.recovered", detail("executionId", e.id, "checkpointId", e.restoredFrom,
                     "generation", e.generation, "recoveryDurationMs", duration));
@@ -999,10 +1041,12 @@ public class Coordinator {
             log.error("Manifest upload for checkpoint {} failed; aborting it", p.id, ex);
             repo.abortCheckpoint(e.id, p.id);
             e.pending = null;
-            e.checkpointsAborted++;
+            checkpointsAborted++;
             notifyAll();
             return;
         }
+        // The ack timestamp precedes S3 I/O; include the manifest upload in the duration.
+        now = clock.nowMs();
         Map<Integer, Long> offsets = new TreeMap<>();
         p.acked.forEach((partition, entry) -> offsets.put(partition, entry.nextOffset()));
         long duration = now - p.startedMs;
@@ -1010,7 +1054,8 @@ public class Coordinator {
         e.pending = null;
         e.lastCompleted = p.id;
         e.lastDurationMs = duration;
-        e.checkpointsCompleted++;
+        checkpointsCompleted++;
+        checkpointDuration.observe(duration);
         notifyAll();
         if (e.rebalanceRequested) {
             e.rebalanceRequested = false;
@@ -1024,9 +1069,9 @@ public class Coordinator {
         if (e == null || e.pending == null || now - e.pending.startedMs < CHECKPOINT_TIMEOUT_MS) {
             return;
         }
-        e.checkpointsAborted++;
         log.warn("Checkpoint {} of execution {} timed out; ABORTED", e.pending.id, e.id);
         repo.abortCheckpoint(e.id, e.pending.id);
+        checkpointsAborted++;
         removeQueuedTriggers(e.id);
         e.pending = null;
         e.lastTriggerMs = now;
@@ -1034,10 +1079,7 @@ public class Coordinator {
     }
 
     private void abortPending(ExecState e) {
-        if (e.pending != null) {
-            e.checkpointsAborted++;
-        }
-        repo.abortPendingCheckpoints(e.id);
+        checkpointsAborted += repo.abortPendingCheckpoints(e.id);
         e.pending = null;
         removeQueuedTriggers(e.id);
         notifyAll();

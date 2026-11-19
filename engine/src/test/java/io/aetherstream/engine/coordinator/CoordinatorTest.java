@@ -60,15 +60,36 @@ class CoordinatorTest {
         }
     }
 
+    static final class ClockedCheckpointStore extends InMemoryCheckpointStore {
+        final FakeClock clock;
+        long uploadDelayMs;
+        boolean failManifest;
+
+        ClockedCheckpointStore(FakeClock clock) {
+            this.clock = clock;
+        }
+
+        @Override
+        public void putJson(String key, Object value) {
+            if (key.endsWith("/manifest.json")) {
+                clock.advance(uploadDelayMs);
+                if (failManifest) {
+                    throw new IllegalStateException("manifest upload failed");
+                }
+            }
+            super.putJson(key, value);
+        }
+    }
+
     FakeClock clock;
-    InMemoryCheckpointStore store;
+    ClockedCheckpointStore store;
     OrderCheckingRepo repo;
     Coordinator coordinator;
 
     @BeforeEach
     void setUp() {
         clock = new FakeClock();
-        store = new InMemoryCheckpointStore();
+        store = new ClockedCheckpointStore(clock);
         repo = new OrderCheckingRepo(store);
         coordinator = newCoordinator();
     }
@@ -227,6 +248,112 @@ class CoordinatorTest {
     }
 
     @Test
+    void checkpointHistogramIncludesUploadTimeAndIgnoresDuplicateAcks() {
+        startRunning();
+        coordinator.triggerCheckpointNow(EXEC);
+        clock.advance(250);
+        ack("w-a", 1, 1, EVEN, 200);
+        assertThat(coordinator.metricsText()).contains("aether_checkpoint_duration_seconds_count 0\n");
+        store.uploadDelayMs = 500;
+        ack("w-b", 1, 1, ODD, 200);
+        ack("w-b", 1, 1, ODD, 200);
+        assertThat(repo.findCheckpoint(EXEC, 1).orElseThrow().durationMs()).isEqualTo(750);
+        assertThat(coordinator.metricsText()).contains(
+                "aether_checkpoints_completed_total 1\n",
+                "aether_checkpoint_duration_seconds_bucket{le=\"0.5\"} 0\n",
+                "aether_checkpoint_duration_seconds_bucket{le=\"1.0\"} 1\n",
+                "aether_checkpoint_duration_seconds_bucket{le=\"+Inf\"} 1\n",
+                "aether_checkpoint_duration_seconds_sum 0.75\n",
+                "aether_checkpoint_duration_seconds_count 1\n");
+    }
+
+    @Test
+    void failedManifestCountsAsAbortedWithoutObservingDuration() {
+        startRunning();
+        coordinator.triggerCheckpointNow(EXEC);
+        store.failManifest = true;
+        clock.advance(250);
+        ack("w-a", 1, 1, EVEN, 200);
+        ack("w-b", 1, 1, ODD, 200);
+        assertThat(repo.findCheckpoint(EXEC, 1).orElseThrow().state()).isEqualTo(CheckpointRecord.ABORTED);
+        assertThat(coordinator.metricsText()).contains("aether_checkpoints_aborted_total 1\n",
+                "aether_checkpoints_completed_total 0\n", "aether_checkpoint_duration_seconds_count 0\n",
+                "aether_checkpoint_duration_seconds_sum 0.0\n");
+    }
+
+    @Test
+    void metricCountersAndHistogramsDoNotResetWhenExecutionChanges() {
+        startRunning();
+        completeCheckpoint1();
+        coordinator.triggerCheckpointNow(EXEC);
+        coordinator.startExecution(new StartExecutionRequest("exec-2", plan()));
+        assertThat(coordinator.metricsText()).contains("aether_checkpoints_completed_total 1\n",
+                "aether_checkpoints_aborted_total 1\n", "aether_checkpoint_duration_seconds_count 1\n",
+                "aether_execution_generation 1\n");
+        coordinator.stopExecution("exec-2");
+        assertThat(coordinator.metricsText()).contains("aether_checkpoints_aborted_total 1\n");
+    }
+
+    @Test
+    void recoveryHistogramStartsAtDetectionAndWaitsForEveryWorkerInNewGeneration() {
+        register("w-a");
+        register("w-b");
+        register("w-c");
+        coordinator.startExecution(new StartExecutionRequest(EXEC, plan()));
+        hb("w-a", 1, "RUNNING", List.of(0, 3));
+        hb("w-b", 1, "RUNNING", List.of(1, 4));
+        hb("w-c", 1, "RUNNING", List.of(2, 5));
+        coordinator.triggerCheckpointNow(EXEC);
+        clock.advance(Coordinator.HEARTBEAT_TIMEOUT_MS);
+        hb("w-a", 1, "RUNNING", List.of(0, 3));
+        hb("w-b", 1, "RUNNING", List.of(1, 4));
+        coordinator.tick();
+        assertThat(coordinator.metricsText()).contains("aether_recoveries_total 0\n",
+                "aether_recovery_duration_seconds_count 0\n", "aether_checkpoints_aborted_total 1\n",
+                "aether_workers_alive 2\n", "aether_execution_generation 2\n");
+        clock.advance(500);
+        hb("w-a", 2, "RUNNING", EVEN);
+        hb("w-b", 1, "RUNNING", ODD);
+        assertThat(coordinator.metricsText()).contains("aether_recoveries_total 0\n");
+        clock.advance(750);
+        hb("w-b", 2, "RUNNING", ODD);
+        hb("w-a", 2, "RUNNING", EVEN);
+        coordinator.tick();
+        assertThat(coordinator.metricsText()).contains("aether_recoveries_total 1\n",
+                "aether_recovery_duration_seconds_bucket{le=\"1.0\"} 0\n",
+                "aether_recovery_duration_seconds_bucket{le=\"2.5\"} 1\n",
+                "aether_recovery_duration_seconds_bucket{le=\"+Inf\"} 1\n",
+                "aether_recovery_duration_seconds_sum 1.25\n",
+                "aether_recovery_duration_seconds_count 1\n");
+        coordinator.startExecution(new StartExecutionRequest("exec-2", plan()));
+        assertThat(coordinator.metricsText()).contains("aether_recoveries_total 1\n",
+                "aether_recovery_duration_seconds_count 1\n");
+    }
+
+    @Test
+    void failureDuringRebalanceMeasuresFromDeathInsteadOfRebalanceStart() {
+        startRunning();
+        register("w-c");
+        clock.advance(5000);
+        hb("w-a", 1, "RUNNING", EVEN);
+        hb("w-b", 1, "RUNNING", ODD);
+        idleHb("w-c");
+        ack("w-a", 1, 1, EVEN, 200);
+        ack("w-b", 1, 1, ODD, 200);
+        assertThat(coordinator.executionInfo(EXEC).state()).isEqualTo("RECOVERING");
+        clock.advance(Coordinator.HEARTBEAT_TIMEOUT_MS);
+        hb("w-a", 2, "RESTORING", List.of(0, 3));
+        hb("w-b", 2, "RESTORING", List.of(1, 4));
+        coordinator.tick();
+        clock.advance(250);
+        hb("w-a", 3, "RUNNING", EVEN);
+        hb("w-b", 3, "RUNNING", ODD);
+        assertThat(coordinator.metricsText()).contains("aether_recoveries_total 1\n",
+                "aether_recovery_duration_seconds_sum 0.25\n",
+                "aether_recovery_duration_seconds_count 1\n");
+    }
+
+    @Test
     void staleAckIsRejected() {
         startRunning();
         assertThat(coordinator.triggerCheckpointNow(EXEC)).isEqualTo(1);
@@ -360,6 +487,8 @@ class CoordinatorTest {
             coordinator.tick();
         }
         assertThat(repo.findCheckpoint(EXEC, 2).orElseThrow().state()).isEqualTo(CheckpointRecord.ABORTED);
+        assertThat(coordinator.metricsText()).contains("aether_checkpoints_aborted_total 1\n",
+                "aether_checkpoint_duration_seconds_count 1\n");
 
         // Checkpoint 3 is pending with a partial ack when w-b dies.
         assertThat(ofType(seen.get("w-a"), Command.TriggerCheckpoint.class))
@@ -499,6 +628,8 @@ class CoordinatorTest {
         hb("w-b", 2, "RUNNING", List.of(1, 4));
         hb("w-c", 2, "RUNNING", List.of(2, 5));
         assertThat(coordinator.executionInfo(EXEC).state()).isEqualTo("RUNNING");
+        assertThat(coordinator.metricsText()).contains("aether_recoveries_total 0\n",
+                "aether_recovery_duration_seconds_count 0\n");
         try {
             coordinator.requestRebalance(EXEC);
         } catch (IllegalStateException expected) {
@@ -506,6 +637,19 @@ class CoordinatorTest {
             return;
         }
         throw new AssertionError("rebalance rate limit was not enforced");
+    }
+
+    @Test
+    void coordinatorMetricsExistAtZeroBeforeAnyExecutionOrRecovery() {
+        assertThat(coordinator.metricsText()).contains("aether_workers_alive 0\n", "aether_execution_generation 0\n",
+                "aether_checkpoints_completed_total 0\n", "aether_checkpoints_aborted_total 0\n",
+                "aether_recoveries_total 0\n",
+                "aether_checkpoint_duration_seconds_bucket{le=\"0.005\"} 0\n",
+                "aether_checkpoint_duration_seconds_bucket{le=\"+Inf\"} 0\n",
+                "aether_checkpoint_duration_seconds_count 0\n", "aether_checkpoint_duration_seconds_sum 0.0\n",
+                "aether_recovery_duration_seconds_bucket{le=\"0.005\"} 0\n",
+                "aether_recovery_duration_seconds_bucket{le=\"+Inf\"} 0\n",
+                "aether_recovery_duration_seconds_count 0\n", "aether_recovery_duration_seconds_sum 0.0\n");
     }
 
     @Test
@@ -517,6 +661,7 @@ class CoordinatorTest {
                 "aether_checkpoints_completed_total", "aether_checkpoints_aborted_total",
                 "aether_last_checkpoint_duration_ms", "aether_recoveries_total",
                 "aether_last_recovery_duration_ms", "aether_worker_records_per_sec",
+                "aether_checkpoint_duration_seconds_bucket", "aether_recovery_duration_seconds_bucket",
                 "aether_worker_queue_size", "aether_worker_backpressured",
                 "worker=\"w-a\"", "queue=\"source\"", "queue=\"sink\"");
     }
