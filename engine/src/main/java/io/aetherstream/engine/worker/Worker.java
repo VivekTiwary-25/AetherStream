@@ -22,6 +22,7 @@ public final class Worker {
     private final CheckpointStore store;
     private final CoordinatorClient coordinator;
     private final Runnable halt;
+    private final int queueCapacity;
     private final AtomicLong sinkDelayMs = new AtomicLong();
 
     private TaskRuntime runtime;          // null when idle
@@ -35,6 +36,17 @@ public final class Worker {
 
     public Worker(String workerId, RecordSourceFactory sourceFactory, ResultSink sink, CheckpointStore store,
                   CoordinatorClient coordinator, Runnable halt) {
+        this(workerId, sourceFactory, sink, store, coordinator, halt, TaskRuntime.QUEUE_CAPACITY);
+    }
+
+    /** Smaller demo queues preserve the 90% signal while bounding its fill and drain latency. */
+    Worker(String workerId, RecordSourceFactory sourceFactory, ResultSink sink, CheckpointStore store,
+           CoordinatorClient coordinator, Runnable halt, int queueCapacity) {
+        if (queueCapacity < 1 || queueCapacity > TaskRuntime.QUEUE_CAPACITY) {
+            throw new IllegalArgumentException(
+                    "worker queue capacity must be between 1 and " + TaskRuntime.QUEUE_CAPACITY);
+        }
+        this.queueCapacity = queueCapacity;
         this.workerId = workerId;
         this.sourceFactory = sourceFactory;
         this.sink = sink;
@@ -113,7 +125,7 @@ public final class Worker {
         generation = a.generation();
         lastCheckpointId = TaskRuntime.checkpointBaseline(a);
         runtime = new TaskRuntime(workerId, a, sourceFactory, sink, store, coordinator, sinkDelayMs::get,
-                this::onStoppedByItself);
+                this::onStoppedByItself, queueCapacity, System::nanoTime);
         runtime.start();
     }
 
@@ -159,7 +171,7 @@ public final class Worker {
 
     public synchronized WorkerStatus status() {
         TaskRuntime r = runtime;
-        int cap = TaskRuntime.QUEUE_CAPACITY;
+        int cap = queueCapacity;
         if (r == null || r.isStopped()) {
             long cp = r == null ? lastCheckpointId : Math.max(lastCheckpointId, r.lastCheckpointId());
             return new WorkerStatus(Protocol.VERSION, workerId, executionId, generation, "IDLE", List.of(),
