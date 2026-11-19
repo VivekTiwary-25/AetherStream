@@ -129,8 +129,13 @@ def pick_worker(kind, heartbeats, exclude=frozenset()):
     patterns = list(routes.get(kind, []))
     patterns += [p for plist in routes.values() for p in plist if p not in patterns]
     never = routing.get("never_models", [])
+    # Machines that never get work picked automatically (queue by kind, failover moves);
+    # only an explicit machine/worker target reaches them (e.g. the boss + live demo PC).
+    no_auto = set(routing.get("no_auto_pick_machines", []))
     best = None
     for machine, hb in heartbeats.items():
+        if machine in no_auto:
+            continue
         if util.now() - hb.get("ts", 0) >= settings.get("peer_stale_sec", 180):
             continue
         for w in hb.get("workers", []):
