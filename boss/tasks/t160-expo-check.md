@@ -17,3 +17,10 @@ Acceptance check: ci-e2e green on your branch with the checklist visible in the 
 - Read every file in docs/contracts/ first and follow them exactly. Do not edit docs/contracts/ or infra/db/schema.sql (if a contract looks wrong, say so in your report).
 - Do not read or change anything in swarm/ (except your own report file if the swarm asks you to write one).
 - Only edit the files listed. If you are on vivek-pc: do NOT start Docker containers or kind there (the live demo runs on it). Acceptance runs in GitHub Actions on your task branch.
+
+## Update from the boss (10:00) - previous CI failures to fix
+1. "Local image missing: ghcr.io/vivektiwary-25/aetherstream-*:dev" - CI builds images with other names. Add a --ci mode (or read
+   the running compose project's images with `docker compose images`) so the image check uses what is really running.
+2. "containers not all healthy before the 55-second checklist deadline" - allow up to 180 s in CI.
+3. "/api/version commit: dev does not match git HEAD" - compare only when EXPECT_SHA is set or the version is a 40-char SHA;
+   otherwise WARN. Keep laptop behaviour unchanged. Make ci-e2e green.

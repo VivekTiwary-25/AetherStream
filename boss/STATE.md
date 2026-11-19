@@ -53,6 +53,8 @@ Updated: 19 Nov 09:20 IST. M1 + M2 DONE. M3 (12:30) in progress: T92 shell integ
 3. Batch reviews: hand waiting tasks to idle cheap workers (codex-luna/grok) as first-pass reviewers in one go; merge in a batch.
 4. Wait only ~1-2 min between loops while anything waits for review.
 5. vachana-claude = hardest remaining M3 work (shell/UI integration, anything broken in the shell).
+6. When re-queueing a task with `swarm queue` (not `reject --requeue`), FIRST append the fix notes to the boss/tasks file:
+   the queue copies the file at queue time, and reject notes are not in it.
 Known infra flake: ci-e2e "Build and start stack ... BUILD FAILED in ~49s" (Gradle inside docker build) - rerun, not the task's fault.
 
 ## Task board (09:35)
