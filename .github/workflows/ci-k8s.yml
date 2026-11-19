@@ -172,6 +172,8 @@ jobs:
             (( SECONDS < deadline )) || exit 1
             sleep 2
           done
+          # Re-run the end-to-end demo check after recovery while the API port-forward is still active.
+          EXPECT_SHA="$GITHUB_SHA" bash infra/scripts/demo-ready.sh "$api" | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Always dump pods and diagnostic logs
         if: always()
