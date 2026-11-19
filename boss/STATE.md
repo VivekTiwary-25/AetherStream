@@ -1,6 +1,6 @@
 # Boss STATE (single source of truth)
 
-Updated: 19 Nov 07:58 IST. M1 + M2 DONE. M3 (12:30) in progress: T92 shell integration (redo T26) + T93 restored compare running.
+Updated: 19 Nov 08:05 IST. M1 + M2 DONE. M3 (12:30) in progress: T92 shell integration (redo T26) + T93 restored compare running.
 
 ## Plain-language update for Vivek (newest first)
 - 07:30 Boss back after the 03:51-07:10 usage-limit gap. Reviewed the 10 finished tasks: merged 8 (docs refresh, live
@@ -40,19 +40,18 @@ Updated: 19 Nov 07:58 IST. M1 + M2 DONE. M3 (12:30) in progress: T92 shell integ
   operator runtime, coordinator, simulator, control-api core and the first city UI are merged. Deploy runner
   `vivek-pc-deploy` is online. cloudflared at C:\Users\Arena\bin\cloudflared.exe.
 
-## Task board (07:45)
-merged since 07:10: T66 T91 T81 T86 T84 T61 T72 T80 T99 T93 (restored compare, E2E_EXTENDED=1) T92 (shell: ops/scenario/tour mounted,
-  ci-ui-e2e blocking) T95 (DEMO.md) T101 (CI evidence + badges) T97 (no-mock guard)
-07:55 merged also: T100 (CI: DEMO READY compare=19/19) T104 report T107 T109 T103 · T105 = soak harness bug (kill w/o start), not engine
-main d2a95a7: ci-e2e (11 steps, restore compare) green, ci-web green; ci-ui-e2e blocking - watch
+## Task board (08:05)
+merged since 07:10 (23): T66 T91 T81 T86 T84 T61 T72 T80 T99 T93 T92 T95 T101 T97 T100 T104 T107 T109 T103 T102 (city) T110
+  (RECOVERED durationMs) T89 (coverage; boss hand-merge + pipefail fix)
+waiting review (CI running): T78c soak restart+rejoin (ci-soak) · T112 Prometheus+Grafana (ci-monitoring)
 running / queued:
-- vivek-pc/vachana-claude: T98 Claude polish pass (requeued after T92)
-- vivek-pc/codex-sol: T78c soak restart+rejoin + TaskRuntimeTest flake
+- vivek-pc/vachana-claude: T98 Claude polish pass · vivek-pc/codex-sol: T118 control-api contract tests
 - vivek-pc/codex-luna: T111 test catalogue · vivek-pc/grok: T108 README final pass
-- upendra-pc/codex-sol: T110 RECOVERED durationMs · upendra-pc/codex-luna: T112 Prometheus+Grafana CI
-- utkarsh-pc/codex-sol: T75b ITs + split ci-integration · utkarsh-pc/codex-luna: T89 web coverage (retry)
-- vimlesh-pc/claude: T102 city polish · codex-sol: T114 simulator tests · codex-luna: T113 demo-day runbook
-watch: ci-ui-e2e on main is now blocking (T92) - if red, fix first. M3 left: T98 polish, T102 city, T105, T110. M4: T108/T109/T104 docs, FINAL.md.
+- upendra-pc/codex-sol: T116 CD runs demo-ready.sh (verify on main after merge!) · upendra-pc/codex-luna: T119 syllabus mapping
+- utkarsh-pc/codex-sol: T75b ITs + split ci-integration (35m+, split if >60m) · utkarsh-pc/codex-luna: T117 web API tests
+- vimlesh-pc/claude: T115 visual QA round 2 (docs) · codex-sol: T114 simulator tests · codex-luna: T113 demo-day runbook
+next: T115 P1 items -> a Claude fix task after T98 merges. M4: FINAL.md at 14:00.
+deployed: 44dfe07 (07:58). ci-ui-e2e on main keeps getting cancelled by new merges (cancel-in-progress) - verified on task branches now (T107).
 
 ## Lanes
 1 engine: coordinator merged; worker T14 running · 2 compiler/reference: ops+compiler merged; T13 running ·

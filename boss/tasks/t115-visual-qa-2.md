@@ -1,0 +1,20 @@
+# T115: Visual QA round 2 on the live app (after shell integration + city polish)  [M3, Claude]
+
+Lane 6/9, docs only. Since the first visual QA (docs/ux/visual-qa.md), main gained the integrated shell (ops, scenario, tour
+mounted), the city polish (docs/ux/city-visual-qa.md) and real recovery durations. Another task (T98) is polishing web/src/app
+right now, so do NOT edit code. Open the live app (public link: the trycloudflare.com URL in boss/STATE.md "Public link", or
+http://localhost:8088 if you are on vivek-pc) at 1440x900 and 390x844 and walk the DEMO.md script: city, panels, editor
+(examples, Validate with errors, Run), chaos (late events, slow output, kill worker -> recovering -> recovered), compare, ops
+(savepoint / restore / rescale), scenario, tour, footer version. Take fresh screenshots into docs/ux/screenshots/round2/
+(PNG, descriptive names). Write docs/ux/visual-qa-2.md: a ranked list (P1 breaks the demo, P2 looks wrong, P3 nice to have) with
+screenshot, exact location (component file if you can tell from the DOM / source), what is wrong, and the concrete fix. Also note
+anything in DEMO.md that does not match what the app shows.
+
+Files (edit only these): docs/ux/visual-qa-2.md (new), docs/ux/screenshots/round2/** (new).
+
+Acceptance check: ci-mock green on your branch; at least 12 screenshots; every P1 has a concrete fix.
+
+## Rules (apply to every task)
+- Read every file in docs/contracts/ first and follow them exactly. Do not edit docs/contracts/ or infra/db/schema.sql (if a contract looks wrong, say so in your report).
+- Do not read or change anything in swarm/ (except your own report file if the swarm asks you to write one).
+- Only edit the files listed. If you are on vivek-pc: do NOT start Docker containers or kind there (the live demo runs on it). Acceptance runs in GitHub Actions on your task branch.

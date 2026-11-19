@@ -30,3 +30,4 @@
 - 07:29 vimlesh-pc back: claude -> T102 city polish (web/src/city/** only, so no conflict with T92 shell work); codex-sol -> T103 compiler/reference tests; codex-luna -> T104 project report.
 - 07:45 Contract 04 (additive): RECOVERED execution events carry durationMs (server-measured WORKER_DEAD -> RECOVERED), so the timeline shows real recovery time instead of '-'. Implemented by T110.
 - 07:55 T105 diagnosis: soak failure was the harness (docker compose kill without start), not the engine. Closed T105/T78b; T78c fixes soak.sh (restart + rejoin timing) and the TaskRuntimeTest processedRecords flake.
+- 08:02 Hand-merged T89 (ci-web.yml conflict with T97): kept both; added 'set -o pipefail' because '| tee' in GitHub's default bash hid test failures.
