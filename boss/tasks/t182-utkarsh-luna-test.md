@@ -1,9 +1,9 @@
 # T182: utkarsh-pc/codex-luna health test (tiny)
 
-Create the new file docs/expo/healthcheck-utkarsh-luna.md with exactly three lines: a "# Worker health check" heading, a line
+Create the new file docs/expo/healthcheck-utkarsh-luna-2.md with exactly three lines: a "# Worker health check" heading, a line
 "Worker: utkarsh-pc/codex-luna", and a line with the current date/time in IST. Nothing else. Do not edit any other file.
 
-Files (edit only these): docs/expo/healthcheck-utkarsh-luna.md (new).
+Files (edit only these): docs/expo/healthcheck-utkarsh-luna-2.md (new).
 
 Acceptance check: the file exists on your branch with those three lines.
 

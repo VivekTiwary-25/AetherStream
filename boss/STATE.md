@@ -40,7 +40,16 @@ Updated: 19 Nov 09:20 IST. M1 + M2 DONE. M3 (12:30) in progress: T92 shell integ
   operator runtime, coordinator, simulator, control-api core and the first city UI are merged. Deploy runner
   `vivek-pc-deploy` is online. cloudflared at C:\Users\Arena\bin\cloudflared.exe.
 
+## STATUS 10:45 (merged since 07:10: 97)
+Expo safety DONE: rehearsal (T155, 53 screenshots, P1s fixed: T158 Recovered banner, T174 stuck-truck, T173 deploy freeze +
+monitoring deployed, T175 DEMO.md), offline mode (T156 + T172, ci-offline green), backup recording (T157b: 2m11s webm + 4 GIFs in
+docs/expo/backup/), cold-start timer (T159), autostart scripts (T163; registration = Vivek, NEEDS_VIVEK 9), expo-check/reset/proofs,
+20-kill run green (T164), compare OOM fix (T177), R08 MEDIUM fixes (T178). Pending: T179 (e2e), T181 (redo), longrun rerun on
+main 44462983759 (pre-T177 run showed control-api memory +94%). Boss TODO ~12:45: expo-prepull + laptop cold-start timing.
+
 ## UTKARSH-PC HEALTH CHECK (Vivek, 10:27) - in progress
+T183 result: git healthy (no locks, fsck clean, fetch + push dry-run OK). ROOT CAUSE: C: has only 1.157 GB free (D: 243.8 GB);
+the swarm checkout is on C:. Second Luna test T182b queued (t261119-1041-b684).
 1. T182 tiny test queued to utkarsh-luna (t261119-1027-80ba). 2. If it fails with "cannot lock ref 'HEAD'" / "worktree add failed":
 after utkarsh-sol finishes T179, queue boss/tasks/t183-utkarsh-git-health.md to utkarsh-pc/codex-sol. 3. Then queue another tiny
 test to luna. 4. If still failing: exact error + disk-space numbers into NEEDS_VIVEK.
