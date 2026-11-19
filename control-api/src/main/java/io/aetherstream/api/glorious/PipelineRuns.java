@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.LongSupplier;
 import java.util.function.Supplier;
 import org.apache.kafka.clients.consumer.Consumer;
@@ -39,6 +40,8 @@ public final class PipelineRuns {
     private final LongSupplier clock;
     private final String topic;
     private final Map<String, Run> runs = new LinkedHashMap<>();
+    private final AtomicLong sequence = new AtomicLong();
+    private boolean shuttingDown;
     private Run active;
 
     @Autowired
@@ -73,6 +76,8 @@ public final class PipelineRuns {
 
     /** Caller validates before starting, so invalid submissions never stop a healthy run. */
     public synchronized String start(JsonNode pipeline) {
+        if (shuttingDown)
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "pipeline executor is shutting down");
         if (active != null) stopRun(active);
         Run run = new Run(UUID.randomUUID().toString(), OrgContext.current(), clock.getAsLong(), pipeline);
         runs.put(run.id, run);
@@ -89,8 +94,10 @@ public final class PipelineRuns {
         return owned(id).snapshot(after);
     }
 
-    public synchronized void stop(String id) {
-        stopRun(owned(id));
+    public synchronized String stop(String id) {
+        Run run = owned(id);
+        stopRun(run);
+        return run.state;
     }
 
     private Run owned(String id) {
@@ -101,9 +108,10 @@ public final class PipelineRuns {
     }
 
     private void stopRun(Run run) {
-        run.stopRequested = true;
-        Consumer<String, String> consumer = run.consumer;
-        if (consumer != null) consumer.wakeup();
+        synchronized (run) {
+            run.stopRequested = true;
+            if (run.consumer != null) run.consumer.wakeup();
+        }
         try {
             run.thread.join(12000);
         } catch (InterruptedException e) {
@@ -112,11 +120,14 @@ public final class PipelineRuns {
         }
         if (run.thread.isAlive())
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Kafka consumer has not stopped yet");
-        synchronized (run) { run.state = "STOPPED"; }
+        synchronized (run) {
+            if (!"FAILED".equals(run.state)) run.state = "STOPPED";
+        }
     }
 
     @PreDestroy
     public synchronized void shutdown() {
+        shuttingDown = true;
         if (active != null) stopRun(active);
     }
 
@@ -124,7 +135,7 @@ public final class PipelineRuns {
         Consumer<String, String> consumer = null;
         try {
             consumer = consumers.get();
-            run.consumer = consumer;
+            synchronized (run) { run.consumer = consumer; }
             if (run.stopRequested) return;
             if (consumer.partitionsFor(topic, Duration.ofSeconds(8)).isEmpty())
                 throw new IllegalStateException("Kafka topic " + topic + " has no partitions");
@@ -152,20 +163,22 @@ public final class PipelineRuns {
         } catch (WakeupException e) {
             if (!run.stopRequested) run.fail("Kafka consumer interrupted unexpectedly");
         } catch (Exception e) {
-            if (!run.stopRequested) run.fail("Live Kafka pipeline failed: " + e.getClass().getSimpleName()
+            run.fail("Live Kafka pipeline failed: " + e.getClass().getSimpleName()
                     + (e.getMessage() == null ? "" : ": " + e.getMessage()));
         } finally {
+            // Detach before closing: wakeup is thread-safe, but must never race a closed consumer.
+            synchronized (run) { run.consumer = null; }
             if (consumer != null) {
                 try {
                     consumer.close(Duration.ofSeconds(2));
                 } catch (Exception e) {
-                    if (!run.stopRequested) run.fail("Kafka consumer close failed: " + e.getMessage());
+                    run.fail("Kafka consumer close failed: " + e.getClass().getSimpleName()
+                            + (e.getMessage() == null ? "" : ": " + e.getMessage()));
                 }
             }
-            run.consumer = null;
             synchronized (run) {
                 run.droppedRows = run.evaluator.droppedRows();
-                if (run.stopRequested) run.state = "STOPPED";
+                if (run.stopRequested && !"FAILED".equals(run.state)) run.state = "STOPPED";
             }
         }
     }
@@ -213,7 +226,6 @@ public final class PipelineRuns {
         String error;
         long eventsIn;
         long droppedRows;
-        long sequence;
 
         Run(String id, String owner, long startedAt, JsonNode pipeline) {
             this.id = id;
@@ -226,10 +238,15 @@ public final class PipelineRuns {
             if (stopRequested) return;
             if (buffer.size() == 500) buffer.removeFirst();
             // Evaluator frames are immutable; retain the map instead of copying every result again.
-            buffer.addLast(new Result(++sequence, clock.getAsLong(), emission.output(), emission.kind(), emission.data()));
+            buffer.addLast(new Result(sequence.incrementAndGet(), clock.getAsLong(), emission.output(), emission.kind(), emission.data()));
         }
 
-        synchronized void fail(String message) { state = "FAILED"; error = message; }
+        synchronized void fail(String message) {
+            if (!"FAILED".equals(state)) {
+                state = "FAILED";
+                error = message;
+            }
+        }
 
         synchronized Snapshot snapshot(long after) {
             List<Result> selected = new ArrayList<>();

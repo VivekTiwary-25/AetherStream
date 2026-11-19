@@ -51,6 +51,7 @@ class GloriousPipelineControllerTest {
     @Test void startsPollsCursorAndStopsRun() throws Exception {
         when(runs.start(any())).thenReturn("run-1");
         when(runs.results("run-1", 7)).thenReturn(new PipelineRuns.Snapshot("run-1", "RUNNING", null, 123, 9, 2, List.of()));
+        when(runs.stop("run-1")).thenReturn("STOPPED");
         mvc.perform(post(BASE + "/runs").contentType(MediaType.APPLICATION_JSON).content(VALID))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.runId").value("run-1"));
         mvc.perform(get(BASE + "/runs/run-1/results?after=7"))
@@ -59,6 +60,12 @@ class GloriousPipelineControllerTest {
         mvc.perform(post(BASE + "/runs/run-1/stop"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.state").value("STOPPED"));
         verify(runs).stop("run-1");
+    }
+
+    @Test void stoppingFailedRunDoesNotClaimSuccessfulStop() throws Exception {
+        when(runs.stop("failed")).thenReturn("FAILED");
+        mvc.perform(post(BASE + "/runs/failed/stop"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.state").value("FAILED"));
     }
 
     @Test void rejectsOversizedAndMalformedBodiesWithoutStartingAnything() throws Exception {

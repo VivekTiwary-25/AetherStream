@@ -73,8 +73,7 @@ public final class GloriousPipelineController {
 
     @PostMapping("/runs/{runId}/stop")
     public Map<String, String> stop(@PathVariable String runId) {
-        runs.stop(runId);
-        return Map.of("state", "STOPPED");
+        return Map.of("state", runs.stop(runId));
     }
 
     private JsonNode readPipeline(HttpServletRequest request) {
