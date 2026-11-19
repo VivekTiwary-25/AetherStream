@@ -75,7 +75,7 @@ export function useRecoveryFeed() {
       try {
         const response = await recoveryRequest('/api/recovery/history')
         const entries = await response.json() as RecoveryEntry[]
-        if (active && historyRevision.current === historyVersion) {
+        if (active) {
           setHistory((previous) => mergeHistory(previous, entries))
           setHistoryLoaded(true)
           setHistoryError(null)

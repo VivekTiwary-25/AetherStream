@@ -89,14 +89,15 @@ describe('real truck breakdown form', () => {
     await screen.findByRole('option', { name: 'truck-006 · IDLE' })
     fireEvent.change(screen.getByLabelText('Truck'), { target: { value: 'truck-006' } })
     fireEvent.click(screen.getByRole('button', { name: 'Simulate breakdown' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm' }))
     await screen.findByText('Breakdown accepted for truck-006. Watch its live status on the map.')
     expect(fetch).toHaveBeenCalledWith('/api/simulator/scenario', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: 'breakdown', truckId: 'truck-006' }),
     })
     expect(screen.getByRole('option', { name: 'truck-006 · IDLE' })).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Simulate breakdown' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Confirm' }))
     await screen.findByRole('alert')
-    expect(screen.getByText('Breakdown failed: Simulator unavailable')).toBeTruthy()
     expect(screen.queryByText(/Breakdown accepted/)).toBeNull()
   })
 

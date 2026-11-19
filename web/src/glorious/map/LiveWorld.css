@@ -47,6 +47,11 @@
 .gl-live-world__actions button:disabled { opacity: .5; cursor: not-allowed; }
 .gl-live-world__actions p, .gl-live-world__card [role='status'], .gl-live-world__error { font-size: 12px; line-height: 1.5; margin: 8px 0 0; }
 .gl-live-world__error { color: #983d26; }
+.gl-breakdown-confirm-backdrop { position: fixed; z-index: 20; inset: 0; display: grid; place-items: center; padding: 20px; background: #17201466; }
+.gl-breakdown-confirm { width: min(420px, 100%); padding: 20px; border: 1px solid #ffffffb8; border-radius: 18px; background: #f5f2e8ed; box-shadow: 0 16px 48px #17201455; color: #252720; }
+.gl-breakdown-confirm p { line-height: 1.5; }
+.gl-breakdown-confirm div { display: flex; justify-content: flex-end; gap: 10px; }
+.gl-breakdown-confirm button { min-height: 44px; padding: 8px 16px; border: 1px solid #777f6f; border-radius: 10px; background: #fffef9; color: #20251f; font: inherit; cursor: pointer; }
 .gl-live-world__notice { position: absolute; z-index: 3; left: calc(var(--gl-sidebar-width) + 44px); top: 108px; max-width: min(360px, calc(100% - var(--gl-sidebar-width) - 70px)); pointer-events: none; }
 .gl-live-world__notice > .gl-surface { padding: 10px 14px; border-radius: 14px; font-size: 12px; }
 .gl-live-world .maplibregl-ctrl-bottom-left { left: calc(var(--gl-sidebar-width) + 24px); }

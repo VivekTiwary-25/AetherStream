@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import * as maplibregl from 'maplibre-gl'
 import mapWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
 import { Protocol } from 'pmtiles'
@@ -45,6 +45,8 @@ export function LiveWorld() {
   const card = useRef<HTMLDivElement>(null)
   const selectedRef = useRef<string | null>(null)
   const actionButton = useRef<HTMLButtonElement>(null)
+  const breakdownButton = useRef<HTMLButtonElement>(null)
+  const confirmDialog = useRef<HTMLDivElement>(null)
   const longPress = useRef<number | undefined>(undefined)
   const pressOrigin = useRef({ x: 0, y: 0, opened: false })
   const pendingRequest = useRef<AbortController | null>(null)
@@ -58,6 +60,7 @@ export function LiveWorld() {
   const [actionError, setActionError] = useState<string | null>(null)
   const [pending, setPending] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
+  const [confirmingBreakdown, setConfirmingBreakdown] = useState(false)
   const trucks = fleet.trucks
 
   const routeBounds = useMemo(() => {
@@ -78,6 +81,24 @@ export function LiveWorld() {
     })
     return () => cancelAnimationFrame(frame)
   }, [contextMenu, selected])
+  useEffect(() => {
+    if (confirmingBreakdown) requestAnimationFrame(() => confirmDialog.current?.querySelector('button')?.focus())
+  }, [confirmingBreakdown])
+
+  function closeBreakdownConfirmation() {
+    setConfirmingBreakdown(false)
+    requestAnimationFrame(() => breakdownButton.current?.focus())
+  }
+  function trapConfirmationFocus(event: KeyboardEvent<HTMLDivElement>) {
+    if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); closeBreakdownConfirmation() }
+    if (event.key !== 'Tab') return
+    const buttons = confirmDialog.current?.querySelectorAll<HTMLElement>('button:not(:disabled)')
+    if (!buttons?.length) return
+    const first = buttons[0]!
+    const last = buttons[buttons.length - 1]!
+    if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus() }
+    else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus() }
+  }
 
   useEffect(() => {
     if (!container.current) return
@@ -261,6 +282,11 @@ export function LiveWorld() {
       if (!controller.signal.aborted) setPending(null)
     }
   }
+  async function confirmBreakdown() {
+    setConfirmingBreakdown(false)
+    await breakdown()
+    requestAnimationFrame(() => breakdownButton.current?.focus())
+  }
 
   const activeIndex = trucks.findIndex((truck) => truck.truckId === selected)
   const active = trucks[activeIndex]
@@ -350,10 +376,16 @@ export function LiveWorld() {
         </dl>
         <p className="gl-live-world__mapping">Geographic path is a display mapping; telemetry is real.</p>
         {contextMenu && <div role="menu" aria-label={`${truckLabel(active.truckId)} actions`} className="gl-live-world__actions">
-          <button ref={actionButton} role="menuitem" disabled={active.status.toUpperCase() === 'STOPPED' || pending !== null} onClick={() => { void breakdown() }}>{pending === active.truckId ? 'Requesting…' : 'Simulate breakdown'}</button>
+          <button ref={breakdownButton} role="menuitem" disabled={active.status.toUpperCase() === 'STOPPED' || pending !== null} onClick={() => setConfirmingBreakdown(true)}>{pending === active.truckId ? 'Requesting…' : 'Simulate breakdown'}</button>
           <p>Resumes automatically.</p>
         </div>}
         {actionError && <p role="alert" className="gl-live-world__error">{actionError}</p>}
+        {confirmingBreakdown && active && <div className="gl-breakdown-confirm-backdrop">
+          <div ref={confirmDialog} role="alertdialog" aria-modal="true" aria-labelledby="gl-breakdown-confirm-title" className="gl-breakdown-confirm" onKeyDown={trapConfirmationFocus}>
+            <p id="gl-breakdown-confirm-title">Simulate a breakdown of Truck {active.truckId}? It stops for about 15 simulated minutes and resumes by itself.</p>
+            <div><button type="button" onClick={() => void confirmBreakdown()}>Confirm</button><button type="button" onClick={closeBreakdownConfirmation}>Cancel</button></div>
+          </div>
+        </div>}
         {notice && <p role="status">{notice}</p>}
       </GlassSurface>
     </div>}
