@@ -50,7 +50,7 @@ jobs:
       - name: Run full-system demo
         env:
           EXPECT_SHA: ${{ github.sha }}
-          E2E_EXTENDED: "0"
+          E2E_EXTENDED: "1"
         run: bash infra/scripts/demo-e2e.sh
       - name: Compose status
         if: always()

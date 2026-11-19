@@ -12,7 +12,10 @@ import io.aetherstream.reference.KafkaRangeReader;
 import io.aetherstream.reference.RawRecord;
 import io.aetherstream.reference.ReferenceExecutor;
 import io.aetherstream.reference.ResultComparator;
+import io.aetherstream.reference.ReferenceExecutor.ReplayStage;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -78,11 +81,8 @@ public class CompareService {
                         "No completed checkpoint yet - wait a few seconds");
             }
             Checkpoint checkpoint = completed.get(0);
-            Map<Integer, Long> initialOffsets = jdbc.queryForObject(
-                    "SELECT source_offsets::text FROM checkpoints WHERE execution_id=? AND checkpoint_id=0 AND state='COMPLETED'",
-                    (rs, row) -> readJson(rs.getString("source_offsets"), OFFSETS), execution.id());
-            var records = rangeReader.read(bootstrap, topic, initialOffsets, checkpoint.offsets());
-            var reference = new ReferenceExecutor().run(execution.plan(), records);
+            var stages = replayLineage(execution, checkpoint.offsets());
+            var reference = new ReferenceExecutor().run(stages);
             List<EngineWindowRow> windows = jdbc.query(
                     "SELECT sink_id,key,window_start,window_end,values::text,event_count FROM window_results WHERE execution_id=?",
                     (rs, row) -> new EngineWindowRow(rs.getString("sink_id"), rs.getString("key"),
@@ -98,6 +98,43 @@ public class CompareService {
             lock.unlock();
             LOG.info("Reference comparison finished in {} ms", elapsedMs(started));
         }
+    }
+
+    private List<ReplayStage> replayLineage(Execution execution, Map<Integer, Long> endOffsets) {
+        List<ReplayRange> ranges = new ArrayList<>();
+        var visited = new HashSet<String>();
+        while (true) {
+            if (!visited.add(execution.id())) {
+                throw new CompareException(HttpStatus.CONFLICT, "INVALID_LINEAGE", "Savepoint lineage contains a cycle");
+            }
+            InitialCheckpoint initial = jdbc.queryForObject(
+                    "SELECT source_offsets::text,manifest_key FROM checkpoints " +
+                            "WHERE execution_id=? AND checkpoint_id=0 AND state='COMPLETED'",
+                    (rs, row) -> new InitialCheckpoint(readJson(rs.getString("source_offsets"), OFFSETS),
+                            rs.getString("manifest_key")), execution.id());
+            ranges.addFirst(new ReplayRange(execution.plan(), initial.offsets(), endOffsets));
+            if (initial.manifestKey() == null) break;
+            // Checkpoint 0 keeps the immutable savepoint manifest even after ordinary recovery.
+            List<Execution> sources = jdbc.query(
+                    "SELECT source.id,source.plan::text FROM audit_log saved " +
+                            "JOIN executions source ON source.id=saved.detail->>'executionId' " +
+                            "WHERE saved.action='savepoint.created' " +
+                            "AND ('savepoints/' || (saved.detail->>'savepointId') || '/manifest.json')=? " +
+                            "AND source.org_id=? ORDER BY saved.id DESC LIMIT 1",
+                    (rs, row) -> new Execution(rs.getString("id"), readJson(rs.getString("plan"), ExecutionPlan.class)),
+                    initial.manifestKey(), OrgContext.current());
+            if (sources.isEmpty()) {
+                throw new CompareException(HttpStatus.CONFLICT, "NO_LINEAGE", "Savepoint source execution is unavailable");
+            }
+            execution = sources.getFirst();
+            endOffsets = initial.offsets();
+        }
+        List<ReplayStage> stages = new ArrayList<>(ranges.size());
+        for (ReplayRange range : ranges) {
+            stages.add(new ReplayStage(range.plan(),
+                    rangeReader.read(bootstrap, topic, range.from(), range.to())));
+        }
+        return stages;
     }
 
     private <T> T readJson(String json, Class<T> type) throws SQLException {
@@ -122,6 +159,8 @@ public class CompareService {
 
     private record Execution(String id, ExecutionPlan plan) {}
     private record Checkpoint(long id, Map<Integer, Long> offsets) {}
+    private record InitialCheckpoint(Map<Integer, Long> offsets, String manifestKey) {}
+    private record ReplayRange(ExecutionPlan plan, Map<Integer, Long> from, Map<Integer, Long> to) {}
 
     static final class CompareException extends RuntimeException {
         final HttpStatus status;

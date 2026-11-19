@@ -19,9 +19,20 @@ import java.util.TreeSet;
 /** Deterministic, single-process replay using the same operators as the engine. */
 public final class ReferenceExecutor {
     public ReferenceResult run(ExecutionPlan plan, Map<Integer, List<RawRecord>> recordsByPartition) {
-        for (int partition : recordsByPartition.keySet()) {
-            if (partition < 0 || partition >= plan.partitions()) {
-                throw new IllegalArgumentException("Partition outside plan: " + partition);
+        return run(List.of(new ReplayStage(plan, recordsByPartition)));
+    }
+
+    /**
+     * Replays a savepoint lineage oldest first, restoring each next plan from the preceding
+     * operator snapshot. Only the final stage's outputs belong to the compared execution.
+     */
+    public ReferenceResult run(List<ReplayStage> stages) {
+        ExecutionPlan plan = stages.getLast().plan();
+        for (ReplayStage stage : stages) {
+            for (int partition : stage.recordsByPartition().keySet()) {
+                if (partition < 0 || partition >= stage.plan().partitions()) {
+                    throw new IllegalArgumentException("Partition outside plan: " + partition);
+                }
             }
         }
         Map<String, List<WindowResult>> windows = new TreeMap<>();
@@ -40,23 +51,27 @@ public final class ReferenceExecutor {
         Map<Integer, Set<String>> keys = new TreeMap<>();
         long recordsReplayed = 0;
         for (int partition = 0; partition < plan.partitions(); partition++) {
-            PartitionPipeline pipeline = new PartitionPipeline(plan, partition);
-            ListCollector collector = new ListCollector();
+            PartitionPipeline pipeline = null;
+            ListCollector collector = null;
             Set<String> partitionKeys = new TreeSet<>();
-            List<RawRecord> records = new ArrayList<>(recordsByPartition.getOrDefault(partition, List.of()));
-            records.sort(Comparator.comparingLong(RawRecord::offset));
-            for (RawRecord record : records) {
-                if (record.partition() != partition) {
-                    throw new IllegalArgumentException("Record partition does not match bucket " + partition);
+            for (ReplayStage stage : stages) {
+                pipeline = pipeline == null ? new PartitionPipeline(stage.plan(), partition)
+                        : PartitionPipeline.restore(stage.plan(), partition, pipeline.snapshot());
+                collector = new ListCollector();
+                List<RawRecord> records = new ArrayList<>(stage.recordsByPartition().getOrDefault(partition, List.of()));
+                records.sort(Comparator.comparingLong(RawRecord::offset));
+                for (RawRecord record : records) {
+                    if (record.partition() != partition) {
+                        throw new IllegalArgumentException("Record partition does not match bucket " + partition);
+                    }
+                    // Include ancestor keys when checking for extra checkpoint-visible windows.
+                    if (EnvelopeValidator.parse(stage.plan().topic(), partition, record.offset(), record.value())
+                            instanceof EnvelopeValidator.Accepted accepted) {
+                        partitionKeys.add(accepted.envelope().key());
+                    }
+                    pipeline.process(record.offset(), record.value(), collector);
+                    recordsReplayed++;
                 }
-                // The pipeline owns processing/validation. Reuse its validator to track accepted
-                // source keys too, including keys dropped by filters and absent from window state.
-                if (EnvelopeValidator.parse(plan.topic(), partition, record.offset(), record.value())
-                        instanceof EnvelopeValidator.Accepted accepted) {
-                    partitionKeys.add(accepted.envelope().key());
-                }
-                pipeline.process(record.offset(), record.value(), collector);
-                recordsReplayed++;
             }
             for (ListCollector.Output output : collector.outputs()) {
                 if (output instanceof ListCollector.WindowOutput window) {
@@ -72,4 +87,6 @@ public final class ReferenceExecutor {
         }
         return new ReferenceResult(plan, windows, alerts, deadLetters, watermarks, keys, recordsReplayed);
     }
+
+    public record ReplayStage(ExecutionPlan plan, Map<Integer, List<RawRecord>> recordsByPartition) {}
 }
