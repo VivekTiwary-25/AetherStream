@@ -1,0 +1,22 @@
+name: ci-docs
+
+on:
+  push:
+    branches: [main, 'task/**']
+    paths: ['**/*.md', 'docs/**']
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  docs-links:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.x'
+      - name: Check Markdown links
+        run: python infra/scripts/check-md-links.py
