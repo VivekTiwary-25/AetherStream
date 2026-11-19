@@ -195,18 +195,21 @@ services:
     environment:
       <<: *app-environment
       WORKER_ID: worker-1
+      WORKER_QUEUE_CAPACITY: "32"
 
   worker-2:
     <<: *worker
     environment:
       <<: *app-environment
       WORKER_ID: worker-2
+      WORKER_QUEUE_CAPACITY: "32"
 
   worker-3:
     <<: *worker
     environment:
       <<: *app-environment
       WORKER_ID: worker-3
+      WORKER_QUEUE_CAPACITY: "32"
 
   simulator:
     <<: *app

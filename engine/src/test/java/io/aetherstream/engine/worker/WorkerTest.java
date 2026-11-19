@@ -84,6 +84,30 @@ class WorkerTest {
     }
 
     @Test
+    void configuredQueuesReportActualBoundsAndClearPressureAfterChaosEnds() throws Exception {
+        Worker w = new Worker("w-demo", topic -> new WorkerFixtures.FakeSource(data),
+                new WorkerFixtures.MemorySink(), new InMemoryCheckpointStore(),
+                new WorkerFixtures.FakeCoordinator(), () -> { }, 32);
+        try {
+            w.handle(new Command.SetSinkDelay(200));
+            w.handle(assign("demo", 1));
+            await("bounded demo queues full", 5_000, () ->
+                    w.status().sourceQueue().size() == 32 && w.status().sinkQueue().size() == 32);
+            WorkerStatus status = w.status();
+            assertThat(status.sourceQueue().capacity()).isEqualTo(32);
+            assertThat(status.sinkQueue().capacity()).isEqualTo(32);
+            assertThat(status.backpressured()).isTrue();
+
+            w.handle(new Command.SetSinkDelay(0));
+            await("pressure cleared after delay removal", 5_000, () ->
+                    w.status().sourceQueue().size() == 0 && w.status().sinkQueue().size() == 0);
+            assertThat(w.status().backpressured()).isFalse();
+        } finally {
+            w.shutdown();
+        }
+    }
+
+    @Test
     void fencedRuntimeMakesWorkerIdle() throws Exception {
         WorkerFixtures.MemorySink sink = new WorkerFixtures.MemorySink();
         sink.fenced.set(true);
