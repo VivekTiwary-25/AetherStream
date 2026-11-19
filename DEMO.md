@@ -23,6 +23,12 @@ A production page must not show **MOCK DATA**. That badge is only rendered when 
    - Unit tests: [44439772370](https://github.com/VivekTiwary-25/AetherStream/actions/runs/44439772370) (`./gradlew build`).
 8. Keep `docs/ux/screenshots/` open. Use a file only if the live step fails.
 
+## Cold start
+
+- CI measurement: pending the first green [cold-start workflow run](https://github.com/VivekTiwary-25/AetherStream/actions/workflows/ci-coldstart.yml); it prints the phase timings in its summary. The script appends dated measurements to [`docs/expo/cold-start-times.md`](docs/expo/cold-start-times.md).
+- vivek-pc laptop: <to be measured by the boss with `bash infra/scripts/cold-start-timer.sh --from-cold`>.
+- Start Docker Desktop at least N minutes before the demo, where N is the latest measured total rounded up to minutes plus a 5-minute margin. Do not run this measurement on vivek-pc before the boss does.
+
 ## 12-minute script
 
 ### 0:00-0:45 — Stack is up
