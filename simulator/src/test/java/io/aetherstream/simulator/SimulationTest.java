@@ -31,6 +31,36 @@ class SimulationTest {
     }
 
     @Test
+    void differentSeedsChangeEventDataNotJustTheEventIdPrefix() throws Exception {
+        List<Simulation.Emission> first = new Simulation(42, 1, 0, false).step(START + 600_000);
+        List<Simulation.Emission> second = new Simulation(43, 1, 0, false).step(START + 600_000);
+        int count = 100;
+        assertTrue(first.size() >= count && second.size() >= count);
+        List<JsonNode> firstEvents = new ArrayList<>();
+        List<JsonNode> secondEvents = new ArrayList<>();
+        for (int i = 0; i < count; i++) {
+            var left = (com.fasterxml.jackson.databind.node.ObjectNode) Json.MAPPER.readTree(first.get(i).json());
+            var right = (com.fasterxml.jackson.databind.node.ObjectNode) Json.MAPPER.readTree(second.get(i).json());
+            left.remove("eventId");
+            right.remove("eventId");
+            firstEvents.add(left);
+            secondEvents.add(right);
+        }
+        assertNotEquals(firstEvents, secondEvents, "The seed must affect event data, not merely identifiers");
+    }
+
+    @Test
+    void addingOtherTrucksDoesNotPerturbAnExistingTrucksSeededStream() {
+        Simulation solo = new Simulation(42, 1, 0, false);
+        Simulation fleet = new Simulation(42, 8, 0, false);
+        assertEquals(solo.step(START + 600_000),
+                fleet.step(START + 600_000).stream().filter(e -> e.key().equals("truck-001")).toList());
+        fleet.addTruck(513.0, 713.0);
+        assertEquals(solo.step(START + 1_200_000),
+                fleet.step(START + 1_200_000).stream().filter(e -> e.key().equals("truck-001")).toList());
+    }
+
+    @Test
     void allNormalEventsMeetWireContractAndHaveStrictPerTruckTimes() throws Exception {
         Simulation simulation = new Simulation(42, 8, 0, true);
         Map<String, Long> times = new HashMap<>();
@@ -337,23 +367,30 @@ class SimulationTest {
 
     private static void validate(JsonNode event, String key) {
         assertTrue(event.isObject());
-        assertEquals(6, event.size());
+        Set<String> fields = new HashSet<>();
+        event.fieldNames().forEachRemaining(fields::add);
+        assertEquals(Set.of("eventId", "schemaVersion", "type", "eventTime", "key", "payload"), fields);
         assertTrue(event.path("eventId").isTextual());
         assertFalse(event.path("eventId").asText().isEmpty());
         assertTrue(event.path("schemaVersion").isIntegralNumber());
         assertEquals(1, event.path("schemaVersion").intValue());
         assertTrue(event.path("eventTime").isIntegralNumber());
+        assertTrue(event.path("eventTime").canConvertToLong());
+        assertTrue(event.path("type").isTextual());
         assertTrue(event.path("key").isTextual());
         assertEquals(key, event.path("key").asText());
         JsonNode payload = event.path("payload");
         assertTrue(payload.isObject());
         assertTrue(payload.path("truckId").isTextual());
         assertEquals(key, payload.path("truckId").asText());
+        Set<String> payloadFields = new HashSet<>();
+        payload.fieldNames().forEachRemaining(payloadFields::add);
         for (String coordinate : List.of("x", "y")) {
             assertTrue(payload.path(coordinate).isNumber());
             assertTrue(payload.path(coordinate).asDouble() >= 0 && payload.path(coordinate).asDouble() <= 2000);
         }
         if (event.path("type").asText().equals("truck.position")) {
+            assertEquals(Set.of("truckId", "x", "y", "speedKmh", "heading", "routeId", "status"), payloadFields);
             assertTrue(payload.path("speedKmh").isNumber());
             assertTrue(payload.path("speedKmh").asDouble() >= 0);
             assertTrue(payload.path("heading").isNumber());
@@ -362,6 +399,7 @@ class SimulationTest {
             assertTrue(Set.of("DRIVING", "UNLOADING", "IDLE", "STOPPED").contains(payload.path("status").asText()));
         } else {
             assertEquals("truck.delivery", event.path("type").asText());
+            assertEquals(Set.of("truckId", "stopId", "x", "y", "parcels"), payloadFields);
             assertTrue(payload.path("stopId").isTextual());
             assertTrue(payload.path("parcels").isIntegralNumber());
             assertTrue(payload.path("parcels").intValue() >= 1);

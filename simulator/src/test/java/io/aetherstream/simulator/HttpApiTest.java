@@ -60,6 +60,7 @@ class HttpApiTest {
         assertThat(response.statusCode()).isEqualTo(200);
         assertThat(response.headers().firstValue("Content-Type")).hasValue("application/json; charset=utf-8");
         JsonNode state = json(response);
+        assertStateSchema(state);
         assertThat(state.path("running").booleanValue()).isFalse();
         assertThat(state.path("timeScale").doubleValue()).isEqualTo(3.5);
         assertThat(state.path("simTime").longValue()).isEqualTo(Simulation.START_EPOCH_MS);
@@ -86,9 +87,38 @@ class HttpApiTest {
     }
 
     @Test
+    void truckAddedWithCoordinatesEmitsPositionsAndDeliveriesAndStartsAnotherRoute() throws Exception {
+        assertAddedTruckJoinsLoop("{\"x\":503,\"y\":697}", 600, 697);
+    }
+
+    @Test
+    void truckAddedWithoutBodyEmitsPositionsAndDeliveriesAndStartsAnotherRoute() throws Exception {
+        assertAddedTruckJoinsLoop(null, 1000, 1000);
+    }
+
+    @Test
+    void deletingAnActiveTruckStopsItsFutureEventsWithoutStoppingOtherTrucks() throws Exception {
+        String truckId = json(success("POST", "/trucks", "{}")).required("truckId").textValue();
+        synchronized (simulation) {
+            assertThat(simulation.step(simulation.now() + 2000))
+                    .extracting(Simulation.Emission::key).contains(truckId);
+        }
+        HttpResponse<String> deleted = request("DELETE", "/trucks/" + truckId, null);
+        assertThat(deleted.statusCode()).isEqualTo(204);
+        assertThat(deleted.body()).isEmpty();
+        synchronized (simulation) {
+            List<Simulation.Emission> subsequent = simulation.step(simulation.now() + 600_000);
+            assertThat(subsequent).isNotEmpty();
+            assertThat(subsequent).extracting(Simulation.Emission::key)
+                    .containsOnly("truck-001");
+        }
+    }
+
+    @Test
     void changesControlAndReturnsCurrentState() throws Exception {
         JsonNode paused = json(success("POST", "/control",
                 "{\"running\":false,\"timeScale\":2.5,\"ignored\":{\"anything\":true}}"));
+        assertStateSchema(paused);
         assertThat(paused.path("running").booleanValue()).isFalse();
         assertThat(paused.path("timeScale").doubleValue()).isEqualTo(2.5);
         assertThat(paused.path("trucks").isArray()).isTrue();
@@ -97,6 +127,7 @@ class HttpApiTest {
         assertThat(resumed.path("timeScale").doubleValue()).isEqualTo(2.5);
         JsonNode faster = json(success("POST", "/control", "{\"timeScale\":20}"));
         assertThat(faster.path("running").booleanValue()).isTrue();
+        assertStateSchema(faster);
         assertThat(faster.path("timeScale").doubleValue()).isEqualTo(20);
     }
 
@@ -217,13 +248,56 @@ class HttpApiTest {
     }
 
     @Test
+    void repeatedLateCallsSubmitExactCountsAtCurrentSimulationTimeWithFreshNumberedIds() throws Exception {
+        List<String> eventIds = new ArrayList<>();
+        int suffix = 0;
+        for (int count : List.of(3, 4)) {
+            long now;
+            long emittedBefore;
+            int submittedBefore;
+            synchronized (simulation) {
+                simulation.step(simulation.now() + 12_345);
+                now = simulation.now();
+                emittedBefore = simulation.state(true, 10).required("emitted").longValue();
+                submittedBefore = submitted.size();
+            }
+            long lateByMs = count == 3 ? 180_000 : 0;
+            JsonNode response = json(success("POST", "/chaos/late",
+                    "{\"count\":" + count + ",\"lateByMs\":" + lateByMs + "}"));
+            assertThat(response).isEqualTo(Json.MAPPER.createObjectNode().put("sent", count));
+            synchronized (simulation) {
+                List<Simulation.Emission> batch = submitted.subList(submittedBefore, submitted.size());
+                assertThat(batch).hasSize(count);
+                for (Simulation.Emission emission : batch) {
+                    JsonNode record = Json.MAPPER.readTree(emission.json());
+                    assertThat(record.required("type").textValue()).isEqualTo("truck.position");
+                    assertThat(record.required("schemaVersion").intValue()).isEqualTo(1);
+                    assertThat(record.required("eventTime").longValue()).isEqualTo(now - lateByMs);
+                    assertThat(record.required("key").textValue()).isEqualTo(emission.key());
+                    assertThat(record.required("payload").required("truckId").textValue())
+                            .isEqualTo(emission.key());
+                    String eventId = record.required("eventId").textValue();
+                    assertThat(eventId).matches("s42-truck-001-\\d{6}-late-" + ++suffix);
+                    eventIds.add(eventId);
+                }
+            }
+            JsonNode state = json(success("GET", "/state", null));
+            assertThat(state.required("simTime").longValue()).isEqualTo(now);
+            assertThat(state.required("emitted").longValue()).isEqualTo(emittedBefore + count);
+        }
+        assertThat(eventIds).hasSize(7).doesNotHaveDuplicates();
+    }
+
+    @Test
     void rejectsInvalidChaosFieldsWithoutEmitting() throws Exception {
         List<String> badCounts = List.of("{}", "{\"count\":null}", "{\"count\":\"1\"}",
                 "{\"count\":true}", "{\"count\":1.0}", "{\"count\":-1}",
                 "{\"count\":2147483648}", "[]", "null", "{", "");
-        for (String route : List.of("/chaos/duplicates", "/chaos/malformed")) {
+        for (String route : List.of("/chaos/duplicates", "/chaos/malformed", "/chaos/late")) {
             for (String body : badCounts) {
-                assertError(request("POST", route, body), 400);
+                String invalid = route.equals("/chaos/late") && body.startsWith("{")
+                        ? body.replaceFirst("\\{", "{\"lateByMs\":0,") : body;
+                assertError(request("POST", route, invalid), 400);
             }
         }
         for (String value : List.of("null", "\"1\"", "true", "0.5", "-1", "9223372036854775808")) {
@@ -252,9 +326,11 @@ class HttpApiTest {
 
     @Test
     void invalidTruckBodiesNeverAddATruck() throws Exception {
-        for (String body : List.of("[]", "null", "{", "{} {}", "{\"x\":500}",
-                "{\"x\":500,\"y\":\"700\"}", "{\"x\":null,\"y\":700}",
-                "{\"x\":-1,\"y\":700}", "{\"x\":500,\"y\":2001}", "{\"x\":1e400,\"y\":700}")) {
+        for (String body : List.of("[]", "null", "{", "{} {}", "{\"x\":500}", "{\"y\":700}",
+                "{\"x\":500,\"y\":\"700\"}", "{\"x\":null,\"y\":700}", "{\"x\":true,\"y\":700}",
+                "{\"x\":500,\"y\":null}", "{\"x\":[],\"y\":700}", "{\"x\":500,\"y\":{}}",
+                "{\"x\":-1,\"y\":700}", "{\"x\":2001,\"y\":700}", "{\"x\":500,\"y\":-1}",
+                "{\"x\":500,\"y\":2001}", "{\"x\":1e400,\"y\":700}", "{\"x\":500,\"y\":1e400}")) {
             assertError(request("POST", "/trucks", body), 400);
         }
         assertThat(json(success("GET", "/state", null)).path("trucks").size()).isEqualTo(1);
@@ -297,9 +373,96 @@ class HttpApiTest {
         }
     }
 
+    private void assertAddedTruckJoinsLoop(String body, double expectedX, double expectedY) throws Exception {
+        // Add after time has advanced: a new truck must start now, not replay from the simulation epoch.
+        long addedAt;
+        synchronized (simulation) {
+            simulation.step(simulation.now() + 12_345);
+            addedAt = simulation.now();
+        }
+        JsonNode response = json(success("POST", "/trucks", body));
+        assertThat(response.size()).isEqualTo(1);
+        String truckId = response.required("truckId").textValue();
+        assertThat(truckId).isEqualTo("truck-002");
+        List<JsonNode> positions = new ArrayList<>();
+        List<JsonNode> deliveries = new ArrayList<>();
+        synchronized (simulation) {
+            for (Simulation.Emission emission : simulation.step(addedAt + 7_200_000)) {
+                if (!emission.key().equals(truckId)) {
+                    continue;
+                }
+                JsonNode record = Json.MAPPER.readTree(emission.json());
+                assertThat(record.required("key").textValue()).isEqualTo(truckId);
+                assertThat(record.required("payload").required("truckId").textValue()).isEqualTo(truckId);
+                assertThat(record.required("eventTime").longValue()).isGreaterThanOrEqualTo(addedAt);
+                switch (record.required("type").textValue()) {
+                    case "truck.position" -> positions.add(record);
+                    case "truck.delivery" -> deliveries.add(record);
+                    default -> throw new AssertionError("Unexpected truck event: " + record);
+                }
+            }
+        }
+        assertThat(positions).hasSize(3601);
+        JsonNode first = positions.getFirst();
+        assertThat(first.required("eventTime").longValue()).isEqualTo(addedAt);
+        assertThat(first.required("payload").required("x").doubleValue())
+                .isBetween(expectedX - 1, expectedX + 1);
+        assertThat(first.required("payload").required("y").doubleValue())
+                .isBetween(expectedY - 1, expectedY + 1);
+        assertThat(positions.stream().map(record -> record.required("payload").required("routeId").textValue())
+                .distinct().count()).as("the added truck must complete a loop and start another route")
+                .isGreaterThanOrEqualTo(2);
+        assertThat(positions).extracting(record -> record.required("payload").required("status").textValue())
+                .contains("DRIVING", "UNLOADING");
+        assertThat(deliveries).isNotEmpty();
+        JsonNode stops = json(success("GET", "/state", null)).required("stops");
+        for (JsonNode delivery : deliveries) {
+            JsonNode payload = delivery.required("payload");
+            assertThat(payload.required("parcels").isIntegralNumber()).isTrue();
+            assertThat(payload.required("parcels").intValue()).isPositive();
+            boolean knownStop = false;
+            for (JsonNode stop : stops) {
+                if (stop.required("stopId").equals(payload.required("stopId"))) {
+                    assertThat(payload.required("x")).isEqualTo(stop.required("x"));
+                    assertThat(payload.required("y")).isEqualTo(stop.required("y"));
+                    knownStop = true;
+                    break;
+                }
+            }
+            assertThat(knownStop).as("delivery stop %s", payload).isTrue();
+        }
+    }
+
+    private static void assertStateSchema(JsonNode state) {
+        assertThat(state.required("running").isBoolean()).isTrue();
+        assertThat(state.required("timeScale").isNumber()).isTrue();
+        assertThat(state.required("simTime").isIntegralNumber()).isTrue();
+        assertThat(state.required("emitted").isIntegralNumber()).isTrue();
+        assertThat(state.required("depot").required("x").doubleValue()).isEqualTo(1000);
+        assertThat(state.required("depot").required("y").doubleValue()).isEqualTo(1000);
+        assertThat(state.required("trucks").isArray()).isTrue();
+        for (JsonNode truck : state.required("trucks")) {
+            assertThat(truck.required("truckId").textValue()).isNotBlank();
+            assertThat(truck.required("routeId").textValue()).isNotBlank();
+            assertThat(truck.required("x").isNumber()).isTrue();
+            assertThat(truck.required("y").isNumber()).isTrue();
+            assertThat(truck.required("speedKmh").isNumber()).isTrue();
+            assertThat(truck.required("heading").isNumber()).isTrue();
+            assertThat(truck.required("status").textValue())
+                    .isIn("DRIVING", "UNLOADING", "IDLE", "STOPPED");
+        }
+        assertThat(state.required("stops").isArray()).isTrue();
+        for (JsonNode stop : state.required("stops")) {
+            assertThat(stop.required("stopId").textValue()).isNotBlank();
+            assertThat(stop.required("x").isNumber()).isTrue();
+            assertThat(stop.required("y").isNumber()).isTrue();
+        }
+    }
+
     private HttpResponse<String> success(String method, String path, String body) throws Exception {
         HttpResponse<String> response = request(method, path, body);
         assertThat(response.statusCode()).as("%s %s: %s", method, path, response.body()).isEqualTo(200);
+        assertThat(response.headers().firstValue("Content-Type")).hasValue("application/json; charset=utf-8");
         return response;
     }
 

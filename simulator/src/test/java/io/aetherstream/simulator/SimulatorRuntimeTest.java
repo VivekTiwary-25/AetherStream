@@ -16,6 +16,7 @@ import java.util.Map;
 import java.util.OptionalLong;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 class SimulatorRuntimeTest {
@@ -23,6 +24,18 @@ class SimulatorRuntimeTest {
 
     private static SimulatorConfig config(double scale) {
         return new SimulatorConfig(42, scale, 8, 0, false, "unused:9092", "truck-events");
+    }
+
+    @Test
+    @Disabled("BUG: runtime event IDs include a UUID prefix instead of the contract's six-digit sequence")
+    void runtimeUsesTheContractEventIdFormat() throws Exception {
+        SimulatorRuntime runtime = new SimulatorRuntime(config(10), ANCHOR, () -> ANCHOR, OptionalLong.empty());
+        List<Simulation.Emission> records = runtime.tick();
+        assertEquals(8, records.size());
+        for (Simulation.Emission record : records) {
+            JsonNode event = Json.MAPPER.readTree(record.json());
+            assertEquals("s42-" + record.key() + "-000001", event.path("eventId").textValue());
+        }
     }
 
     @Test
