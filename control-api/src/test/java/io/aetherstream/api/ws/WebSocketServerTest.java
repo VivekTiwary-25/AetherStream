@@ -8,6 +8,7 @@ import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.aetherstream.api.org.OrgMigration;
 import io.aetherstream.api.ws.IncrementalResultRepository;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -38,6 +39,7 @@ class WebSocketServerTest {
     @MockitoBean ResultRepository results;
     @MockitoBean IncrementalResultRepository incremental;
     @MockitoBean JdbcTemplate jdbc;
+    @MockitoBean OrgMigration migration;
 
     @Test
     void standardClientReceivesSnapshotWithinThreeSecondsAndLiveUpdates() throws Exception {
@@ -54,7 +56,8 @@ class WebSocketServerTest {
         when(simulator.state()).thenReturn(simulatorState);
         when(results.currentExecutionId()).thenReturn("exec-1");
         when(results.summary("exec-1", 40.0)).thenReturn(Map.of("executionId", "exec-1", "windowsWritten", 7));
-        when(jdbc.query(startsWith("SELECT id,pipeline_id"), org.mockito.ArgumentMatchers.<RowMapper<Map<String, Object>>>any(), eq("exec-1")))
+        when(jdbc.query(startsWith("SELECT id,pipeline_id"), org.mockito.ArgumentMatchers.<RowMapper<Map<String, Object>>>any(),
+                eq("exec-1"), eq("demo")))
                 .thenReturn(List.of(execution));
         when(incremental.counts("exec-1")).thenReturn(new IncrementalResultRepository.Counts(0, 0));
         Messages messages = new Messages();

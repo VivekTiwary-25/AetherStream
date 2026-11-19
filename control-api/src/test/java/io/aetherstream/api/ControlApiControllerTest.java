@@ -1,6 +1,9 @@
 package io.aetherstream.api;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -10,6 +13,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
@@ -37,6 +42,9 @@ class ControlApiControllerTest {
     }
 
     @Test void chaosEndpointProxiesPayload() throws Exception {
+        when(results.currentExecutionId()).thenReturn("exec-1");
+        when(jdbc.queryForObject(anyString(), eq(Boolean.class), eq("exec-1"), eq("demo"))).thenReturn(true);
+        when(coordinator.state()).thenReturn(mapper.readTree("{\"execution\":{\"id\":\"exec-1\",\"state\":\"RUNNING\"}}"));
         when(simulator.post(org.mockito.ArgumentMatchers.eq("/chaos/duplicates"), any()))
                 .thenReturn(mapper.readTree("{\"sent\":2}"));
         mvc.perform(post("/api/chaos/duplicates").contentType("application/json").content("{\"count\":2}"))
@@ -62,5 +70,42 @@ class ControlApiControllerTest {
                 .andExpect(jsonPath("$.deliveriesLastMinute").value(2.0))
                 .andExpect(jsonPath("$.avgSpeedLastMinute").value(31.2))
                 .andExpect(jsonPath("$.eventsPerSec").value(0.0));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"", "a_b", "a.b", "a b", "é", "a,b", "a/b", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"})
+    void invalidOrgIsRejectedBeforeDispatch(String org) throws Exception {
+        mvc.perform(get("/api/health").header("X-Org", org))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.error").value("INVALID_ORG"));
+    }
+
+    @Test void multipleOrgHeadersAreRejected() throws Exception {
+        mvc.perform(get("/api/health").header("X-Org", "a", "b"))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.error").value("INVALID_ORG"));
+    }
+
+    @Test void foreignExecutionMutationsAndCheckpointsNeverReachCoordinator() throws Exception {
+        mvc.perform(post("/api/executions/foreign/stop").header("X-Org", "b"))
+                .andExpect(status().isNotFound()).andExpect(jsonPath("$.error").value("NOT_FOUND"));
+        mvc.perform(get("/api/executions/foreign/checkpoints").header("X-Org", "b"))
+                .andExpect(status().isNotFound()).andExpect(jsonPath("$.error").value("NOT_FOUND"));
+        verifyNoInteractions(coordinator, results);
+    }
+
+    @Test void chaosWithoutOwnedCurrentExecutionDoesNotReachSharedServices() throws Exception {
+        mvc.perform(post("/api/chaos/duplicates").header("X-Org", "b")
+                        .contentType("application/json").content("{\"count\":2}"))
+                .andExpect(status().isNotFound()).andExpect(jsonPath("$.error").value("NOT_FOUND"));
+        verifyNoInteractions(coordinator, simulator);
+    }
+
+    @Test void chaosCannotTargetAnotherOrganisationsActiveExecution() throws Exception {
+        when(results.currentExecutionId()).thenReturn("own-stopped");
+        when(jdbc.queryForObject(anyString(), eq(Boolean.class), eq("own-stopped"), eq("b"))).thenReturn(true);
+        when(coordinator.state()).thenReturn(mapper.readTree("{\"execution\":{\"id\":\"foreign\",\"state\":\"RUNNING\"}}"));
+        mvc.perform(post("/api/chaos/duplicates").header("X-Org", "b")
+                        .contentType("application/json").content("{\"count\":2}"))
+                .andExpect(status().isNotFound()).andExpect(jsonPath("$.error").value("NOT_FOUND"));
+        verifyNoInteractions(simulator);
     }
 }

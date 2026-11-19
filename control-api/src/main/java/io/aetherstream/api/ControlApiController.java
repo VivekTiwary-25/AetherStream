@@ -2,6 +2,9 @@ package io.aetherstream.api;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.aetherstream.api.org.OrgAccess;
+import io.aetherstream.api.org.OrgContext;
+import io.aetherstream.api.org.OrgException;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
@@ -12,6 +15,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -69,11 +73,13 @@ class ControlApiController {
     }
     @GetMapping("/executions/{id}") Map<String,Object> getExecution(@PathVariable String id) { return execution(id); }
     @PostMapping("/executions/{id}/stop") Map<String,Object> stopExecution(@PathVariable String id) {
+        OrgAccess.requireExecution(jdbc, id);
         coordinator.stop(id);
         return execution(id);
     }
     @GetMapping("/executions/{id}/checkpoints") List<Map<String,Object>> checkpoints(
             @PathVariable String id, @RequestParam(defaultValue = "20") int limit) {
+        OrgAccess.requireExecution(jdbc, id);
         return results.checkpoints(id, bounded(limit, 20, 500));
     }
 
@@ -92,22 +98,51 @@ class ControlApiController {
         String id = results.currentExecutionId();
         double rate = 0;
         try {
-            JsonNode workers = coordinator.state().path("workers");
-            for (JsonNode worker : workers) if (worker.path("alive").asBoolean()) rate += worker.path("recordsPerSec").asDouble();
+            JsonNode cluster = coordinator.state();
+            if (id != null && id.equals(cluster.path("execution").path("id").asText()))
+                for (JsonNode worker : cluster.path("workers"))
+                    if (worker.path("alive").asBoolean()) rate += worker.path("recordsPerSec").asDouble();
         } catch (RuntimeException ignored) { }
         return results.summary(id, rate);
     }
 
-    @PostMapping("/chaos/late-events") JsonNode late(@RequestBody JsonNode body) { return simulator.post("/chaos/late", body); }
-    @PostMapping("/chaos/duplicates") JsonNode duplicates(@RequestBody JsonNode body) { return simulator.post("/chaos/duplicates", body); }
-    @PostMapping("/chaos/malformed") JsonNode malformed(@RequestBody JsonNode body) { return simulator.post("/chaos/malformed", body); }
-    @PostMapping("/chaos/slow-sink") JsonNode slowSink(@RequestBody JsonNode body) { return coordinator.chaos("/coord/chaos/sink-delay", body); }
-    @PostMapping("/chaos/kill-worker") JsonNode killWorker(@RequestBody JsonNode body) { return coordinator.chaos("/coord/chaos/kill", body); }
+    @PostMapping("/chaos/late-events") @Transactional
+    public JsonNode late(@RequestBody JsonNode body) {
+        requireChaosExecution(); return simulator.post("/chaos/late", body);
+    }
+    @PostMapping("/chaos/duplicates") @Transactional
+    public JsonNode duplicates(@RequestBody JsonNode body) {
+        requireChaosExecution(); return simulator.post("/chaos/duplicates", body);
+    }
+    @PostMapping("/chaos/malformed") @Transactional
+    public JsonNode malformed(@RequestBody JsonNode body) {
+        requireChaosExecution(); return simulator.post("/chaos/malformed", body);
+    }
+    @PostMapping("/chaos/slow-sink") @Transactional
+    public JsonNode slowSink(@RequestBody JsonNode body) {
+        requireChaosExecution(); return coordinator.chaos("/coord/chaos/sink-delay", body);
+    }
+    @PostMapping("/chaos/kill-worker") @Transactional
+    public JsonNode killWorker(@RequestBody JsonNode body) {
+        requireChaosExecution(); return coordinator.chaos("/coord/chaos/kill", body);
+    }
     @GetMapping("/simulator/state") JsonNode simulatorState() { return simulator.state(); }
     @PostMapping("/simulator/trucks") JsonNode addTruck(@RequestBody JsonNode body) { return simulator.post("/trucks", body); }
 
+    private void requireChaosExecution() {
+        // Chaos targets shared services; serialize it with starts/restores and verify their active target.
+        jdbc.execute("SELECT pg_advisory_xact_lock(1095062612)");
+        String id = results.currentExecutionId();
+        if (id == null) throw new OrgException(HttpStatus.NOT_FOUND, "NOT_FOUND", "execution not found");
+        OrgAccess.requireExecution(jdbc, id);
+        JsonNode current = coordinator.state().path("execution");
+        if (!id.equals(current.path("id").asText())
+                || !List.of("RUNNING", "RECOVERING").contains(current.path("state").asText()))
+            throw new OrgException(HttpStatus.NOT_FOUND, "NOT_FOUND", "execution not found");
+    }
+
     private Map<String,Object> execution(String id) {
-        List<Map<String,Object>> rows = jdbc.query("SELECT id,pipeline_id,pipeline_version,state,generation,restored_from_checkpoint,created_at FROM executions WHERE id=?",
+        List<Map<String,Object>> rows = jdbc.query("SELECT id,pipeline_id,pipeline_version,state,generation,restored_from_checkpoint,created_at FROM executions WHERE id=? AND org_id=?",
                 (rs, row) -> {
                     Map<String,Object> value = new java.util.LinkedHashMap<>();
                     value.put("id", rs.getString("id")); value.put("pipelineId", rs.getString("pipeline_id"));
@@ -117,7 +152,7 @@ class ControlApiController {
                     value.put("lastCompletedCheckpoint", lastCompleted(id));
                     value.put("createdAt", rs.getTimestamp("created_at").toInstant().toString());
                     return value;
-                }, id);
+                }, id, OrgContext.current());
         if (rows.isEmpty()) throw new ApiException(HttpStatus.NOT_FOUND, "NOT_FOUND", "execution not found");
         return rows.get(0);
     }
@@ -144,6 +179,10 @@ class ApiException extends RuntimeException {
 
 @RestControllerAdvice
 class ApiErrorHandler {
+    @ExceptionHandler(OrgException.class)
+    ResponseEntity<Map<String,String>> org(OrgException e) {
+        return ResponseEntity.status(e.status()).body(Map.of("error", e.code(), "message", e.getMessage()));
+    }
     @ExceptionHandler(NoResourceFoundException.class)
     ResponseEntity<Map<String,String>> notFound(NoResourceFoundException e) {
         return ResponseEntity.status(e.getStatusCode()).body(Map.of("error", "NOT_FOUND", "message", "endpoint not found"));

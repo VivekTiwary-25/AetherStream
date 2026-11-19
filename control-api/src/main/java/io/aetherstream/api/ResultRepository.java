@@ -2,6 +2,7 @@ package io.aetherstream.api;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.aetherstream.api.org.OrgContext;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
@@ -17,8 +18,8 @@ class ResultRepository {
     ResultRepository(JdbcTemplate jdbc, ObjectMapper mapper) { this.jdbc = jdbc; this.mapper = mapper; }
 
     String currentExecutionId() {
-        List<String> ids = jdbc.query("SELECT id FROM executions ORDER BY (state <> 'STOPPED') DESC, created_at DESC LIMIT 1",
-                (rs, row) -> rs.getString(1));
+        List<String> ids = jdbc.query("SELECT id FROM executions WHERE org_id=? ORDER BY (state <> 'STOPPED') DESC, created_at DESC LIMIT 1",
+                (rs, row) -> rs.getString(1), OrgContext.current());
         return ids.isEmpty() ? null : ids.get(0);
     }
 

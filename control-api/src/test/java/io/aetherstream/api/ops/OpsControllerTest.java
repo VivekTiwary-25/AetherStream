@@ -21,7 +21,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.sun.net.httpserver.HttpServer;
+import io.aetherstream.api.org.OrgContext;
 import io.aetherstream.common.pipeline.PipelineDefinition;
 import io.aetherstream.compiler.PipelineCompiler;
 import java.io.IOException;
@@ -56,7 +58,7 @@ class OpsControllerTest {
     @MockitoBean OpsCoordinatorClient coordinator;
     @MockitoBean JdbcTemplate jdbc;
     private JsonNode plan;
-    private JsonNode saved;
+    private ObjectNode saved;
 
     @BeforeEach void setup() throws Exception {
         PipelineDefinition demo = PipelineCompiler.demoPipeline();
@@ -66,9 +68,16 @@ class OpsControllerTest {
                 .put("createdAt", CREATED_AT);
         ResultSet row = mock(ResultSet.class);
         when(row.getString(1)).thenReturn(plan.toString());
-        when(jdbc.query(contains("SELECT latest.plan"), ArgumentMatchers.<RowMapper<JsonNode>>any(), eq(ID)))
+        when(jdbc.queryForObject("SELECT EXISTS (SELECT 1 FROM executions WHERE id=? AND org_id=?)",
+                Boolean.class, ID, "demo")).thenReturn(true);
+        when(jdbc.query(eq("SELECT id FROM executions WHERE org_id=?"), ArgumentMatchers.<RowMapper<String>>any(), eq("demo")))
+                .thenReturn(List.of(ID));
+        when(coordinator.savepoints()).thenReturn(mapper.createArrayNode().add(
+                saved.deepCopy().put("executionId", ID)));
+        when(jdbc.query(contains("SELECT latest.plan"), ArgumentMatchers.<RowMapper<JsonNode>>any(), eq(ID), eq("demo")))
                 .thenAnswer(invocation -> List.of(invocation.<RowMapper<JsonNode>>getArgument(1).mapRow(row, 0)));
-        when(jdbc.update(startsWith("UPDATE executions SET idempotency_key="), anyString(), anyString())).thenReturn(1);
+        when(jdbc.update(startsWith("UPDATE executions SET idempotency_key="), anyString(), anyString(), anyString()))
+                .thenReturn(1);
         when(coordinator.restore(anyString(), any(), anyString()))
                 .thenAnswer(invocation -> execution(invocation.getArgument(0)));
     }
@@ -81,13 +90,30 @@ class OpsControllerTest {
         JsonNode detail = auditDetail("savepoint.requested");
         assertThat(detail.path("executionId").asText()).isEqualTo(ID);
         assertThat(detail.path("savepoint")).isEqualTo(saved);
+        assertThat(detail.path("orgId").asText()).isEqualTo("demo");
     }
 
-    @Test void listsCoordinatorSavepointsWithoutChangingThem() throws Exception {
-        JsonNode list = mapper.createArrayNode().add(saved);
-        when(coordinator.savepoints()).thenReturn(list);
-        mvc.perform(get("/api/savepoints")).andExpect(status().isOk()).andExpect(content().json(list.toString()));
+    @Test void listsOnlySavepointsWhoseExecutionBelongsToCaller() throws Exception {
+        JsonNode owned = saved.deepCopy().put("executionId", ID);
+        JsonNode foreign = saved.deepCopy().put("savepointId", "sp-foreign").put("executionId", "exec-foreign");
+        JsonNode malformed = mapper.createObjectNode().put("savepointId", "no-execution");
+        when(coordinator.savepoints()).thenReturn(mapper.createArrayNode().add(owned).add(foreign).add(malformed));
+        mvc.perform(get("/api/savepoints")).andExpect(status().isOk())
+                .andExpect(content().json(mapper.createArrayNode().add(owned).toString()));
+        verify(jdbc).query(eq("SELECT id FROM executions WHERE org_id=?"), ArgumentMatchers.<RowMapper<String>>any(), eq("demo"));
+    }
+
+    @Test void unexpectedSavepointResponseFailsClosed() throws Exception {
+        when(coordinator.savepoints()).thenReturn(mapper.createObjectNode().put("unexpected", "private"));
+        mvc.perform(get("/api/savepoints")).andExpect(status().isOk()).andExpect(content().json("[]"));
         verifyNoInteractions(jdbc);
+    }
+
+    @Test void savepointListDoesNotExposeDemoResourcesToAnotherOrg() throws Exception {
+        mvc.perform(get("/api/savepoints").header("X-Org", "acme"))
+                .andExpect(status().isOk()).andExpect(content().json("[]"));
+        verify(jdbc).query(eq("SELECT id FROM executions WHERE org_id=?"),
+                ArgumentMatchers.<RowMapper<String>>any(), eq("acme"));
     }
 
     @Test void restoreStopsBeforeStartingFromThePersistedPipelinePlanAndAttachesTheKey() throws Exception {
@@ -101,23 +127,26 @@ class OpsControllerTest {
         order.verify(jdbc).execute("SELECT pg_advisory_xact_lock(1095062612)");
         order.verify(coordinator).stop(ID);
         order.verify(coordinator).restore(newId, plan, SAVEPOINT);
-        order.verify(jdbc).update(startsWith("UPDATE executions SET idempotency_key="), eq(KEY), eq(newId));
+        order.verify(jdbc).update(startsWith("UPDATE executions SET idempotency_key="),
+                eq(OrgContext.idempotencyKey(KEY)), eq("demo"), eq(newId));
+        verify(jdbc).query(contains("latest.org_id=source.org_id"), ArgumentMatchers.<RowMapper<JsonNode>>any(), eq(ID), eq("demo"));
         JsonNode detail = auditDetail("execution.restored");
         assertThat(detail.path("executionId").asText()).isEqualTo(ID);
         assertThat(detail.path("savepointId").asText()).isEqualTo(SAVEPOINT);
         assertThat(detail.path("execution")).isEqualTo(mapper.readTree(response));
+        assertThat(detail.path("orgId").asText()).isEqualTo("demo");
     }
 
     @Test void replayingTheRestoreKeyDoesNotStopOrStartAgain() throws Exception {
         JsonNode existing = execution("exec-restored");
-        when(jdbc.query(contains("WHERE idempotency_key=?"), ArgumentMatchers.<RowMapper<String>>any(), eq(KEY)))
-                .thenReturn(List.of("exec-restored"));
+        when(jdbc.query(contains("WHERE idempotency_key=?"), ArgumentMatchers.<RowMapper<String>>any(),
+                eq(OrgContext.idempotencyKey(KEY)), eq("demo"))).thenReturn(List.of("exec-restored"));
         when(coordinator.execution("exec-restored")).thenReturn(existing);
         mvc.perform(post("/api/executions/" + ID + "/restore").contentType("application/json").content(RESTORE_BODY))
                 .andExpect(status().isOk()).andExpect(content().json(existing.toString()));
         verify(coordinator, never()).stop(anyString());
         verify(coordinator, never()).restore(anyString(), any(), anyString());
-        verify(jdbc, never()).update(anyString(), any(), any());
+        verify(jdbc, never()).update(startsWith("UPDATE executions SET idempotency_key="), anyString(), anyString(), anyString());
     }
 
     @Test void rescaleReturnsTheCheckpointResponseAndAuditsIt() throws Exception {
@@ -128,6 +157,7 @@ class OpsControllerTest {
         JsonNode detail = auditDetail("execution.rescaled");
         assertThat(detail.path("executionId").asText()).isEqualTo(ID);
         assertThat(detail.path("result")).isEqualTo(response);
+        assertThat(detail.path("orgId").asText()).isEqualTo("demo");
     }
 
     @Test void incompatibleSavepointKeepsTheCoordinatorsExactErrorBody() throws Exception {
@@ -136,7 +166,7 @@ class OpsControllerTest {
                 .thenThrow(new OpsCoordinatorClient.ResponseException(409, error));
         mvc.perform(post("/api/executions/" + ID + "/restore").contentType("application/json").content(RESTORE_BODY))
                 .andExpect(status().isConflict()).andExpect(content().string(error));
-        verify(jdbc, never()).update(anyString(), any(), any());
+        verify(jdbc, never()).update(startsWith("UPDATE executions SET idempotency_key="), anyString(), anyString(), anyString());
     }
 
     @ParameterizedTest
@@ -153,7 +183,7 @@ class OpsControllerTest {
         var request = operation.equals("list") ? get("/api/savepoints")
                 : post("/api/executions/" + ID + "/" + operation).contentType("application/json").content(RESTORE_BODY);
         mvc.perform(request).andExpect(status().isBadGateway()).andExpect(jsonPath("$.error").value("UPSTREAM_DOWN"));
-        verify(jdbc, never()).update(anyString(), any(), any());
+        verify(jdbc, never()).update(startsWith("INSERT INTO audit_log"), anyString(), anyString());
     }
 
     @ParameterizedTest
@@ -164,7 +194,7 @@ class OpsControllerTest {
         else when(coordinator.rebalance(ID)).thenThrow(failure);
         mvc.perform(post("/api/executions/" + ID + "/" + operation))
                 .andExpect(status().isNotFound()).andExpect(jsonPath("$.error").value("NOT_FOUND"));
-        verifyNoInteractions(jdbc);
+        verify(jdbc, never()).update(startsWith("INSERT INTO audit_log"), anyString(), anyString());
     }
 
     @Test void unknownRestoreExecutionDoesNotStopAnything() throws Exception {
@@ -187,7 +217,62 @@ class OpsControllerTest {
         mvc.perform(post("/api/executions/" + ID + "/restore").contentType("application/json").content(RESTORE_BODY))
                 .andExpect(status().isBadGateway());
         verify(coordinator, never()).restore(anyString(), any(), anyString());
-        verify(jdbc, never()).update(anyString(), any(), any());
+        verify(jdbc, never()).update(startsWith("UPDATE executions SET idempotency_key="), anyString(), anyString(), anyString());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"savepoints", "restore", "rescale"})
+    void foreignExecutionIsHiddenBeforeCallingCoordinator(String operation) throws Exception {
+        mvc.perform(post("/api/executions/" + ID + "/" + operation).header("X-Org", "other")
+                        .contentType("application/json").content(RESTORE_BODY))
+                .andExpect(status().isNotFound()).andExpect(jsonPath("$.error").value("NOT_FOUND"));
+        verify(jdbc).queryForObject("SELECT EXISTS (SELECT 1 FROM executions WHERE id=? AND org_id=?)",
+                Boolean.class, ID, "other");
+        verifyNoInteractions(coordinator);
+        verify(jdbc, never()).query(contains("idempotency_key"), ArgumentMatchers.<RowMapper<String>>any(),
+                anyString(), anyString());
+    }
+
+    @Test void savepointFromAnotherExecutionIsRejectedBeforeIdempotencyLookup() throws Exception {
+        when(coordinator.savepoints()).thenReturn(mapper.createArrayNode().add(
+                saved.deepCopy().put("executionId", "exec-other")));
+        mvc.perform(post("/api/executions/" + ID + "/restore").contentType("application/json").content(RESTORE_BODY))
+                .andExpect(status().isNotFound()).andExpect(jsonPath("$.error").value("NOT_FOUND"));
+        verify(coordinator, never()).stop(anyString());
+        verify(coordinator, never()).restore(anyString(), any(), anyString());
+        verify(jdbc, never()).query(contains("idempotency_key"), ArgumentMatchers.<RowMapper<String>>any(),
+                anyString(), anyString());
+    }
+
+    @Test void foreignActiveExecutionCannotBeDisplacedByRestore() throws Exception {
+        when(jdbc.queryForObject("SELECT EXISTS (SELECT 1 FROM executions " +
+                        "WHERE state IN ('CREATED','RUNNING','RECOVERING') AND org_id<>?)",
+                Boolean.class, "demo")).thenReturn(true);
+        mvc.perform(post("/api/executions/" + ID + "/restore").contentType("application/json").content(RESTORE_BODY))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.error").value("EXECUTION_BUSY"));
+        var order = inOrder(jdbc);
+        order.verify(jdbc).execute("SELECT pg_advisory_xact_lock(1095062612)");
+        order.verify(jdbc).queryForObject(contains("org_id<>?"), eq(Boolean.class), eq("demo"));
+        verify(coordinator, never()).stop(anyString());
+        verify(coordinator, never()).restore(anyString(), any(), anyString());
+    }
+
+    @Test void restoreAttachesCallerOrgAndNamespacesTheKey() throws Exception {
+        when(jdbc.queryForObject("SELECT EXISTS (SELECT 1 FROM executions WHERE id=? AND org_id=?)",
+                Boolean.class, ID, "acme")).thenReturn(true);
+        ResultSet row = mock(ResultSet.class);
+        when(row.getString(1)).thenReturn(plan.toString());
+        when(jdbc.query(contains("SELECT latest.plan"), ArgumentMatchers.<RowMapper<JsonNode>>any(), eq(ID), eq("acme")))
+                .thenAnswer(invocation -> List.of(invocation.<RowMapper<JsonNode>>getArgument(1).mapRow(row, 0)));
+        String response = mvc.perform(post("/api/executions/" + ID + "/restore").header("X-Org", "acme")
+                        .contentType("application/json").content(RESTORE_BODY))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        String restoredId = mapper.readTree(response).path("id").asText();
+        verify(jdbc).query(contains("WHERE idempotency_key=? AND org_id=?"), ArgumentMatchers.<RowMapper<String>>any(),
+                eq("4:acme:" + KEY), eq("acme"));
+        verify(jdbc).update(startsWith("UPDATE executions SET idempotency_key="),
+                eq("4:acme:" + KEY), eq("acme"), eq(restoredId));
+        assertThat(auditDetail("execution.restored").path("orgId").asText()).isEqualTo("acme");
     }
 
     @Test void clientUsesCoordinatorRoutesAndTheFromSavepointWireShape() throws Exception {
