@@ -1,0 +1,11 @@
+{
+  "prompt": "Average speed per truck over the last 30 seconds",
+  "pipeline": {
+    "name": "Average speed per truck",
+    "nodes": [
+      {"id": "average", "type": "windowAverage", "params": {"field": "speedKmh", "windowSec": 30, "groupBy": "truckId"}},
+      {"id": "output", "type": "output", "params": {"name": "30-second average speed"}}
+    ],
+    "edges": [{"from": "average", "to": "output"}]
+  }
+}

@@ -262,6 +262,7 @@ services:
 
   web:
     <<: *app
+    extra_hosts: ["host.docker.internal:host-gateway"]
     build:
       context: .
       dockerfile: infra/docker/web.Dockerfile
