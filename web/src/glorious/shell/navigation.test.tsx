@@ -2,7 +2,7 @@ import type { ComponentProps } from 'react'
 import type * as WindowManagerModule from './WindowManager'
 import type { WindowsApi } from './windows'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { GloriousApp } from '../GloriousApp'
 import { useWindows } from './windows'
 
@@ -32,6 +32,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup()
+  vi.useRealTimers()
   vi.restoreAllMocks()
   vi.unstubAllGlobals()
   window.history.replaceState(null, '', '/')
@@ -64,8 +65,11 @@ describe('map-backed navigation', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Truck Speeds' }))
     const speeds = screen.getByRole('dialog', { name: 'Truck Speeds' })
 
+    vi.useFakeTimers()
     fireEvent.click(screen.getByRole('button', { name: 'Back to main navigation' }))
-    fireEvent.click(await screen.findByRole('button', { name: 'Pipelines' }))
+    act(() => vi.runOnlyPendingTimers())
+    vi.useRealTimers()
+    fireEvent.click(screen.getByRole('button', { name: 'Pipelines' }))
     expect(window.location.pathname).toBe('/pipelines')
     fireEvent.click(screen.getByRole('button', { name: 'Settings' }))
     fireEvent.click(await screen.findByRole('button', { name: 'Logs & Recovery' }))
@@ -93,5 +97,56 @@ describe('map-backed navigation', () => {
     act(() => windowsApi.open('pipelines.results', { title: 'Pipeline results', render: () => null }))
     expect(window.location.pathname).toBe('/pipelines')
     expect(screen.getByRole('dialog', { name: 'Pipeline results' })).toBeTruthy()
+  })
+})
+
+describe('phone navigation and sheets', () => {
+  beforeEach(() => {
+    vi.stubGlobal('matchMedia', vi.fn((query: string) => ({
+      matches: query === '(max-width: 768px)', addEventListener() {}, removeEventListener() {},
+    })))
+  })
+
+  it('keeps main destinations available and returns keyboard focus from sub-options', () => {
+    render(<GloriousApp />)
+    const main = within(screen.getByRole('navigation', { name: 'Main navigation' }))
+    fireEvent.click(main.getByRole('button', { name: 'Analytics' }))
+    expect(main.getByRole('button', { name: 'Home' })).toBeTruthy()
+    expect(main.getByRole('button', { name: 'Pipelines' })).toBeTruthy()
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Back to main navigation' }))
+    fireEvent.keyDown(document.activeElement!, { key: 'Escape' })
+    expect(screen.queryByRole('navigation', { name: 'Analytics options' })).toBeNull()
+    expect(document.activeElement).toBe(main.getByRole('button', { name: 'Analytics' }))
+    fireEvent.click(main.getByRole('button', { name: 'Settings' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Back to main navigation' }))
+    expect(document.activeElement).toBe(main.getByRole('button', { name: 'Settings' }))
+  })
+
+  it('dismisses the option sheet when opening a window', () => {
+    render(<GloriousApp />)
+    fireEvent.click(screen.getByRole('button', { name: 'Analytics' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Truck Speeds' }))
+    expect(screen.queryByRole('navigation', { name: 'Analytics options' })).toBeNull()
+    expect(screen.getByRole('dialog', { name: 'Truck Speeds' }).contains(document.activeElement)).toBe(true)
+  })
+
+  it('exposes only the newest sheet, preserves hidden state, and supports back and Escape', () => {
+    render(<GloriousApp />)
+    act(() => windowsApi.open('first', { title: 'First', render: () => <input aria-label="Draft" defaultValue="kept" /> }))
+    const first = screen.getByRole('dialog', { name: 'First' })
+    fireEvent.change(screen.getByRole('textbox', { name: 'Draft' }), { target: { value: 'edited' } })
+    act(() => windowsApi.open('second', {
+      title: 'Details', onBack: () => windowsApi.update('second', { title: 'List', onBack: undefined }),
+      render: () => <p>Second sheet</p>,
+    }))
+    expect(screen.queryByRole('dialog', { name: 'First' })).toBeNull()
+    expect(first.hasAttribute('inert')).toBe(true)
+    fireEvent.click(screen.getByRole('button', { name: /^Back$/ }))
+    expect(screen.getByRole('dialog', { name: 'List' })).toBeTruthy()
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(screen.getByRole('dialog', { name: 'First' })).toBe(first)
+    expect((screen.getByRole('textbox', { name: 'Draft' }) as HTMLInputElement).value).toBe('edited')
+    fireEvent.click(screen.getByRole('button', { name: 'Close First' }))
+    expect(screen.queryByRole('dialog')).toBeNull()
   })
 })
