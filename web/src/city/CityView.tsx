@@ -142,7 +142,7 @@ export function CityView() {
   const sectionClass = `city${dragOver ? ` city--drop city--drop-${dragOver}` : ''}${status.mode === 'disconnected' ? ' city--offline' : ''}`
   return <section ref={section} className={sectionClass} aria-label="Live delivery city"
     onDragOver={onDragOver} onDragLeave={(e) => { if (!section.current?.contains(e.relatedTarget as Node | null)) clearDrag() }} onDrop={onDrop}>
-    <div ref={host} className="city__canvas" onPointerMove={onPointerMove} onPointerLeave={() => { setHover(null); if (scene.current) scene.current.hoveredId = null }} />
+    <div ref={host} className="city__canvas" onMouseDown={(e) => { if (e.detail > 1) e.preventDefault() }} onPointerMove={onPointerMove} onPointerLeave={() => { setHover(null); if (scene.current) scene.current.hoveredId = null }} />
     <div className="city__vignette" aria-hidden="true" />
 
     <div className="city__glass city__title">
@@ -150,7 +150,7 @@ export function CityView() {
       <span>2 km grid · {hud.trucks} trucks · sim {simClock(hud.simTime)}</span>
     </div>
 
-    <div className={`city__glass city__status city__status--${status.mode}`} role="status" style={{ color: status.color }}>
+    <div className={`city__glass city__status city__status--${status.mode}`} role="status" title={status.label} style={{ color: status.color }}>
       <i className="city__dot" style={{ background: status.color, boxShadow: `0 0 10px ${status.color}` }} />{status.label}
     </div>
 
@@ -195,6 +195,6 @@ export function CityView() {
       <span className="city__legend-sep" />
       <span>{hud.workersAlive}/{hud.workers} workers · {hud.backpressured ? 'backpressured' : hud.workersAlive < hud.workers ? 'worker down' : 'healthy'}</span>
     </div>
-    <div className="city__glass city__hint" aria-hidden="true">scroll to zoom · drag to pan · double-click to reset</div>
+    <div className="city__glass city__hint" aria-hidden="true"><span className="city__hint-mouse">scroll to zoom · drag to pan · double-click to reset</span><span className="city__hint-touch">pinch to zoom · drag to pan · double-tap to reset</span></div>
   </section>
 }

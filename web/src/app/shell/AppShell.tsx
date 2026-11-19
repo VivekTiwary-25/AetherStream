@@ -6,10 +6,10 @@ import { OpsPanel } from '../ops'
 import { ScenarioPanel } from '../scenarios'
 import { CheckpointTimeline } from '../timeline'
 import { IntroSplash, TourOverlay } from '../tour'
-import { AlertsPanel, DeadLettersPanel, DeliveriesPanel, ExecutionBanner, SpeedWindowsPanel, WorkersPanel } from '../panels/LivePanels'
+import { AlertsPanel, DeadLettersPanel, DeliveriesPanel, ExecutionBanner, ExecutionStatusPill, SpeedWindowsPanel, WorkersPanel } from '../panels/LivePanels'
+import { useExecutionStatus } from '../state/executionStatus'
 import { useDashboard, DashboardProvider } from '../state/store'
 import { ClayButton } from '../ui/ClayButton'
-import { StatusPill, type StatusState } from '../ui/StatusPill'
 import { Footer } from './Footer'
 
 type PanelKey = 'speed' | 'deliveries' | 'alerts' | 'workers' | 'dead-letters' | 'chaos' | 'compare' | 'timeline' | 'ops' | 'scenarios'
@@ -26,21 +26,12 @@ function readCollapsed(): Partial<Record<PanelKey, boolean>> {
 }
 
 function DashboardShell() {
-  const { execution, workers, socketStatus } = useDashboard()
+  const { execution, socketStatus } = useDashboard()
+  // Same derived state as the execution banner, so the header badge never contradicts it.
+  const { status } = useExecutionStatus()
   const [collapsed, setCollapsed] = useState(readCollapsed)
   const [editorOpen, setEditorOpen] = useState(false)
   const [tourOpen, setTourOpen] = useState(false)
-  const backpressured = workers.some((worker) => worker?.alive && worker?.backpressured)
-  const recoveringWorker = workers.some((worker) => worker?.alive && worker?.state === 'RESTORING')
-  const status: StatusState | 'stopped' = execution?.state === 'FAILED'
-    ? 'failed'
-    : execution?.state === 'RECOVERING' || recoveringWorker
-      ? 'recovering'
-      : execution?.state === 'RUNNING' && backpressured
-        ? 'backpressured'
-        : execution?.state === 'RUNNING'
-          ? 'running'
-          : 'stopped'
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -71,12 +62,12 @@ function DashboardShell() {
   )
 
   return (
-    <main className="app-shell">
+    <main className={`app-shell${socketStatus === 'disconnected' ? ' app-shell--offline' : ''}`}>
       <div className="app-city" data-tour="city"><CityView /></div>
       <header className="app-topbar">
         <div className="app-heading">
           <div><p className="app-eyebrow">STREAM PROCESSING CONTROL</p><h1>AetherStream</h1></div>
-          {status === 'stopped' ? <span className="status-pill status-pill--stopped"><span className="status-pill__dot" aria-hidden="true" />Stopped</span> : <StatusPill state={status} />}
+          <ExecutionStatusPill status={status} />
           <span className={`connection-dot connection-dot--${socketStatus}`} role="status" aria-label={`WebSocket ${socketStatus}`} title={`WebSocket ${socketStatus}`} />
           <div className="app-actions">
             <ClayButton variant="ghost" onClick={() => { setEditorOpen(false); setTourOpen(true) }} aria-label="Start tour" data-tour="tour">Tour</ClayButton>
