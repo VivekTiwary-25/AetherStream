@@ -1,0 +1,5 @@
+# Full web suite on latest ui-glorious + investigate App.test.tsx timeout
+
+Files: web/src/App.test.tsx or the code it exercises, ONLY if there is a real cause (smallest fix). Do NOT read or describe swarm/. Do NOT start Docker (the live demo runs on this PC).
+
+On a clean checkout of the latest ui-glorious: in web/ npm ci, npm run lint, npm test -- --maxWorkers=2 (full suite), npm run build (report main chunk size), npm run check:no-mock. A previous rehearsal saw web/src/App.test.tsx:14 time out at 5000 ms once (classic App render). Run that file alone 5 times and the full suite twice: if it is load-dependent flakiness (passes alone, slow under load), raise only that test's timeout with a comment explaining why; if it fails consistently, find and fix the real cause. Report a table: suite -> result, and the App.test verdict.

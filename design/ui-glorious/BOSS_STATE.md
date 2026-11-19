@@ -46,6 +46,14 @@ Fresh boss session: read swarm/BOSS.md, then design/ui-glorious/BOSS_PROMPT.md (
 - ONLY thing to protect: the boss session's tokens (ran out briefly tonight). Keep context lean, delegate, warn Vivek early if low.
 - GOTCHA: pushing swarm .py code while long tasks run stalls dispatch on that PC until they finish (_first_runnable waits for restart). Config JSON pushes are safe.
 
+## 05:13
+- Merged 04:56-05:12: visual polish 933d, demo doc r2 28b4, preflight a41a (+ boss PS5.1 fix 770024d; live run: workers PASS, new endpoints FAIL as expected on main), demo-path spec 71e8, gap10+tests 25bb (boss kept 39d4 recovery fix; tsc OK, glorious vitest 92/92).
+- Verified: full web suite 256/256 twice on 770024d (55b7, closed); Java 786 pass 0 fail on JDK 21 (3a95, closed). Container ITs (EngineMatchesReferenceIT, WorkerCrashRecoveryIT, CoordinatorRestartIT, IncompleteCheckpointIT) NOT run yet -> need Docker (utkarsh) at 07:00.
+- HELD (merge only if demo path green, before 07:00): mobile 5796 (vimlesh shell), 2db4 (upendra map+pipelines, DONE), aed1 (vivek analytics+recovery).
+- Running: utkarsh stack 2aa3 (~35 min; slow listener loops under build load, heartbeat up to ~3.7 min), pipelines-live 0830; then kill test 1e14. Others: analytics polish 6443 (vimlesh claude), check-all e348 (vimlesh luna), AI robustness e92b + pipelines polish eb78 (upendra), final docs 65c1 (vivek luna).
+- Watcher: DOWN must hold 90 s before alerting (utkarsh slow loops caused false DOWNs 05:09).
+- 06:00 PIPELINES CHECKPOINT evidence so far: AI generation real + valid (3/3 on vivek-pc bridge, 5-6 s); backend executor unit-tested; RUNNABLE on a live stack still unverified (pipelines-live 0830 pending). Switch: web/src/glorious/pipelines/mode.ts.
+
 ## 04:56
 - Merged since 04:45: code-split (a603, --base!) + boss lazy classic (main chunk 1.7 MB -> 311 kB), guarded recovery spec (c064), pipelines mode switch (28c9: web/src/glorious/pipelines/mode.ts full|editor|hidden), deploy parity (c972: k8s SIM_INITIAL_TRUCKS 6), recovery test fix (39d4: real race; full web suite 256 pass).
 - ANDROID STRETCH queued but HOLD MERGE until demo path is green (kill test + pipelines live pass) and before 07:00: t261120-0455-5796 vimlesh/sol shell mobile; t261120-0455-2db4 upendra/sol map+pipelines mobile. Desktop must be pixel-identical (proof/mobile/).
