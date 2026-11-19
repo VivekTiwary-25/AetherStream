@@ -1,6 +1,7 @@
-import React from 'react'
+import React, { Suspense, lazy } from 'react'
 import ReactDOM from 'react-dom/client'
-import App from './App'
+// Classic UI is loaded only when selected, so the new UI's first load stays small.
+const App = lazy(() => import('./App'))
 import { GloriousApp } from './glorious/GloriousApp'
 import './styles/global.css'
 
@@ -19,6 +20,6 @@ function wantsClassic(): boolean {
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    {wantsClassic() ? <App /> : <GloriousApp />}
+    {wantsClassic() ? <Suspense fallback={null}><App /></Suspense> : <GloriousApp />}
   </React.StrictMode>,
 )
