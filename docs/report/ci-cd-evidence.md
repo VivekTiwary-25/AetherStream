@@ -28,7 +28,7 @@ Typical durations are approximate planning ranges, not guarantees; runtime varie
 1. On a push to `main`, `cd` builds the engine, simulator, control-api, and web images and publishes each to GHCR under both the immutable commit-SHA tag and `main`.
 2. After publish succeeds, the `deploy` job checks out the repository on the self-hosted runner labelled `aether-deploy`. A manual dispatch can select a prior SHA for rollback.
 3. `infra/deploy/deploy.sh` sets `AETHER_TAG` to the requested SHA, pulls the SHA-tagged images, and runs Compose with the deployment override (`docker-compose.yml` plus `infra/deploy/docker-compose.deploy.yml`), waiting for services to be ready.
-4. `infra/deploy/smoke-deploy.sh` polls `/api/health` until status is `UP`, then checks `/api/version` reports the requested commit SHA. The job succeeds only when both checks pass (within 120 seconds).
+4. `infra/deploy/smoke-deploy.sh` polls `/api/health` until status is `UP`, then checks that `/api/version` reports the requested commit SHA. The job succeeds only when both checks pass (within 120 seconds).
 
 ### Dated run snapshot
 

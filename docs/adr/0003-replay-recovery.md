@@ -12,7 +12,7 @@ On recovery, restore only the latest `COMPLETED` checkpoint, restore each partit
 
 ## Consequences
 
-Records since the checkpoint are replayed at least once; deterministic operators and Postgres upserts make checkpointed results effectively exactly-once under the declared contract. Replay cost grows with the distance from the last completed checkpoint. Other sinks are not covered by the exactly-once claim (`docs/contracts/03-coordinator-worker-protocol.md`).
+Records since the checkpoint are replayed at least once; deterministic operators and PostgreSQL upserts make checkpointed results effectively exactly-once under the declared contract. Replay cost grows with the distance from the last completed checkpoint. Other sinks are not covered by the exactly-once claim (`docs/contracts/03-coordinator-worker-protocol.md`).
 
 ## Alternatives considered
 

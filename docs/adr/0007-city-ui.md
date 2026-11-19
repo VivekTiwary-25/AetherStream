@@ -4,7 +4,7 @@
 
 ## Context
 
-The operator-facing browser surface combines a live city visualization with operational data and controls. The stack contract pins React, TypeScript, Vite, and PixiJS for `web/`, and architecture documentation assigns the city view and operator panels to that UI (`docs/contracts/00-stack-and-layout.md`, `docs/architecture.md`).
+The operator-facing browser surface combines a live city visualisation with operational data and controls. The stack contract pins React, TypeScript, Vite, and PixiJS for `web/`, and architecture documentation assigns the city view and operator panels to that UI (`docs/contracts/00-stack-and-layout.md`, `docs/architecture.md`).
 
 ## Decision
 

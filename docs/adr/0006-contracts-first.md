@@ -12,7 +12,7 @@ Treat `docs/contracts/` as the normative interface and read it before implementa
 
 ## Consequences
 
-Lanes can implement against shared field names, wire behavior, and semantics with fewer cross-lane assumptions. Contract changes remain centrally coordinated; stale or incorrect contracts can block otherwise-valid implementation until reconciled.
+Lanes can implement against shared field names, wire behaviour, and semantics with fewer cross-lane assumptions. Contract changes remain centrally coordinated; stale or incorrect contracts can block otherwise-valid implementation until reconciled.
 
 ## Alternatives considered
 
