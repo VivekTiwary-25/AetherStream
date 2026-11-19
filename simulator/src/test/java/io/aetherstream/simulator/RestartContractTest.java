@@ -72,7 +72,6 @@ class RestartContractTest {
     }
 
     @Test
-    @Disabled("BUG: Kafka tail-only fence misses higher eventTime before a late event and its duplicate")
     void lateEventAndItsVerbatimDuplicateAtPartitionTailMustNotRewindNormalEventsAfterRestart()
             throws Exception {
         AtomicLong wall = new AtomicLong(ANCHOR + 60_000);
