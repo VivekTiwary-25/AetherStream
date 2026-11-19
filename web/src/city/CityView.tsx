@@ -2,22 +2,22 @@ import { useEffect, useRef, useState } from 'react'
 import './city.css'
 import { useAetherSocket } from '../api/ws'
 import { toCityEnvelope } from './citySocket'
-import { CITY_SIZE } from './cityLayout'
 import { CityModel, type EngineStatus } from './cityModel'
-import type { CityTruck } from './cityTypes'
+import type { CityPoint, CityTruck } from './cityTypes'
 import { partitionForTruck } from './cityLogic'
-import { clamp } from './motion'
+import { checkDrop, dispatchTruck, NOTICE_MS, TRUCK_MIME, type Notice } from './dispatch'
 import type { CityScene } from './scene/CityScene'
 
 interface Hud { status: EngineStatus; trucks: number; eventsPerSec: number; workersAlive: number; workers: number; backpressured: boolean; simTime: number }
 interface Hover { truck: CityTruck; x: number; y: number }
+type DragState = 'valid' | 'invalid' | null
 
 const statusText: Record<CityTruck['status'], string> = { DRIVING: 'Driving', UNLOADING: 'Unloading', STOPPED: 'Stopped', IDLE: 'Idle' }
 
 function readHud(model: CityModel): Hud {
   return {
     status: model.status(performance.now()),
-    trucks: [...model.trucks.values()].filter((t) => t.removedAt === null).length,
+    trucks: model.activeTrucks(),
     eventsPerSec: model.flow?.eventsPerSec ?? 0,
     workersAlive: model.workers.filter((w) => w.alive).length,
     workers: model.workers.length,
@@ -35,15 +35,21 @@ export function CityView() {
   const scene = useRef<CityScene | null>(null)
   const [hud, setHud] = useState<Hud>(() => readHud(model.current))
   const [hover, setHover] = useState<Hover | null>(null)
-  const [message, setMessage] = useState('')
-  const [dragOver, setDragOver] = useState(false)
+  const [notice, setNotice] = useState<Notice | null>(null)
+  const [dragOver, setDragOver] = useState<DragState>(null)
 
-  const { lastMessage } = useAetherSocket()
+  const { lastMessage, status: socketStatus } = useAetherSocket()
 
   useEffect(() => {
     const message = toCityEnvelope(lastMessage)
     if (message?.data != null) model.current.apply(message, performance.now())
   }, [lastMessage])
+
+  useEffect(() => {
+    // 'connecting' on first load is normal; only a dropped link counts as offline.
+    model.current.connected = socketStatus !== 'disconnected'
+    setHud(readHud(model.current))
+  }, [socketStatus])
 
   useEffect(() => {
     const timer = window.setInterval(() => setHud(readHud(model.current)), 400)
@@ -62,7 +68,7 @@ export function CityView() {
       active = new CityScene(model.current, reduced)
       scene.current = active
       return active.init(element)
-    }).catch(() => setMessage('3D city unavailable in this browser'))
+    }).catch(() => setNotice({ tone: 'error', text: '3D city unavailable in this browser' }))
     const visibility = () => active?.setPaused(document.hidden)
     document.addEventListener('visibilitychange', visibility)
     return () => {
@@ -74,10 +80,10 @@ export function CityView() {
   }, [])
 
   useEffect(() => {
-    if (!message) return
-    const timer = window.setTimeout(() => setMessage(''), 2200)
+    if (!notice) return
+    const timer = window.setTimeout(() => setNotice(null), NOTICE_MS[notice.tone])
     return () => window.clearTimeout(timer)
-  }, [message])
+  }, [notice])
 
   const onPointerMove = (event: React.PointerEvent) => {
     const current = scene.current, bounds = section.current?.getBoundingClientRect()
@@ -88,39 +94,54 @@ export function CityView() {
     setHover(truck ? { truck, x: Math.min(event.clientX - bounds.left + 16, bounds.width - 200), y: Math.min(event.clientY - bounds.top + 16, bounds.height - 120) } : null)
   }
 
-  const isTruckDrag = (event: React.DragEvent) => event.dataTransfer.types.includes('text/city-truck')
-  const dropPoint = (event: React.DragEvent) => {
-    const p = scene.current?.clientToWorld(event.clientX, event.clientY) ?? { x: CITY_SIZE / 2, y: CITY_SIZE / 2 }
-    return { x: clamp(p.x, 0, CITY_SIZE), y: clamp(p.y, 0, CITY_SIZE) }
-  }
+  const isTruckDrag = (event: React.DragEvent) => event.dataTransfer.types.includes(TRUCK_MIME)
+  const worldAt = (event: React.DragEvent) => scene.current?.clientToWorld(event.clientX, event.clientY) ?? null
   const onDragOver = (event: React.DragEvent) => {
     if (!isTruckDrag(event)) return
     event.preventDefault()
     event.dataTransfer.dropEffect = 'copy'
-    if (scene.current) scene.current.dropTarget = dropPoint(event)
-    if (!dragOver) setDragOver(true)
+    const world = worldAt(event), { inside } = checkDrop(world)
+    if (scene.current) { scene.current.dropTarget = world; scene.current.dropValid = inside }
+    const next: DragState = inside ? 'valid' : 'invalid'
+    if (dragOver !== next) setDragOver(next)
   }
-  const clearDrag = () => { if (scene.current) scene.current.dropTarget = null; setDragOver(false) }
-  const onDrop = async (event: React.DragEvent) => {
+  const clearDrag = () => {
+    if (scene.current) { scene.current.dropTarget = null; scene.current.dropValid = true }
+    setDragOver(null)
+  }
+
+  const dispatch = async (point: CityPoint) => {
+    setNotice({ tone: 'pending', text: 'Dispatching truck…' })
+    const result = await dispatchTruck(point)
+    if (result.ok && result.truckId) model.current.expectTruck(result.truckId, point, performance.now())
+    if (!result.ok) scene.current?.ripple(point, 'error')
+    setNotice(result.notice)
+  }
+  const onDrop = (event: React.DragEvent) => {
     if (!isTruckDrag(event)) return
     event.preventDefault()
-    const point = dropPoint(event)
+    const world = worldAt(event)
     clearDrag()
-    scene.current?.ripple(point)
-    try {
-      const response = await fetch('/api/simulator/trucks', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ x: Math.round(point.x), y: Math.round(point.y) }) })
-      if (!response.ok) throw new Error(String(response.status))
-      const body = await response.json().catch(() => ({})) as { truckId?: string }
-      if (body.truckId) model.current.expectTruck(body.truckId, point, performance.now())
-      setMessage(body.truckId ? `${body.truckId} dispatched` : 'Truck dispatched')
-    } catch {
-      setMessage('Simulator unavailable')
+    const { point, inside } = checkDrop(world)
+    if (!inside) {
+      if (world) scene.current?.ripple(world, 'error')
+      setNotice({ tone: 'error', text: 'Drop the truck on the city streets' })
+      return
     }
+    scene.current?.ripple(point)
+    void dispatch(point)
+  }
+  /** Keyboard / click alternative to dragging: add a truck at the depot. */
+  const onChipClick = () => {
+    const depot = model.current.depot
+    scene.current?.ripple(depot)
+    void dispatch({ x: depot.x, y: depot.y })
   }
 
   const status = hud.status
-  return <section ref={section} className={`city${dragOver ? ' city--drop' : ''}`} aria-label="Live delivery city"
-    onDragOver={onDragOver} onDragLeave={(e) => { if (!section.current?.contains(e.relatedTarget as Node | null)) clearDrag() }} onDrop={(e) => void onDrop(e)}>
+  const sectionClass = `city${dragOver ? ` city--drop city--drop-${dragOver}` : ''}${status.mode === 'disconnected' ? ' city--offline' : ''}`
+  return <section ref={section} className={sectionClass} aria-label="Live delivery city"
+    onDragOver={onDragOver} onDragLeave={(e) => { if (!section.current?.contains(e.relatedTarget as Node | null)) clearDrag() }} onDrop={onDrop}>
     <div ref={host} className="city__canvas" onPointerMove={onPointerMove} onPointerLeave={() => { setHover(null); if (scene.current) scene.current.hoveredId = null }} />
     <div className="city__vignette" aria-hidden="true" />
 
@@ -143,26 +164,37 @@ export function CityView() {
       </dl>
     </div>}
 
+    {dragOver && <div className={`city__glass city__drophint city__drophint--${dragOver}`} aria-hidden="true">
+      {dragOver === 'valid' ? 'Release to add a truck here' : 'Outside the city · drop on a street'}
+    </div>}
+
     <div className="city__glass city__dock">
-      <button type="button" className="city__chip" draggable
-        onDragStart={(e) => { e.dataTransfer.setData('text/city-truck', 'new'); e.dataTransfer.effectAllowed = 'copy' }}
+      <button type="button" className="city__chip" draggable aria-describedby="city-chip-hint"
+        title="Drag onto a street to add a truck there, or click to add one at the depot"
+        onDragStart={(e) => { e.dataTransfer.setData(TRUCK_MIME, 'new'); e.dataTransfer.effectAllowed = 'copy' }}
         onDragEnd={clearDrag}
-        onClick={() => setMessage('Drag the chip onto a street')}>
+        onClick={onChipClick}>
+        <span aria-hidden="true" className="city__chip-grip" />
         <span aria-hidden="true" className="city__chip-icon" />Add truck
       </button>
-      <span className="city__flow">{message || `${hud.eventsPerSec.toFixed(1)} events/s`}</span>
+      <span id="city-chip-hint" className="city__sr">Drag onto a street to add a truck there, or press to add one at the depot.</span>
+      <span className={`city__flow${notice ? ` city__flow--${notice.tone}` : ''}`} role="status" aria-live="polite">
+        {notice ? notice.text : <>{hud.eventsPerSec.toFixed(1)} events/s <small>· drag truck onto map</small></>}
+      </span>
     </div>
 
     <div className="city__glass city__legend">
-      <span><i style={{ background: '#4ff0f2' }} />Driving</span>
-      <span><i style={{ background: '#ffb547' }} />Unloading</span>
-      <span><i style={{ background: '#ff4d64' }} />Stopped</span>
+      <span><i className="city__key city__key--truck" style={{ background: '#4ff0f2' }} />Driving</span>
+      <span><i className="city__key city__key--truck" style={{ background: '#ffb547' }} />Unloading</span>
+      <span><i className="city__key city__key--truck" style={{ background: '#9aabbf' }} />Idle</span>
+      <span><i className="city__key city__key--truck city__key--alert" style={{ background: '#ff4d64' }} />Stopped</span>
       <span className="city__legend-sep" />
-      <span><i style={{ background: '#ff4d64' }} />Rejected</span>
-      <span><i style={{ background: '#b07cff' }} />Late</span>
+      <span><i className="city__key city__key--packet" style={{ background: '#5cf1f4' }} />Event</span>
+      <span><i className="city__key city__key--packet" style={{ background: '#ff4d64' }} />Rejected</span>
+      <span><i className="city__key city__key--packet" style={{ background: '#b07cff' }} />Late</span>
       <span className="city__legend-sep" />
-      <span>{hud.workersAlive}/{hud.workers} workers · {hud.backpressured ? 'backpressured' : 'healthy'}</span>
+      <span>{hud.workersAlive}/{hud.workers} workers · {hud.backpressured ? 'backpressured' : hud.workersAlive < hud.workers ? 'worker down' : 'healthy'}</span>
     </div>
-    <div className="city__hint" aria-hidden="true">scroll to zoom · drag to pan · double-click to reset</div>
+    <div className="city__glass city__hint" aria-hidden="true">scroll to zoom · drag to pan · double-click to reset</div>
   </section>
 }

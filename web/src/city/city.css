@@ -66,22 +66,56 @@
 .city__chip:active { cursor: grabbing; }
 .city__chip:focus-visible { outline: 2px solid #6af2f5; outline-offset: 2px; }
 .city__chip-icon { width: 16px; height: 10px; border-radius: 3px; background: #d6e2ec; box-shadow: 6px 0 0 -1px #24384a, 0 0 8px rgb(106 242 245 / 50%); }
-.city__flow { color: #a9c6d6; font-variant-numeric: tabular-nums; min-width: 110px; }
+/* Grip dots: tells the user the chip is something to pick up and drag. */
+.city__chip-grip { width: 6px; height: 12px; opacity: .7; background: radial-gradient(circle, #bfeff2 1px, transparent 1.4px) 0 0 / 3px 4px; }
+.city__flow { color: #a9c6d6; font-variant-numeric: tabular-nums; min-width: 110px; transition: color 200ms ease; }
+.city__flow small { color: #7f9db0; font-size: 11px; }
+.city__flow--pending { color: #bfeff2; }
+.city__flow--success { color: #6ee7a8; }
+.city__flow--error { color: #ff8b97; font-weight: 600; }
+.city__flow--error::before { content: '!'; display: inline-grid; place-items: center; width: 15px; height: 15px; margin-right: 6px; border-radius: 50%; background: rgb(255 94 108 / 22%); color: #ffb3bb; font-size: 10px; font-weight: 800; }
 
-.city__legend { bottom: 16px; right: 18px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; color: #9eb9c9; max-width: calc(100% - 340px); }
+.city__sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* Shown while the "Add truck" chip is dragged over the map. */
+.city__drophint { top: 62px; left: 50%; transform: translateX(-50%); pointer-events: none; font-weight: 600; white-space: nowrap; animation: city-pop 140ms ease-out; }
+.city__drophint--valid { color: #bff8fb; border-color: rgb(106 242 245 / 45%); }
+.city__drophint--invalid { color: #ffb3bb; border-color: rgb(255 94 108 / 50%); }
+.city--drop-invalid { border-color: rgb(255 94 108 / 55%); box-shadow: 0 30px 80px rgb(0 0 0 / 45%), 0 0 0 3px rgb(255 94 108 / 12%); }
+
+/* Live link down: the city freezes its stream; dim the map so it does not look live. */
+.city--offline .city__canvas { filter: saturate(.45) brightness(.8); transition: filter 400ms ease; }
+
+.city__legend { bottom: 16px; right: 18px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; color: #a9c2d1; max-width: calc(100% - 360px); }
 .city__legend span { display: inline-flex; align-items: center; gap: 6px; }
 .city__legend i { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
+/* Trucks are rounded squares, stream packets are short comets, so "Stopped" and "Rejected" differ by shape too. */
+.city__legend .city__key--truck { width: 9px; height: 9px; border-radius: 2.5px; }
+.city__legend .city__key--alert { box-shadow: 0 0 0 2px rgb(255 77 100 / 30%); }
+.city__legend .city__key--packet { width: 12px; height: 4px; border-radius: 2px; }
 .city__legend-sep { width: 1px; height: 12px; background: rgb(126 205 222 / 20%); }
 
-.city__hint { position: absolute; z-index: 2; left: 50%; top: 18px; transform: translateX(-50%); color: rgb(160 190 205 / 45%); font-size: 11px; pointer-events: none; white-space: nowrap; }
+/* Controls hint: readable contrast, shown only while the pointer is over the city. */
+.city__hint { top: 16px; left: 50%; transform: translateX(-50%); padding: 5px 11px; color: #a9c2d1; font-size: 11.5px; pointer-events: none; white-space: nowrap; opacity: 0; transition: opacity 300ms ease; }
+.city:hover .city__hint { opacity: 1; }
+.city--drop .city__hint { opacity: 0; }
 
 @keyframes city-pop { from { opacity: 0; transform: translateY(4px) scale(.98); } to { opacity: 1; transform: none; } }
 @keyframes city-blink { 50% { opacity: .35; } }
 
+@media (max-width: 1080px) {
+  .city__hint { display: none; }
+}
 @media (max-width: 760px) {
-  .city__legend, .city__hint { display: none; }
+  .city__legend { display: none; }
+}
+/* Phones: long status text ("Recovering from checkpoint #133") must not cover the title card. */
+@media (max-width: 520px) {
+  .city__status { top: 72px; left: 18px; right: auto; max-width: calc(100% - 36px); }
+  .city__drophint { top: 120px; }
+  .city__flow small { display: none; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .city__status--recovering .city__dot, .city__status--failed .city__dot, .city__tooltip { animation: none; }
-  .city, .city__chip { transition: none; }
+  .city__status--recovering .city__dot, .city__status--failed .city__dot, .city__tooltip, .city__drophint { animation: none; }
+  .city, .city__chip, .city__hint, .city__flow, .city--offline .city__canvas { transition: none; }
 }

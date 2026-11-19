@@ -58,7 +58,7 @@ export class TruckSprite {
     this.root.addChild(shadow, this.ring, this.rotor, this.hoverRing, this.label)
   }
 
-  update(x: number, y: number, rotation: number, status: TruckStatus, seconds: number, opts: { alpha: number; scale: number; hovered: boolean; reducedMotion: boolean }): void {
+  update(x: number, y: number, rotation: number, status: TruckStatus, seconds: number, opts: { alpha: number; scale: number; hovered: boolean; showLabel: boolean; reducedMotion: boolean }): void {
     this.root.position.set(x, y)
     this.root.alpha = opts.alpha
     this.root.scale.set(opts.scale)
@@ -70,7 +70,9 @@ export class TruckSprite {
     this.stripe.tint = color
     this.lights.visible = status === 'DRIVING'
     this.hoverRing.visible = opts.hovered
-    this.label.alpha = opts.hovered ? 1 : 0.7
+    // Ids are ~6 px at the default zoom: only draw them once they are readable, or on hover.
+    this.label.visible = opts.hovered || opts.showLabel
+    this.label.alpha = opts.hovered ? 1 : 0.75
     if (status === 'STOPPED') {
       this.ring.visible = true
       this.ring.tint = color

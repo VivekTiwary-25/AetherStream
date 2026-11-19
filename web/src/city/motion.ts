@@ -1,4 +1,5 @@
 // Pure motion helpers: easing, frame-rate independent damping, angles, curves and truck path smoothing.
+import { STREET_SPACING } from './cityLayout'
 
 export interface Vec { x: number; y: number }
 
@@ -57,13 +58,27 @@ export interface TrackPose { x: number; y: number; vx: number; vy: number }
  */
 export class TruckTrack {
   private samples: Sample[] = []
-  constructor(private readonly maxSamples = 8, private readonly teleportDistance = 160) {}
+  constructor(private readonly maxSamples = 8, private readonly teleportDistance = 160, private readonly streetSpacing = STREET_SPACING) {}
 
   push(t: number, x: number, y: number): void {
     const last = this.samples[this.samples.length - 1]
     if (last && t <= last.t) return
     if (last && Math.hypot(x - last.x, y - last.y) > this.teleportDistance) this.samples = []
-    this.samples.push({ t, x, y })
+    else if (last && this.streetSpacing > 0) {
+      // Two samples either side of a street corner: add the corner itself so the truck turns on the
+      // street instead of cutting diagonally across the block.
+      const corner = streetCorner(last, { x, y }, this.streetSpacing)
+      if (corner) {
+        const before = Math.hypot(corner.x - last.x, corner.y - last.y), after = Math.hypot(x - corner.x, y - corner.y)
+        const ct = last.t + (t - last.t) * (before / Math.max(before + after, 1e-6))
+        if (ct > last.t && ct < t) this.append({ t: ct, x: corner.x, y: corner.y })
+      }
+    }
+    this.append({ t, x, y })
+  }
+
+  private append(sample: Sample): void {
+    this.samples.push(sample)
     if (this.samples.length > this.maxSamples) this.samples.shift()
   }
 
@@ -100,6 +115,53 @@ export class TruckTrack {
     const n = s.length - 1
     out.x = (s[n - 1].x + s[n].x) / 2; out.y = (s[n - 1].y + s[n].y) / 2
     return out
+  }
+}
+
+const onStreet = (value: number, spacing: number, tolerance: number) => {
+  const r = ((value % spacing) + spacing) % spacing
+  return r <= tolerance || spacing - r <= tolerance
+}
+
+/**
+ * The street corner a truck must have turned at between two samples, or null if both samples are on the
+ * same street (or either is off the grid). Trucks drive Manhattan paths on streets every `spacing` metres.
+ */
+export function streetCorner(a: Vec, b: Vec, spacing = STREET_SPACING, tolerance = 3): Vec | null {
+  if (Math.abs(a.x - b.x) <= tolerance || Math.abs(a.y - b.y) <= tolerance) return null
+  // a on a north-south street, b on an east-west street: drove along x = a.x, then turned onto y = b.y.
+  if (onStreet(a.x, spacing, tolerance) && onStreet(b.y, spacing, tolerance) && !onStreet(a.y, spacing, tolerance)) return { x: a.x, y: b.y }
+  if (onStreet(a.y, spacing, tolerance) && onStreet(b.x, spacing, tolerance) && !onStreet(a.x, spacing, tolerance)) return { x: b.x, y: a.y }
+  return null
+}
+
+/**
+ * Turns WebSocket arrival times (jittery: network, GC, tab throttling) into evenly spaced sample times.
+ * Each stamp is the previous stamp plus the learned interval, nudged towards the real arrival so it never
+ * drifts, and never more than `maxLag` ms behind it. After a long gap it resyncs to the arrival time.
+ */
+export class SampleClock {
+  private lastStamp = Number.NEGATIVE_INFINITY
+  private lastArrival = Number.NEGATIVE_INFINITY
+  private interval: number
+
+  constructor(private readonly nominal = 250, private readonly maxLag = 180) {
+    this.interval = nominal
+  }
+
+  stamp(arrival: number): number {
+    const gap = arrival - this.lastArrival
+    this.lastArrival = arrival
+    if (!(gap < this.nominal * 4)) {
+      this.lastStamp = arrival
+      return arrival
+    }
+    this.interval += (clamp(gap, this.nominal * 0.5, this.nominal * 2) - this.interval) * 0.1
+    let t = this.lastStamp + this.interval
+    t += (arrival - t) * 0.15
+    t = Math.max(clamp(t, arrival - this.maxLag, arrival), this.lastStamp + 1)
+    this.lastStamp = t
+    return t
   }
 }
 
