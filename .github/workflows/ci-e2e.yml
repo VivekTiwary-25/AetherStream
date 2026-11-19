@@ -67,3 +67,12 @@ jobs:
       - name: Tear down stack
         if: always()
         run: docker compose down -v
+      - name: Verify demo readiness
+        env:
+          GIT_SHA: ${{ github.sha }}
+          EXPECT_SHA: ${{ github.sha }}
+        run: |
+          # The existing final step removed the stack; redeploy the built images.
+          trap 'docker compose down -v' EXIT
+          docker compose up -d
+          bash infra/scripts/demo-ready.sh http://localhost:18080
