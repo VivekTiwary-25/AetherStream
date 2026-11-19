@@ -12,7 +12,7 @@
       "kinds": [
         "routine"
       ],
-      "enabled": true
+      "enabled": false
     },
     {
       "name": "codex-sol",
@@ -24,7 +24,7 @@
       "kinds": [
         "hard"
       ],
-      "enabled": true
+      "enabled": false
     },
     {
       "name": "grok",
@@ -36,7 +36,7 @@
       "kinds": [
         "routine"
       ],
-      "enabled": true
+      "enabled": false
     },
     {
       "name": "vachana-claude",
@@ -46,7 +46,7 @@
       "usage_provider": "anthropic",
       "usage_match": "",
       "kinds": [],
-      "enabled": true
+      "enabled": false
     }
   ]
 }
