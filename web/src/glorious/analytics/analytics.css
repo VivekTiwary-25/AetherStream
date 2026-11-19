@@ -1,7 +1,7 @@
 .an-window { color: #252720; font-family: Inter, sans-serif; font-size: 13px; }
 .an-caption { margin: 0 0 14px; color: #484b43; line-height: 1.5; }
 .an-empty { padding: 22px 12px; color: #41443c; text-align: center; }
-.an-list { display: grid; gap: 8px; }
+.an-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
 .an-row { display: flex; width: 100%; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 12px; border: 1px solid rgba(39, 42, 34, .18); border-radius: 14px; background: rgba(255, 255, 255, .48); color: #252720; text-align: left; }
 button.an-row { cursor: pointer; font: inherit; }
 button.an-row:hover { background: rgba(255, 255, 255, .78); }
