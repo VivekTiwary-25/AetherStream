@@ -28,7 +28,6 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
@@ -250,7 +249,28 @@ class WebSocketContractTest {
                 assertThat(recovered.path("checkpointId").longValue()).isEqualTo(4);
                 assertThat(recovered.path("durationMs").longValue()).isNotNegative();
 
-                execution.set(execution("STOPPED", 2, 4L, 4));
+                workers.set(workers(true));
+                // Wait for re-registration before the generation change, as in the live rejoin.
+                await(messages, message -> message.path("type").asText().equals("workers")
+                        && message.path("data").get(0).path("alive").asBoolean());
+                execution.set(execution("RECOVERING", 3, 4L, 4));
+                JsonNode rebalanced = awaitEvent(messages, "REBALANCED");
+                assertEvent(rebalanced, "REBALANCED", execution.get());
+                assertThat(rebalanced.path("workerId").asText()).isEqualTo("w-1");
+                assertThat(rebalanced.path("oldGeneration").asLong()).isEqualTo(2);
+                assertThat(rebalanced.path("newGeneration").asLong()).isEqualTo(3);
+                assertThat(rebalanced.has("durationMs")).isFalse();
+                execution.set(execution("RUNNING", 3, 4L, 5));
+                long deadline = System.nanoTime() + RECEIVE_TIMEOUT.toNanos();
+                while (true) {
+                    JsonNode message = next(messages, deadline);
+                    if (!message.path("type").asText().equals("execution")) continue;
+                    JsonNode event = message.path("data");
+                    assertThat(event.path("event").asText())
+                            .isNotIn("RECOVERING", "RECOVERED", "REBALANCED");
+                    if (event.path("event").asText().equals("CHECKPOINT_COMPLETED")) break;
+                }
+                execution.set(execution("STOPPED", 3, 4L, 5));
                 assertEvent(awaitEvent(messages, "STOPPED"), "STOPPED", execution.get());
             } finally {
                 socket.abort();
@@ -279,18 +299,47 @@ class WebSocketContractTest {
         assertThat(recovered.getFirst().path("durationMs").longValue()).isEqualTo(6_125);
     }
 
-    @Disabled("CONTRACT: contract 04 requires durationMs on RECOVERED; ExecutionEvents omits it when no worker death was observed")
     @Test
-    void recoveredIncludesDurationEvenWhenRecoveryWasAlreadyInProgressAtFirstObservation() {
-        AtomicLong serverNanos = new AtomicLong(TimeUnit.MILLISECONDS.toNanos(1_000));
-        ExecutionEvents events = new ExecutionEvents(mapper, serverNanos::get);
-        events.observe(execution("RECOVERING", 2, 4L, 4), workers(false));
-        serverNanos.set(TimeUnit.MILLISECONDS.toNanos(3_000));
-        List<ObjectNode> recovered = events.observe(execution("RUNNING", 2, 4L, 4), workers(false));
-        assertThat(recovered).hasSize(1);
-        assertThat(recovered.getFirst().path("event").textValue()).isEqualTo("RECOVERED");
-        integers(recovered.getFirst(), "durationMs");
-        assertThat(recovered.getFirst().path("durationMs").longValue()).isNotNegative();
+    void lateCommitBehindTheCursorIsDeliveredOverTheSocketExactlyOnce() throws Exception {
+        Instant writtenAt = Instant.parse("2026-11-19T00:00:00Z");
+        Map<String, Object> rejected = Map.of("eventId", "bad-1", "kind", "REJECTED",
+                "reason", "unknown type", "partition", 1, "offset", 15L, "eventTime", SIM_TIME);
+        Map<String, Object> late = Map.of("eventId", "late-commit", "kind", "LATE",
+                "reason", "window already closed", "partition", 0, "offset", 16L, "eventTime", SIM_TIME);
+        var first = new IncrementalResultRepository.Row(writtenAt,
+                List.of(EXECUTION_ID, "bad-1", "REJECTED"), rejected);
+        var committedLater = new IncrementalResultRepository.Row(writtenAt.minusSeconds(30),
+                List.of(EXECUTION_ID, "late-commit", "LATE"), late);
+        AtomicReference<List<IncrementalResultRepository.Row>> committed =
+                new AtomicReference<>(List.of(first));
+        when(results.deadLetters(eq(EXECUTION_ID), any(Instant.class))).thenAnswer(invocation -> {
+            Instant since = invocation.getArgument(1);
+            return committed.get().stream().filter(row -> !row.writtenAt().isBefore(since)).toList();
+        });
+
+        Messages messages = new Messages();
+        try (HttpClient client = HttpClient.newHttpClient()) {
+            WebSocket socket = connect(client, messages);
+            try {
+                JsonNode initial = await(messages, message -> message.path("type").asText().equals("deadLetters"));
+                assertThat(initial.path("data").get(0).path("eventId").asText()).isEqualTo("bad-1");
+                // This row becomes visible only after a newer written_at has advanced the cursor.
+                committed.set(List.of(committedLater, first));
+                JsonNode delivered = await(messages, message -> message.path("type").asText().equals("deadLetters"));
+                assertThat(delivered.path("data"))
+                        .isEqualTo(mapper.readTree(mapper.writeValueAsString(List.of(late))));
+
+                int polls = 0;
+                long deadline = System.nanoTime() + RECEIVE_TIMEOUT.toNanos();
+                while (polls < 3) {
+                    JsonNode message = next(messages, deadline);
+                    assertThat(message.path("type").asText()).isNotEqualTo("deadLetters");
+                    if (message.path("type").asText().equals("flow")) polls++;
+                }
+            } finally {
+                socket.abort();
+            }
+        }
     }
 
     private WebSocket connect(HttpClient client, Messages messages) throws Exception {

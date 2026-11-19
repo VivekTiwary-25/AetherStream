@@ -26,10 +26,10 @@ class NewRowsTrackerTest {
         Row third = row(firstTime, "third");
 
         assertThat(tracker.fresh(List.of(first, first, second))).containsExactly(first, second);
-        assertThat(tracker.since()).isEqualTo(firstTime);
+        assertThat(tracker.since()).isEqualTo(firstTime.minusSeconds(60));
         assertThat(tracker.fresh(List.of(second, third, first, third))).containsExactly(third);
         assertThat(tracker.fresh(List.of(first, second, third))).isEmpty();
-        assertThat(tracker.since()).isEqualTo(firstTime);
+        assertThat(tracker.since()).isEqualTo(firstTime.minusSeconds(60));
     }
 
     @Test
@@ -40,10 +40,10 @@ class NewRowsTrackerTest {
 
         assertThat(tracker.fresh(List.of(first))).containsExactly(first);
         assertThat(tracker.fresh(List.of(first, second))).containsExactly(second);
-        assertThat(tracker.since()).isEqualTo(second.writtenAt());
+        assertThat(tracker.since()).isEqualTo(second.writtenAt().minusSeconds(60));
         assertThat(tracker.fresh(List.of(first, second, third))).containsExactly(third);
         assertThat(tracker.fresh(List.of())).isEmpty();
-        assertThat(tracker.since()).isEqualTo(second.writtenAt());
+        assertThat(tracker.since()).isEqualTo(second.writtenAt().minusSeconds(60));
     }
 
     @Test
@@ -57,19 +57,36 @@ class NewRowsTrackerTest {
 
         assertThat(tracker.fresh(List.of(newest, middle, middle, sameBoundary, boundary, newest)))
                 .containsExactly(newest, middle, sameBoundary);
-        assertThat(tracker.since()).isEqualTo(newest.writtenAt());
+        assertThat(tracker.since()).isEqualTo(newest.writtenAt().minusSeconds(60));
         assertThat(tracker.fresh(List.of(newest, middle, sameNewest, sameNewest)))
                 .containsExactly(sameNewest);
     }
 
     @Test
-    void ignoresRowsOlderThanTheStartingCursorWithoutMovingItBackwards() {
+    void deliversRowsCommittedBehindTheCursorOnceWithoutMovingTheBoundaryBackwards() {
         Row newest = row(firstTime, "newest");
+        Row lateCommit = row(firstTime.minusSeconds(30), "late");
+        Row boundaryCommit = row(firstTime.minusSeconds(60), "boundary");
         tracker.fresh(List.of(newest));
 
-        assertThat(tracker.fresh(List.of(row(firstTime.minusSeconds(1), "unseen-old")))).isEmpty();
+        assertThat(tracker.fresh(List.of(newest, lateCommit, boundaryCommit, lateCommit)))
+                .containsExactly(lateCommit, boundaryCommit);
+        assertThat(tracker.since()).isEqualTo(firstTime.minusSeconds(60));
+        assertThat(tracker.fresh(List.of(lateCommit, boundaryCommit, newest))).isEmpty();
+    }
+
+    @Test
+    void advancingTheOverlapRetainsDeduplicationAtItsInclusiveBoundary() {
+        Row first = row(firstTime, "first");
+        Row next = row(firstTime.plusSeconds(60), "next");
+        tracker.fresh(List.of(first));
+
+        assertThat(tracker.fresh(List.of(first, next))).containsExactly(next);
         assertThat(tracker.since()).isEqualTo(firstTime);
-        assertThat(tracker.fresh(List.of(newest))).isEmpty();
+        assertThat(tracker.fresh(List.of(first, next))).isEmpty();
+        Row beyond = row(firstTime.plusSeconds(61), "beyond");
+        assertThat(tracker.fresh(List.of(beyond))).containsExactly(beyond);
+        assertThat(tracker.fresh(List.of(first, next, beyond))).isEmpty();
     }
 
     @Test
@@ -78,7 +95,7 @@ class NewRowsTrackerTest {
         Row updated = row(firstTime.plusNanos(1), "same-key");
 
         assertThat(tracker.fresh(List.of(first, updated, first, updated))).containsExactly(first, updated);
-        assertThat(tracker.since()).isEqualTo(updated.writtenAt());
+        assertThat(tracker.since()).isEqualTo(updated.writtenAt().minusSeconds(60));
         assertThat(tracker.fresh(List.of(updated))).isEmpty();
     }
 

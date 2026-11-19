@@ -65,10 +65,10 @@ class ExecutionEventsTest {
     }
 
     @Test void recoveryEntryMetadataChangesAndCompletionHaveDistinctEvents() {
-        tracker.observe(execution("RUNNING", 1, null, 7L), workers());
+        tracker.observe(execution("RUNNING", 1, null, 7L), workers(worker("w-1", true)));
         List<ObjectNode> recovering = tracker.observe(execution("RECOVERING", 2, 7L, 7L), workers());
-        assertEvents(recovering, "RECOVERING");
-        assertThat(recovering.getFirst().path("checkpointId").asLong()).isEqualTo(7);
+        assertEvents(recovering, "WORKER_DEAD", "RECOVERING");
+        assertThat(recovering.get(1).path("checkpointId").asLong()).isEqualTo(7);
         assertThat(tracker.observe(execution("RECOVERING", 2, 7L, 7L), workers())).isEmpty();
 
         assertEvents(tracker.observe(execution("RECOVERING", 3, 7L, 7L), workers()), "RECOVERING");
@@ -78,11 +78,60 @@ class ExecutionEventsTest {
         assertThat(recovered.getFirst().path("checkpointId").asLong()).isEqualTo(8);
     }
 
-    @Test void runningGenerationAndRestoreChangesReportRecoverySkippedBetweenPolls() {
+    @Test void runningGenerationChangesAreRebalancesButRestoreMetadataAloneIsNot() {
         tracker.observe(execution("RUNNING", 1, null, 7L), workers());
-        assertEvents(tracker.observe(execution("RUNNING", 2, 7L, 7L), workers()), "RECOVERED");
-        assertEvents(tracker.observe(execution("RUNNING", 2, 8L, 7L), workers()), "RECOVERED");
-        assertEvents(tracker.observe(execution("RUNNING", 3, 8L, 7L), workers()), "RECOVERED");
+        assertEvents(tracker.observe(execution("RUNNING", 2, 7L, 7L), workers()), "REBALANCED");
+        assertThat(tracker.observe(execution("RUNNING", 2, 8L, 7L), workers())).isEmpty();
+        assertEvents(tracker.observe(execution("RUNNING", 3, 8L, 7L), workers()), "REBALANCED");
+    }
+
+    @Test void killRecoveryThenRejoinEmitsOneRebalanceWithoutReplacingTheIncidentDuration() {
+        tracker.observe(execution("RUNNING", 1, null, 7L),
+                workers(worker("w-1", true), worker("w-2", true)));
+        clockNanos.set(TimeUnit.SECONDS.toNanos(1));
+        assertEvents(tracker.observe(execution("RECOVERING", 2, 7L, 7L),
+                workers(worker("w-2", true))), "WORKER_DEAD", "RECOVERING");
+        clockNanos.set(TimeUnit.MILLISECONDS.toNanos(2_993));
+        List<ObjectNode> recovered = tracker.observe(execution("RUNNING", 2, 7L, 7L),
+                workers(worker("w-2", true)));
+        assertEvents(recovered, "RECOVERED");
+        assertThat(recovered.getFirst().path("durationMs").asLong()).isEqualTo(1_993);
+
+        clockNanos.set(TimeUnit.MILLISECONDS.toNanos(8_200));
+        // Registration can be observed before the coordinator starts reassignment.
+        ArrayNode rejoined = workers(worker("w-1", true), worker("w-2", true));
+        assertThat(tracker.observe(execution("RUNNING", 2, 7L, 7L), rejoined)).isEmpty();
+        List<ObjectNode> rebalanced = tracker.observe(execution("RECOVERING", 3, 8L, 8L), rejoined);
+        assertEvents(rebalanced, "REBALANCED", "CHECKPOINT_COMPLETED");
+        ObjectNode event = rebalanced.getFirst();
+        assertThat(event.path("workerId").asText()).isEqualTo("w-1");
+        assertThat(event.path("oldGeneration").asLong()).isEqualTo(2);
+        assertThat(event.path("newGeneration").asLong()).isEqualTo(3);
+        assertThat(event.path("generation").asLong()).isEqualTo(3);
+        assertThat(event.has("durationMs")).isFalse();
+        assertThat(tracker.observe(execution("RECOVERING", 3, 8L, 8L), rejoined)).isEmpty();
+        clockNanos.set(TimeUnit.SECONDS.toNanos(10));
+        assertThat(tracker.observe(execution("RUNNING", 3, 8L, 8L), rejoined)).isEmpty();
+        assertThat(recovered.getFirst().path("durationMs").asLong()).isEqualTo(1_993);
+    }
+
+    @Test void rescaleBetweenPollsIdentifiesAnExistingWorkerGainingPartitions() {
+        ObjectNode first = worker("w-1", true);
+        ObjectNode second = worker("w-2", true);
+        first.putArray("partitions").add(0).add(1);
+        second.putArray("partitions");
+        tracker.observe(execution("RUNNING", 1, null, 7L), workers(first, second));
+        clockNanos.set(TimeUnit.SECONDS.toNanos(5));
+        first.putArray("partitions").add(0);
+        second.putArray("partitions").add(1);
+        List<ObjectNode> events = tracker.observe(execution("RUNNING", 2, 7L, 7L),
+                workers(first, second));
+        assertEvents(events, "REBALANCED");
+        assertThat(events.getFirst().path("workerId").asText()).isEqualTo("w-2");
+        assertThat(events.getFirst().path("oldGeneration").asLong()).isEqualTo(1);
+        assertThat(events.getFirst().path("newGeneration").asLong()).isEqualTo(2);
+        assertThat(events.getFirst().has("durationMs")).isFalse();
+        assertThat(tracker.observe(execution("RUNNING", 2, 7L, 7L), workers(first, second))).isEmpty();
     }
 
     @Test void recoveredDurationStartsAtFirstWorkerDeathNotRecoveryEntryOrLaterDeaths() {
@@ -112,18 +161,16 @@ class ExecutionEventsTest {
                 .path("durationMs").asLong()).isEqualTo(2_000);
     }
 
-    @Test void recoveredWithoutObservedDeathOmitsDurationIncludingAfterReset() {
+    @Test void recoveryAlreadyInProgressWithoutAnObservedDeathDoesNotInventAnIncident() {
         tracker.observe(execution("RECOVERING", 2, 7L, 7L), workers());
-        assertThat(tracker.observe(execution("RUNNING", 2, 7L, 7L), workers()).getFirst()
-                .has("durationMs")).isFalse();
+        assertThat(tracker.observe(execution("RUNNING", 2, 7L, 7L), workers())).isEmpty();
 
         tracker.observe(execution("RUNNING", 2, 7L, 7L), workers(worker("w-1", true)));
         tracker.observe(execution("RECOVERING", 3, 7L, 7L), workers());
         tracker.reset();
         clockNanos.set(TimeUnit.SECONDS.toNanos(6));
-        tracker.observe(execution("RECOVERING", 3, 7L, 7L), workers());
-        assertThat(tracker.observe(execution("RUNNING", 3, 7L, 7L), workers()).getFirst()
-                .has("durationMs")).isFalse();
+        assertThat(tracker.observe(execution("RECOVERING", 3, 7L, 7L), workers())).isEmpty();
+        assertThat(tracker.observe(execution("RUNNING", 3, 7L, 7L), workers())).isEmpty();
     }
 
     @Test void recoveryCompletedInDeathObservationHasZeroDuration() {
@@ -141,7 +188,7 @@ class ExecutionEventsTest {
         clockNanos.set(TimeUnit.SECONDS.toNanos(6));
         tracker.observe(execution("RECOVERING", 2, 7L, 7L).put("id", "exec-2"), workers());
         assertThat(tracker.observe(execution("RUNNING", 2, 7L, 7L).put("id", "exec-2"),
-                workers()).getFirst().has("durationMs")).isFalse();
+                workers())).isEmpty();
     }
 
     @Test void stoppingOrFailingDiscardsRecoveryTiming() {
@@ -151,14 +198,13 @@ class ExecutionEventsTest {
             tracker.observe(execution("RECOVERING", 2, 7L, 7L), workers());
             tracker.observe(execution(state, 2, 7L, 7L), workers());
             clockNanos.addAndGet(TimeUnit.SECONDS.toNanos(6));
-            tracker.observe(execution("RECOVERING", 3, 7L, 7L), workers());
-            assertThat(tracker.observe(execution("RUNNING", 3, 7L, 7L), workers()).getFirst()
-                    .has("durationMs")).isFalse();
+            assertEvents(tracker.observe(execution("RECOVERING", 3, 7L, 7L), workers()), "REBALANCED");
+            assertThat(tracker.observe(execution("RUNNING", 3, 7L, 7L), workers())).isEmpty();
         }
     }
 
-    @Test void initialRecoveringAndTerminalStatesAreReported() {
-        assertEvents(tracker.observe(execution("RECOVERING", 2, 7L, 7L), workers()), "RECOVERING");
+    @Test void initialRecoveringDoesNotInventADeathAndTerminalStatesAreReported() {
+        assertThat(tracker.observe(execution("RECOVERING", 2, 7L, 7L), workers())).isEmpty();
         tracker.reset();
         assertEvents(tracker.observe(execution("STOPPED", 1, null, 7L), workers()), "STOPPED");
         tracker.reset();
@@ -216,7 +262,7 @@ class ExecutionEventsTest {
 
     @Test void executionChangesStillEmitWhenWorkersAreUnavailable() {
         tracker.observe(execution("RUNNING", 1, null, 7L), workers(worker("w-1", true)));
-        assertEvents(tracker.observe(execution("RECOVERING", 2, 7L, 7L), null), "RECOVERING");
+        assertEvents(tracker.observe(execution("RECOVERING", 2, 7L, 7L), null), "REBALANCED");
         assertEvents(tracker.observe(execution("RUNNING", 2, 7L, 7L), workers()),
                 "WORKER_DEAD", "RECOVERED");
     }
