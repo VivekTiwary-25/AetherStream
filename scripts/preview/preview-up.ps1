@@ -49,7 +49,7 @@ Invoke-Checked 'docker' @('compose', '-p', 'aether-preview', '-f', 'docker-compo
 
 $cloudflared = Join-Path $preview 'cloudflared.exe'
 if (-not (Get-Command cloudflared.exe -ErrorAction SilentlyContinue)) {
-    Invoke-WebRequest -Uri 'https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe' -OutFile $cloudflared -TimeoutSec 180
+    Invoke-WebRequest -UseBasicParsing -Uri 'https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe' -OutFile $cloudflared -TimeoutSec 180
 } else {
     $cloudflared = (Get-Command cloudflared.exe).Source
 }
@@ -71,5 +71,5 @@ while ((Get-Date) -lt $deadline -and -not $url) {
 if (-not $url) { Stop-Process -Id $tunnel.Id -Force -ErrorAction SilentlyContinue; throw "Tunnel URL not found within 90 seconds; see $logOut and $logErr" }
 $url | Set-Content -Encoding ascii (Join-Path $preview 'url.txt')
 Write-Output "Preview: $url"
-Invoke-WebRequest -Uri 'http://localhost:8089/' -TimeoutSec 15 | Select-Object StatusCode
-Invoke-WebRequest -Uri 'http://localhost:8089/api/health' -TimeoutSec 15 | Select-Object StatusCode
+Invoke-WebRequest -UseBasicParsing -Uri 'http://localhost:8089/' -TimeoutSec 15 | Select-Object StatusCode
+Invoke-WebRequest -UseBasicParsing -Uri 'http://localhost:8089/api/health' -TimeoutSec 15 | Select-Object StatusCode
