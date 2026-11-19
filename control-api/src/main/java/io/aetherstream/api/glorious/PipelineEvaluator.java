@@ -45,7 +45,8 @@ public final class PipelineEvaluator {
         }
         tick(nowMs);
         Map<String, Object> copy = immutable(row);
-        Frame frame = new Frame("row", copy, number.longValue(), copy);
+        Frame frame = new Frame("row", copy, number.longValue(), copy,
+                Objects.requireNonNullElse(copy.get("truckId"), "global"));
         for (Node root : roots) process(root, frame, nowMs);
     }
 
@@ -58,6 +59,8 @@ public final class PipelineEvaluator {
     public long droppedRows() { return droppedRows; }
 
     private void tickNode(Node node, long nowMs) {
+        // Apply idle finalization only after upstream nodes have delivered their closed windows.
+        if (nowMs >= 2_000) node.finalizedThrough = Math.max(node.finalizedThrough, nowMs - 2_000);
         closeWindows(node, nowMs);
         node.alerts.entrySet().removeIf(entry -> nowMs >= entry.getValue() && nowMs - entry.getValue() >= 10_000);
         for (Node child : node.children) tickNode(child, nowMs);
@@ -78,7 +81,7 @@ public final class PipelineEvaluator {
                 }
                 Object truckId = frame.context.get("truckId");
                 if (truckId != null) projection.put("truckId", truckId);
-                forward(node, new Frame(frame.kind, immutable(projection), frame.eventTime, frame.context), nowMs);
+                forward(node, new Frame(frame.kind, immutable(projection), frame.eventTime, frame.context, frame.alertIdentity), nowMs);
             }
             case "windowAverage" -> accumulate(node, frame, nowMs);
             case "thresholdAlert" -> {
@@ -87,8 +90,7 @@ public final class PipelineEvaluator {
                 String field = p.path("field").asText();
                 Object actual = value(frame, field);
                 if (!matches(actual, p)) return;
-                Object identity = frame.context.get("truckId");
-                if (identity == null) identity = frame.data.getOrDefault("group", "global");
+                Object identity = frame.alertIdentity;
                 Long previous = node.alerts.get(identity);
                 if (previous != null && (nowMs < previous || nowMs - previous < 10_000)) return;
                 if (!node.alerts.containsKey(identity) && node.alerts.size() >= MAX_STATE) {
@@ -100,7 +102,7 @@ public final class PipelineEvaluator {
                 alert.put("field", field);
                 alert.put("value", actual);
                 alert.put("message", p.path("message").asText());
-                forward(node, new Frame("alert", immutable(alert), frame.eventTime, frame.context), nowMs);
+                forward(node, new Frame("alert", immutable(alert), frame.eventTime, frame.context, frame.alertIdentity), nowMs);
             }
             case "output" -> {
                 if (frame.kind.equals("row")) {
@@ -145,7 +147,6 @@ public final class PipelineEvaluator {
 
     private void closeWindows(Node node, long nowMs) {
         node.finalizedThrough = Math.max(node.finalizedThrough, node.watermark);
-        if (nowMs >= 2_000) node.finalizedThrough = Math.max(node.finalizedThrough, nowMs - 2_000);
         if (node.windows.isEmpty()) return;
         var iterator = node.windows.entrySet().iterator();
         List<Frame> ready = new ArrayList<>();
@@ -160,7 +161,7 @@ public final class PipelineEvaluator {
             average.put("count", window.count);
             average.put("windowStart", entry.getKey().start);
             average.put("windowEnd", window.end);
-            ready.add(new Frame("average", immutable(average), window.end - 1, window.context));
+            ready.add(new Frame("average", immutable(average), window.end - 1, window.context, entry.getKey().group));
             iterator.remove();
         }
         for (Frame frame : ready) forward(node, frame, nowMs);
@@ -203,7 +204,8 @@ public final class PipelineEvaluator {
         return java.util.Collections.unmodifiableMap(new LinkedHashMap<>(map));
     }
 
-    private record Frame(String kind, Map<String, Object> data, long eventTime, Map<String, Object> context) {}
+    private record Frame(String kind, Map<String, Object> data, long eventTime,
+                         Map<String, Object> context, Object alertIdentity) {}
     private record WindowKey(long start, Object group) {}
     private static final class Window {
         final long end;

@@ -117,6 +117,58 @@ class PipelineEvaluatorTest {
     }
 
     @Test
+    void projectedGroupedAveragesKeepIndependentAlertCooldowns() throws Exception {
+        PipelineEvaluator evaluator = validatedEvaluator("""
+            {"name":"projected route alerts","nodes":[
+              {"id":"w","type":"windowAverage","params":{"field":"speedKmh","windowSec":5,"groupBy":"routeId"}},
+              {"id":"p","type":"pickFields","params":{"fields":["speedKmh"]}},
+              {"id":"a","type":"thresholdAlert","params":{"field":"speedKmh","op":">=","value":60,"message":"fast route"}},
+              {"id":"o","type":"output","params":{"name":"alerts"}}],
+             "edges":[{"from":"w","to":"p"},{"from":"p","to":"a"},{"from":"a","to":"o"}]}
+            """);
+        long base = 1_700_000_000_000L;
+        for (int window = 0; window < 3; window++) {
+            long eventTime = base + window * 5_000L + 1_000;
+            evaluator.accept(Map.of("truckId", "a", "routeId", "east", "speedKmh", 80.0,
+                    "eventTime", eventTime), eventTime + 2_000);
+            evaluator.accept(Map.of("truckId", "b", "routeId", "west", "speedKmh", 70.0,
+                    "eventTime", eventTime), eventTime + 2_000);
+            evaluator.tick(base + window * 5_000L + 7_000);
+            assertThat(results.stream().filter(e -> e.kind().equals("alert")))
+                    .hasSize(window < 2 ? 2 : 4);
+        }
+        assertThat(results.stream().filter(e -> e.kind().equals("average"))).hasSize(6);
+        assertThat(results.stream().filter(e -> e.kind().equals("alert")).map(e -> e.data().get("value")))
+                .containsExactly(80.0, 70.0, 80.0, 70.0);
+    }
+
+    @Test
+    void idleClosureIncludesEveryUpstreamWindowBeforeFinalizingDownstream() throws Exception {
+        PipelineEvaluator evaluator = validatedEvaluator("""
+            {"name":"averaged event times","nodes":[
+              {"id":"first","type":"windowAverage","params":{"field":"eventTime","windowSec":5}},
+              {"id":"second","type":"windowAverage","params":{"field":"eventTime","windowSec":10}},
+              {"id":"o","type":"output","params":{"name":"averages"}}],
+             "edges":[{"from":"first","to":"second"},{"from":"second","to":"o"}]}
+            """);
+        long base = 1_700_000_000_000L;
+        evaluator.accept(row("a", 20, base + 1_000), base + 1_000);
+        evaluator.accept(row("a", 40, base + 2_000), base + 2_000);
+        evaluator.accept(row("b", 60, base + 6_000), base + 6_000);
+        evaluator.accept(row("b", 80, base + 7_000), base + 7_000);
+        evaluator.tick(base + 11_999);
+        assertThat(results).isEmpty();
+        evaluator.tick(base + 12_000);
+        assertThat(results).singleElement().satisfies(result ->
+                assertThat(result.data()).containsExactlyInAnyOrderEntriesOf(Map.of(
+                        "group", "global", "field", "eventTime", "avg", base + 4_000.0,
+                        "count", 2L, "windowStart", base, "windowEnd", base + 10_000)));
+        evaluator.accept(row("a", 100, base + 6_000), base + 12_001);
+        evaluator.tick(base + 20_000);
+        assertThat(results).hasSize(1);
+    }
+
+    @Test
     void rateLimitsRollingSecondsIndependentlyPerOutputAndCountsDrops() throws Exception {
         PipelineEvaluator evaluator = evaluator("""
             {"nodes":[{"id":"a","type":"output","params":{"name":"a"}},
@@ -158,6 +210,12 @@ class PipelineEvaluatorTest {
 
     private PipelineEvaluator evaluator(String json) throws Exception {
         return new PipelineEvaluator(new ObjectMapper().readTree(json), results::add);
+    }
+
+    private PipelineEvaluator validatedEvaluator(String json) throws Exception {
+        var pipeline = new ObjectMapper().readTree(json);
+        assertThat(new PipelineValidator().validate(pipeline).errors()).isEmpty();
+        return new PipelineEvaluator(pipeline, results::add);
     }
 
     private static Map<String, Object> row(String truck, double speed, long time) {

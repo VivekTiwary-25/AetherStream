@@ -5,6 +5,8 @@ All notable changes to this project are documented here.
 ## [Unreleased]
 
 - Fixed production Live World basemap loading by bundling MapLibre's worker through Vite, serving `.mjs` as JavaScript in nginx, and checking worker-load console errors in the UI smoke test.
+- Fixed live pipeline result cursors across runs, consumer stop/close races, and failure reporting during stop/shutdown.
+- Fixed chained window finalization and grouped threshold cooldown identity after field projection; reviewed recovery audit history attribution, timestamps, retention, and replay deduplication.
 
 ## [1.0.0] - 2026-11-19
 
