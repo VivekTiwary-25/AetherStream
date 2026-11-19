@@ -4,8 +4,8 @@ export interface ValidationError { nodeId?: string; message: string }
 export interface ValidationResult { valid: boolean; errors: ValidationError[] }
 export type RunState = 'RUNNING' | 'STOPPED' | 'FAILED'
 export interface RunResult { seq: number; ts: number | string; output: string; kind: 'row' | 'alert' | 'average'; data: Record<string, unknown> }
-export interface ResultsPage { runId: string; state: RunState; error?: string; startedAt?: number | string; eventsIn: number; results: RunResult[] }
-export interface GenerateResponse { pipeline: Pipeline; source: 'ai' | 'example'; note?: string; model?: string; ms: number }
+export interface ResultsPage { runId: string; state: RunState; error?: string; startedAt?: number | string; eventsIn: number; droppedRows?: number; results: RunResult[] }
+export interface GenerateResponse { pipeline: Pipeline; source: 'ai' | 'example'; note?: string; model?: string; ms: number; validatedBy: 'control-api' | 'local' | 'example' }
 
 export class ApiError extends Error {
   constructor(readonly status: number, readonly body: unknown) {
