@@ -113,7 +113,7 @@ class TaskRuntimeTest {
         assertThat(ack.partitions()).isEqualTo(before);
         assertThat(ack.partitions().values().stream().mapToLong(Long::longValue).sum()).isEqualTo(700);
         assertThat(ack.objectKey()).isEqualTo("executions/" + EXEC + "/checkpoints/1/worker-w-1.json");
-        assertThat(runtime.lastCheckpointId()).isEqualTo(1);
+        await("lastCheckpointId 1", 10_000, () -> runtime.lastCheckpointId() == 1); // set just after the ack returns
 
         // Everything before the barrier was committed before the ack.
         for (int p = 0; p < PARTITIONS; p++) {
