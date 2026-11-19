@@ -33,7 +33,7 @@ beforeEach(() => {
   vi.mocked(getCheckpoints).mockResolvedValue([])
   vi.mocked(getSimulatorState).mockResolvedValue(fleet)
 })
-afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.resetAllMocks(); socket.listener = null })
+afterEach(() => { cleanup(); vi.useRealTimers(); vi.unstubAllGlobals(); vi.resetAllMocks(); socket.listener = null })
 
 describe('recovery feed cutover', () => {
   it('keeps a live failure received before REST hydration, with its original hold deadline', async () => {
@@ -54,17 +54,22 @@ describe('recovery feed cutover', () => {
       .mockRejectedValueOnce(new Error('service unavailable'))
       .mockResolvedValue(response([{ id: 1, event: 'WORKER_DEAD', at: 10, workerId: 'worker-1', executionId: execution.id }]))
     vi.stubGlobal('fetch', fetch)
-    const { result } = renderHook(useRecoveryFeed)
+    const { result, unmount } = renderHook(useRecoveryFeed)
     await act(async () => { await Promise.resolve(); await Promise.resolve() })
     expect(result.current.historyError).toBe('service unavailable')
 
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(5_000)
-      await Promise.resolve()
-    })
+    await act(async () => { await vi.advanceTimersByTimeAsync(4_999) })
+    expect(fetch).toHaveBeenCalledTimes(1)
+    expect(result.current.historyError).toBe('service unavailable')
+    await act(async () => { await vi.advanceTimersByTimeAsync(1) })
+    expect(fetch).toHaveBeenCalledTimes(2)
     expect(result.current.historyError).toBeNull()
     expect(result.current.history.map((entry) => entry.id)).toEqual([1])
-    vi.useRealTimers()
+
+    unmount()
+    await act(async () => { await vi.advanceTimersByTimeAsync(5_000) })
+    expect(fetch).toHaveBeenCalledTimes(2)
+    expect(getCurrentExecution).toHaveBeenCalledTimes(2)
   })
 
   it('does not replace a live execution with a stale REST result and shows only completed checkpoints', async () => {
