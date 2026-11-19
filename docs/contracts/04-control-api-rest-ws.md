@@ -19,6 +19,10 @@ The web container (nginx) proxies `/api/*` and `/ws` to control-api, so the brow
 | GET /api/executions/current | - | ExecutionInfo or 204 |
 | GET /api/executions/{id} | - | ExecutionInfo |
 | POST /api/executions/{id}/stop | - | ExecutionInfo |
+| POST /api/executions/{id}/savepoints | - | `{"savepointId","checkpointId","createdAt"}`. 404 `NOT_FOUND` if the execution is missing or not in the caller's org (`X-Org`, default `demo`), or if the coordinator returns 404. Coordinator 409 `CONFLICT` and 503 `UNAVAILABLE` are passed through. 502 `UPSTREAM_DOWN` if the coordinator is unreachable |
+| GET /api/savepoints | - | `[{"savepointId","executionId","checkpointId","pipelineId","pipelineVersion","protocolVersion","operatorIds","createdAt"}]` for savepoints whose `executionId` belongs to the caller's org. A non-array coordinator body yields `[]`. 502 `UPSTREAM_DOWN` |
+| POST /api/executions/{id}/restore | `{"savepointId","idempotencyKey"}` | ExecutionInfo of the new execution (newest stored plan of the same pipeline, started from that savepoint), or the existing execution when that idempotency key was already used. 400 `INVALID_REQUEST` if either field is missing or blank. 404 `NOT_FOUND` if the execution is missing, not in the caller's org, or the savepoint is not that execution's. 409 `EXECUTION_BUSY` if another org has an active execution. Coordinator errors are passed through, including 409 `INCOMPATIBLE_SAVEPOINT`. 502 `UPSTREAM_DOWN` |
+| POST /api/executions/{id}/rescale | - | `{"checkpointId":N}`. Checkpoint pause, then partition reassignment; not online migration. 404 `NOT_FOUND` if the execution is missing or not in the caller's org. Coordinator 409 `CONFLICT` is passed through. 502 `UPSTREAM_DOWN` |
 | GET /api/executions/{id}/checkpoints?limit=20 | - | `[{"checkpointId","state","generation","durationMs","completedAt","sourceOffsets"}]` newest first |
 | GET /api/workers | - | `ClusterState.workers` (contract 03 §7) |
 | GET /api/results/windows?sinkId=speedSink&limit=200 | - | `[{"sinkId","key","windowStart","windowEnd","values":{},"eventCount"}]` newest windowEnd first, current execution |
@@ -32,6 +36,8 @@ The web container (nginx) proxies `/api/*` and `/ws` to control-api, so the brow
 | POST /api/chaos/kill-worker | `{"workerId":null}` | proxied to coordinator `/coord/chaos/kill` -> `{"workerId"}` |
 | GET /api/simulator/state | - | proxied simulator `/state` |
 | POST /api/simulator/trucks | `{"x","y"}` | proxied simulator `POST /trucks` |
+| GET /api/scenarios | - | `[{"name":"rush-hour","label":"Rush hour","description":"Heavy traffic across the city."},{"name":"breakdown","label":"Breakdown","description":"A truck breaks down during its route."},{"name":"surge","label":"Surge","description":"A surge of additional delivery traffic."},{"name":"reset","label":"Reset","description":"Reset the simulator to its normal scenario."}]` |
+| POST /api/simulator/scenario | JSON body proxied to simulator `POST /scenario` (`name` is `rush-hour`, `breakdown`, `surge`, or `reset`; optional non-blank `truckId`) | simulator status and body passed through; 200 is simulator state including `scenario`. Simulator 400 `BAD_REQUEST` is passed through. 502 `UPSTREAM_DOWN` with message `simulator is not reachable` |
 | POST /api/compare | `{}` | CompareResult (below) |
 
 `ExecutionInfo`: `{"id","pipelineId","pipelineVersion","state":"CREATED|RUNNING|RECOVERING|STOPPED|FAILED","generation",

@@ -272,8 +272,8 @@ else
   pass 'Version retrieved; commit assertion skipped (EXPECT_SHA unset)'
 fi
 
-# Steps 9-11 (savepoint restore, rescale, scenario) run only when E2E_EXTENDED=1 (CI sets 0 until the
-# restore-from-savepoint bug is fixed - see boss/STATE.md).
+# Steps 9-11 (savepoint restore, rescale, scenario) run only when E2E_EXTENDED=1.
+# .github/workflows/ci-e2e.yml sets E2E_EXTENDED=1 (the script default is also 1).
 if [ "${E2E_EXTENDED:-1}" != 1 ]; then
   echo '9-11 SKIP extended steps (E2E_EXTENDED=0)'
   exit 0
