@@ -1,153 +1,158 @@
 # AetherStream
+
 [![ci-java](https://github.com/VivekTiwary-25/AetherStream/actions/workflows/ci-java.yml/badge.svg?branch=main)](https://github.com/VivekTiwary-25/AetherStream/actions/workflows/ci-java.yml) [![ci-web](https://github.com/VivekTiwary-25/AetherStream/actions/workflows/ci-web.yml/badge.svg?branch=main)](https://github.com/VivekTiwary-25/AetherStream/actions/workflows/ci-web.yml) [![ci-integration](https://github.com/VivekTiwary-25/AetherStream/actions/workflows/ci-integration.yml/badge.svg?branch=main)](https://github.com/VivekTiwary-25/AetherStream/actions/workflows/ci-integration.yml) [![ci-mock](https://github.com/VivekTiwary-25/AetherStream/actions/workflows/ci-mock.yml/badge.svg?branch=main)](https://github.com/VivekTiwary-25/AetherStream/actions/workflows/ci-mock.yml) [![ci-images](https://github.com/VivekTiwary-25/AetherStream/actions/workflows/ci-images.yml/badge.svg?branch=main)](https://github.com/VivekTiwary-25/AetherStream/actions/workflows/ci-images.yml) [![ci-compose](https://github.com/VivekTiwary-25/AetherStream/actions/workflows/ci-compose.yml/badge.svg?branch=main)](https://github.com/VivekTiwary-25/AetherStream/actions/workflows/ci-compose.yml) [![ci-e2e](https://github.com/VivekTiwary-25/AetherStream/actions/workflows/ci-e2e.yml/badge.svg?branch=main)](https://github.com/VivekTiwary-25/AetherStream/actions/workflows/ci-e2e.yml) [![ci-ui-e2e](https://github.com/VivekTiwary-25/AetherStream/actions/workflows/ci-ui-e2e.yml/badge.svg?branch=main)](https://github.com/VivekTiwary-25/AetherStream/actions/workflows/ci-ui-e2e.yml) [![ci-k8s](https://github.com/VivekTiwary-25/AetherStream/actions/workflows/ci-k8s.yml/badge.svg?branch=main)](https://github.com/VivekTiwary-25/AetherStream/actions/workflows/ci-k8s.yml) [![ci-terraform](https://github.com/VivekTiwary-25/AetherStream/actions/workflows/ci-terraform.yml/badge.svg?branch=main)](https://github.com/VivekTiwary-25/AetherStream/actions/workflows/ci-terraform.yml) [![bench](https://github.com/VivekTiwary-25/AetherStream/actions/workflows/bench.yml/badge.svg?branch=main)](https://github.com/VivekTiwary-25/AetherStream/actions/workflows/bench.yml) [![cd](https://github.com/VivekTiwary-25/AetherStream/actions/workflows/cd.yml/badge.svg?branch=main)](https://github.com/VivekTiwary-25/AetherStream/actions/workflows/cd.yml)
+
 [CI/CD workflow definitions and run evidence](docs/report/ci-cd-evidence.md)
 
+AetherStream is a fault-tolerant distributed stream processor, a mini Apache Flink, with a game-like truck city UI. Simulated trucks drive a delivery city and emit position and delivery events onto a six-partition Kafka topic; three workers compute event-time windows and alerts, upsert results to Postgres, and take aligned checkpoints in MinIO so a killed worker can be restored from the last completed checkpoint and fenced off the sink. The city is the visible source of the stream; the panels are where you read what the engine wrote.
 
-AetherStream is a stream-processing project for logistics events. It is designed as a small, educational Apache Flink-style engine: it compiles a visual pipeline and processes continuous data across workers, with explicit event-time and recovery behavior.
-
-Its game-like truck-city view gives the data a visible source: simulated trucks move through a delivery city and send position and delivery events into the engine. The city is an orientation layer; the panels and controls are where an operator inspects results and engine state. The dashboard shell shows the city and the live panels. The pipeline editor, chaos controls, compare panel, scenario buttons, and checkpoint timeline exist as components, but `web/src/app/shell/AppShell.tsx` does not mount them. A feature marked **(in progress)** is not something you can click in that shell, and a workflow file is not a green run.
+![Aether City dashboard: trucks on the grid, the stream engine, and checkpoint status](docs/ux/screenshots/desktop-01-app-viewport-60s.png)
 
 ## Features
 
-- Pipeline compiler with collected, plain-English validation errors.
-- Per-partition event-time windows and explicit handling of late events.
-- Per-key/window event deduplication.
-- Configurable rules, including the stuck-truck demonstration.
-- Three Compose worker services.
-- Bounded queues and observable backpressure.
-- Aligned barrier checkpoints stored in MinIO.
-- Worker-kill recovery from completed checkpoints with generation fencing.
-- Compare distributed results with the deterministic reference executor (`POST /api/compare`).
-- Savepoints and restore (`POST /api/executions/{id}/savepoints`, `GET /api/savepoints`, `POST /api/executions/{id}/restore`). An incompatible savepoint is rejected.
-- Rescale as a controlled pause at a completed checkpoint, then reassignment (`POST /api/executions/{id}/rescale`). This is not online migration. A balanced assignment is refused.
-- Simulator scenarios (`GET /api/scenarios`, `POST /api/simulator/scenario`): Rush hour, Breakdown, Surge, and Reset. The scenario buttons are in `web/src/app/scenarios/ScenarioPanel.tsx` and are not mounted in the shell.
-- Example pipelines (`GET /api/pipelines/examples`), including `logistics-demo`, `speeding-alerts`, `fleet-activity`, and `broken-for-demo`.
-- Checkpoint timeline component at `web/src/app/timeline/CheckpointTimeline.tsx` **(in progress as a shell control; the component is not mounted)**.
-- Optional Prometheus and Grafana Compose profile (`infra/monitoring`).
-- Kubernetes manifests with kind CI (`infra/kubernetes`, `.github/workflows/ci-k8s.yml`).
-- Local Terraform for Docker (`infra/terraform`, `.github/workflows/ci-terraform.yml`).
-- GitHub Actions for Java, web, images, Compose smoke, integration tests, the full-system demo, kind, Terraform, benchmarks, and a self-hosted Compose deploy (`.github/workflows/cd.yml`).
-
-The engine semantics and system integrations are **(in progress)** where they are not implemented and exercised end to end. See the contracts for the intended behavior; they are specifications, not test evidence.
+- Truck city (PixiJS): simulated trucks on a 2 km grid, with a live events/s stream into the engine (`web/src/city/`, mounted in `web/src/app/shell/AppShell.tsx`).
+- Pipeline editor: draw source, filter, map, key-by, window, rule, and sink nodes; validate in plain English; load `logistics-demo`, `speeding-alerts`, `fleet-activity`, or `broken-for-demo`; run.
+- Live panels: speed windows, deliveries per minute, alerts, workers, and dead letters.
+- Chaos controls: send late events, duplicates, or malformed records; slow the sink; kill a worker (real halt, then recovery).
+- Reference comparison: one-process replay of the checkpointed Kafka range, matched to Postgres (`POST /api/compare`).
+- Checkpoint and recovery timeline, including recovering-from-checkpoint and recovered text.
+- Operations: take a savepoint, restore from it, or rescale (pause at the next checkpoint and reassign; not live migration).
+- City scenarios: Rush hour, Breakdown, Surge, and Reset.
+- Presenter tour (eight steps) and intro splash.
+- Status as text and colour: running, backpressured, checkpointing, recovering, stopped, and failed.
+- Three Compose workers, each a source thread, operator thread, and sink thread, with two bounded queues of capacity 1000; a full queue blocks the stage above it.
+- Aligned barrier checkpoints in MinIO; restore uses only the latest completed checkpoint; a generation fence stops a stale worker from committing.
+- Event-time tumbling windows, late events as dead letters, and per-key/window dedup of `eventId` (operator code in `:compiler`, run by the engine).
+- Demo pipeline stuck-truck rule (`logistics-demo`): average speed under 1 for 10 one-minute windows.
 
 ## Architecture
+
+The browser never talks to Kafka, the workers, or MinIO. nginx serves the UI and proxies `/api` and `/ws` to the control API. The control API validates a pipeline and asks the coordinator to run it. The simulator writes truck events to Kafka topic `truck-events` (6 partitions, keyed by truck). Three workers consume assigned partitions, run the shared operators, and upsert window results, alerts, and dead letters to Postgres. The coordinator is not on the record path: it assigns partitions, triggers aligned barrier checkpoints, and on worker death restores every partition from the latest completed checkpoint in MinIO, then replays Kafka from the saved offsets. The same operator code runs in a single-process reference executor, which is what "Compare with reference" checks. Apache Flink is the design reference, not the runtime.
 
 ```mermaid
 flowchart LR
   Trucks[Truck simulator] --> Kafka[(Kafka: truck-events)]
-  Kafka --> Workers[Three workers\nsource → bounded queues → operators → sink]
+  Kafka --> Workers[Three workers]
   Coordinator[Coordinator] <--> Workers
-  Workers --> Postgres[(PostgreSQL\nresults and metadata)]
-  Workers --> MinIO[(MinIO\ncheckpoint objects)]
+  Workers --> Postgres[(PostgreSQL)]
+  Workers --> MinIO[(MinIO checkpoints)]
   API[Control API] --> Coordinator
   API --> Postgres
   Web[Web UI and truck city] -->|/api and /ws| API
-  Web --> Trucks
-  Reference[Reference executor] -. comparison .-> Postgres
 ```
 
-See the [architecture document](docs/architecture.md) and the [stack and layout contract](docs/contracts/00-stack-and-layout.md) for the current service and module boundaries.
-
-## Repository layout
-
-| Path | Responsibility |
-| --- | --- |
-| `common/` | Shared Java event, pipeline, protocol, and API records (`:common`) |
-| `compiler/` | Pipeline validation, planning, and shared operator semantics (`:compiler`) |
-| `reference/` | Deterministic single-process executor (`:reference`) |
-| `engine/` | Coordinator and worker runtime (`:engine`) |
-| `control-api/` | Spring Boot REST and WebSocket API (`:control-api`) |
-| `simulator/` | Truck-city event generator (`:simulator`) |
-| `web/` | React, TypeScript, and Vite interface |
-| `tests/` | Testcontainers integration and fault tests (`:tests`) |
-| `docs/contracts/` | Normative event, pipeline, runtime, and API contracts |
-| `docs/ux/` | UX design proposals and assumptions |
-| `infra/` | Dockerfiles, Compose, the monitoring profile, Kubernetes manifests, Terraform, and demo scripts |
-| `.github/workflows/` | GitHub Actions workflows currently on `main` |
+See [docs/architecture.md](docs/architecture.md).
 
 ## Quick start
 
-Requirements: Docker with Compose, Java 21, Gradle wrapper, and Node.js 22 for web tests.
+Docker with Compose is required. From the repo root, if the stack is not already the live demo:
 
 ```sh
 docker compose up -d --build
+docker compose --profile monitoring up -d
 ```
 
-Open [http://localhost:8088](http://localhost:8088). The first build downloads dependencies and builds the application images. Compose defines the complete local stack, including Kafka, PostgreSQL, MinIO, coordinator, three workers, simulator, control API, and web UI. Prometheus and Grafana are not in that default set. Start them with `docker compose --profile monitoring up -d`, then open Grafana at [http://localhost:13000](http://localhost:13000) (dashboard **AetherStream engine**) and Prometheus at [http://localhost:19090](http://localhost:19090). See [infra/monitoring/README.md](infra/monitoring/README.md).
+Do not run `docker compose down -v` on a machine that is already hosting the live demo.
 
-### Ports
+```sh
+docker compose ps
+```
 
-| Service | Host port(s) | Purpose |
-| --- | ---: | --- |
-| Web UI | `8088` | Browser entry point; proxies `/api` and `/ws` |
-| Control API | `18080` | REST API |
-| Coordinator | `18081` | Coordinator health and state API |
-| Simulator | `18070` | Simulator API |
-| Kafka | `19092` | Host-side Kafka listener |
-| PostgreSQL | `15432` | Application database |
-| MinIO | `19000`, `19001` | S3 API and console |
-| Workers 1–3 | — | Internal worker health on container port `8090` |
-| Prometheus | `19090` | Only with Compose profile `monitoring` |
-| Grafana | `13000` | Only with Compose profile `monitoring` |
+Application services should be healthy. `kafka-init` and `minio-init` should be exited, not running. Open [http://localhost:8088](http://localhost:8088). With the monitoring profile, Grafana is [http://localhost:13000](http://localhost:13000) (dashboard **AetherStream engine**) and Prometheus is [http://localhost:19090](http://localhost:19090).
 
-The default Compose credentials are for local development only; do not expose this stack publicly with defaults.
+| Service | Host port |
+| --- | ---: |
+| Web UI | 8088 |
+| Control API | 18080 |
+| Coordinator | 18081 |
+| Simulator | 18070 |
+| Kafka | 19092 |
+| PostgreSQL | 15432 |
+| MinIO API, console | 19000, 19001 |
+| Prometheus (`monitoring` profile) | 19090 |
+| Grafana (`monitoring` profile) | 13000 |
+
+Workers 1–3 publish no host port. Default Compose credentials are for local development only.
 
 ## Tests
 
-From the repository root, run the Java build and Testcontainers integration suite:
+Commands below are the `run:` lines in `.github/workflows/`. Java 21 and the Gradle wrapper for Gradle commands; Node.js 22 for the web and UI jobs. Integration and end-to-end jobs need a Docker daemon.
+
+Unit — `.github/workflows/ci-java.yml`:
 
 ```sh
-./gradlew build
-./gradlew :tests:integrationTest
+./gradlew build --console=plain
 ```
 
-For the web package:
+Web — `.github/workflows/ci-web.yml`, working directory `web/`:
 
 ```sh
-cd web
-npm ci && npm test
+npm ci
+npm run lint
+npm run test
+npm run build
 ```
 
-Integration tests require a working Docker daemon. The web CI workflow also runs lint and a production build. `tests/src/test/java/io/aetherstream/tests/WorkerAdaptersIT.java` covers the Kafka source and the Postgres sink, including generation fencing. `tests/src/test/java/io/aetherstream/tests/EngineMatchesReferenceIT.java` compares the engine with the reference executor. Actions run [44395770221](https://github.com/VivekTiwary-25/AetherStream/actions/runs/44395770221) logged that comparison as 811 reference results, 811 engine results, 811 matched, and dead letters 25 and 25 equal. That is one run's log, not a promise that a later run printed the same counts.
+Integration — `.github/workflows/ci-integration.yml`:
 
-## CI/CD workflows
+```sh
+./gradlew :tests:integrationTest --console=plain
+```
 
-These describe workflow files present in `.github/workflows/` on `main`. A file is the design of the check. Open the Actions log before calling a run green. Trigger and path-filter detail is in [docs/ci-cd.md](docs/ci-cd.md).
+End-to-end — `.github/workflows/ci-e2e.yml`. Compose step, then the demo script:
 
-| Workflow | What it checks |
+```sh
+docker compose up -d --build
+bash infra/scripts/demo-e2e.sh
+```
+
+That workflow sets `GIT_SHA` on the compose step and `EXPECT_SHA` plus `E2E_EXTENDED=1` on the script, both to the commit SHA. If `EXPECT_SHA` is unset, the script still runs and skips the commit check.
+
+UI end-to-end — `.github/workflows/ci-ui-e2e.yml`. Compose from the repo root, npm from `tests/ui`:
+
+```sh
+GIT_SHA=${{ github.sha }} docker compose up -d --build --wait
+npm install --package-lock=false --no-audit --no-fund
+npx playwright install --with-deps chromium
+npm test
+```
+
+`${{ github.sha }}` is the Actions expression for the commit. The `npm test` step also sets `EXPECT_SHA` to that commit.
+
+## CI/CD
+
+`.github/workflows/` has one workflow per concern: Java unit tests (`./gradlew build --console=plain`), web lint/test/build, Testcontainers integration, the dev mock smoke (`cd web/mock && npm install && node smoke.mjs`), image builds, Compose smoke (`docker compose up -d --build` then `bash infra/scripts/smoke.sh`), the full-system demo (`bash infra/scripts/demo-e2e.sh`), a Playwright UI demo, kind, Terraform, benchmarks (`./gradlew :tests:benchmarkTest --console=plain`), and CD. On a push to `main`, `cd.yml` publishes the engine, simulator, control-api, and web images to GHCR tagged with the commit SHA, then deploys that SHA on the self-hosted runner labelled `aether-deploy`. A workflow file is not a green run.
+
+[CI/CD workflow definitions and run evidence](docs/report/ci-cd-evidence.md)
+
+## Repository layout
+
+| Path | What |
 | --- | --- |
-| `ci-java.yml` (`ci-java`) | `./gradlew build`: compiles modules and runs Java unit tests; uploads test reports. |
-| `ci-web.yml` (`ci-web`) | Installs locked Node dependencies, runs lint and web tests, builds the production UI, and uploads `web/dist`. |
-| `ci-integration.yml` (`ci-integration`) | `./gradlew :tests:integrationTest` with Testcontainers. |
-| `ci-images.yml` (`ci-images`) | Builds custom engine, simulator, control API, and web images; smoke-checks Java images and revision labels. |
-| `ci-compose.yml` (`ci-compose`) | Builds and starts the Compose stack, runs `infra/scripts/smoke.sh`, records status/logs, then tears down. |
-| `ci-e2e.yml` (`ci-e2e`) | Lints `infra/scripts/demo-e2e.sh`, then runs that full-system Compose demo. The demo job is blocking. |
-| `ci-k8s.yml` (`ci-k8s`) | Renders `infra/kubernetes`, starts a kind cluster, and always dumps `kubectl get pods -A -o wide`. |
-| `ci-terraform.yml` (`ci-terraform`) | Formats and validates `infra/terraform`, then apply, readiness, and destroy. The apply log includes the plan. |
-| `bench.yml` (`bench`) | `./gradlew :tests:benchmarkTest`. This README does not quote benchmark numbers. |
-| `ci-ui-e2e.yml` (`ci-ui-e2e`) | Playwright demo in `tests/ui` against Compose. The job is `continue-on-error: true` because the editor, chaos, and compare surfaces are not in the shell. |
-| `ci-mock.yml` (`ci-mock`) | Dev mock server smoke test. |
-| `cd.yml` (`cd`) | On `main`, publishes GHCR images tagged with the commit SHA and deploys Compose on the self-hosted runner labelled `aether-deploy`. |
+| `.github/` | GitHub Actions workflows |
+| `benchmarks/` | Benchmark measurement notes; the Gradle task is `:tests:benchmarkTest` |
+| `common/` | Shared Java records for the envelope, pipeline, protocol, and API |
+| `compiler/` | Pipeline validation, planning, and operator semantics |
+| `control-api/` | Spring Boot REST and WebSocket API |
+| `docs/` | Contracts, architecture, UX, and the course report |
+| `engine/` | Coordinator and worker runtime |
+| `gradle/` | Wrapper and version catalog |
+| `infra/` | Dockerfiles, Compose, monitoring profile, Kubernetes, Terraform, and scripts |
+| `reference/` | Deterministic single-process reference executor |
+| `simulator/` | Truck-city event generator |
+| `tests/` | Testcontainers integration and fault tests, plus Playwright UI tests |
+| `web/` | React, TypeScript, and Vite UI, plus the dev mock server |
 
-## Technology stack
+## Team
 
-| Area | Technology |
-| --- | --- |
-| Engine and services | Java 21, Gradle 9.6, Spring Boot 3.5 (control API) |
-| Event transport | Apache Kafka 4.3.2 |
-| Metadata and result sink | PostgreSQL 17 |
-| Checkpoint object storage | MinIO (S3-compatible) |
-| Web interface | React 19, TypeScript 5.9, Vite 7, PixiJS 8, `@xyflow/react` 12 |
-| Local orchestration | Docker Compose. Kubernetes manifests and Terraform are extra demo/CI paths, not a replacement for Compose. |
-| CI | GitHub Actions |
-| Metrics (optional) | Prometheus and Grafana, Compose profile `monitoring` |
+Collaborative Development and DevOps (CDD) course project, faculty expo 21 November 2026. This repository does not name the team.
 
-Versions follow `docs/contracts/00-stack-and-layout.md` and the dependency catalog; integrations and runtime behavior are still being verified.
+## Further reading
 
-## Team and course context
-
-AetherStream is a Collaborative Development and DevOps (CDD) course project for the faculty expo scheduled for **21 November 2026**. The repository does not identify a complete team roster. Add the actual team names and any public demo URL before presenting; do not infer them from this README.
+- [DEMO.md](DEMO.md) — examiner demo script
+- [Project report](docs/report/project-report.md)
+- [UX](docs/ux/README.md) — notes and screenshots under [docs/ux/](docs/ux/)
 
 ## License
 
-Proprietary. See [LICENSE](LICENSE). All rights reserved.
+Proprietary. See [LICENSE](LICENSE).
