@@ -2,7 +2,7 @@ import { defineConfig } from '@playwright/test'
 
 export default defineConfig({
   testDir: '.',
-  testMatch: ['glorious.spec.ts', 'glorious-recovery.spec.ts'],
+  testMatch: ['glorious.spec.ts', 'glorious-recovery.spec.ts', 'glorious-demo-path.spec.ts'],
   workers: 1,
   retries: 1,
   timeout: 60_000,

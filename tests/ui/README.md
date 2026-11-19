@@ -77,3 +77,7 @@ The recovery spec is destructive: it skips unless `ALLOW_KILL=1`; it refuses `GL
 Run it only against a disposable stack with three live workers and an active execution; it kills `worker-2`.
 Recovery screenshots are written to `test-results/recovery-*.png`.
 The isolated config uses fresh contexts, no storage state, reduced motion, and no AI or mocked data.
+## Demo-path recording
+
+Run `npx playwright test -c playwright.glorious.config.ts glorious-demo-path.spec.ts` against the disposable preview (`GLORIOUS_URL`, default `http://localhost:8089`).
+The spec records video with motion enabled and saves six named screenshots under `test-results/demo-path/`; it does not use storage state or destructive actions.
