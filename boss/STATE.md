@@ -1,6 +1,6 @@
 # Boss STATE (single source of truth)
 
-Updated: 19 Nov 09:05 IST. M1 + M2 DONE. M3 (12:30) in progress: T92 shell integration (redo T26) + T93 restored compare running.
+Updated: 19 Nov 09:20 IST. M1 + M2 DONE. M3 (12:30) in progress: T92 shell integration (redo T26) + T93 restored compare running.
 
 ## Plain-language update for Vivek (newest first)
 - 07:30 Boss back after the 03:51-07:10 usage-limit gap. Reviewed the 10 finished tasks: merged 8 (docs refresh, live
@@ -49,20 +49,19 @@ Updated: 19 Nov 09:05 IST. M1 + M2 DONE. M3 (12:30) in progress: T92 shell integ
 5. vachana-claude = hardest remaining M3 work (shell/UI integration, anything broken in the shell).
 Known infra flake: ci-e2e "Build and start stack ... BUILD FAILED in ~49s" (Gradle inside docker build) - rerun, not the task's fault.
 
-## Task board (09:05)
-merged since 07:10 (58). Latest: T132 ExactlyOnceSinkIT, T133 ci-k8s demo-ready, T134/T137 panel tests, T140 consumer lag,
-  T144 speaker notes, T115 visual QA2 (4 P1s), T129 benchmarks, T145 proofread, T141 WS seq/replay (hand-merged), T146 axe, T153 DEMO fixes
-rejected: T143 (image slimming, risky) · T120 saved as salvage/t120 -> T120c
-waiting CI: T147 doc-command checks (ci-e2e) · T142 features spec (ci-ui-e2e)
-RED: ci-ui-e2e on main. Fix path: vachana T121 (QA2 UI P1s, running) -> T120c (integrate salvage/t120: static city on
-  software WebGL + every-frame WS + banner back to Running). Server side of P1-2/P1-3: T151 (vivek-sol, running; started
-  before T141 merged -> expect conflict).
-running / queued:
-- vachana: T121 -> T120c · vivek codex-sol: T151 · vivek codex-luna: T135 city leftovers -> T150 BackpressureIT -> T154 release wf
-- grok: T148 IaC doc · utkarsh codex-sol: T152 backpressure visible -> T149 coordinator metrics · utkarsh codex-luna: (check)
-- OFFLINE: upendra-pc (since ~08:15), vimlesh-pc (since ~08:50; T149/T148 copies rerouted). NEEDS_VIVEK 7, 8.
-MEMORY 09:05: vivek-pc 1.7 GB free; Claude Code killed the boss's background wait loop (low memory). Pruned 8.2 GB images +
-  2 GB build cache, dropped VM caches. Demo stack healthy (10 containers). Deployed fd4b2dc; newer CD in progress.
+## Task board (09:20)
+merged since 07:10 (68). Key: T120c -> ci-ui-e2e GREEN (banner text fix + static city on software WebGL + every-frame WS),
+  T156 offline expo mode (ci-offline green with outbound network blocked), T121 QA2 UI P1s, T151 live LATE + REBALANCED,
+  T152 backpressure visible, T163 autostart scripts, T159 cold-start timer, T161 cheat sheet.
+waiting: T142 features spec (main merged into its branch, CI rerunning) · T162 Gradle docker flake (CI running)
+requeued with exact notes: T160 expo-check (CI strictness), T164 kill-repeat (SC2318 bug), T149 coord metrics (scrape path),
+  T167 longrun (shellcheck style), T165 tunnel watchdog (push failed)
+running: vachana T155 rehearsal (localhost) -> T158 fixes · vimlesh claude T157 backup recording · vimlesh sol T166 expo-reset
+  · vimlesh luna T168 doc links -> T164 · vivek luna T150 BackpressureIT/T154/T147 · utkarsh sol T162 -> T149 · utkarsh luna T167/T160
+BOSS TODO ~12:45 (after last code merges, ~3 min downtime): run infra/scripts/expo-prepull.sh on vivek-pc (pull + save tar of the
+  final images), then infra/scripts/cold-start-timer.sh --from-cold, write the laptop number into DEMO.md. Autostart task: Vivek
+  (NEEDS_VIVEK 9; boss not permitted).
+OFFLINE: upendra-pc (since ~08:05).
 
 ## Lanes
 1 engine: coordinator merged; worker T14 running · 2 compiler/reference: ops+compiler merged; T13 running ·
