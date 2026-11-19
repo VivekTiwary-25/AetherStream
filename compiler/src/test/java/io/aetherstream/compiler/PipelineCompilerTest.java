@@ -66,28 +66,42 @@ class PipelineCompilerTest {
 
     @ParameterizedTest(name = "{1} on {2}")
     @MethodSource("errorFixtures")
-    void reportsEveryContractErrorCode(String fixture, String code, String nodeId) throws Exception {
+    void reportsEveryContractErrorCode(String fixture, String code, String nodeId, String message) throws Exception {
         var result = compiler.validate(fixture(fixture));
         assertThat(result.valid()).isFalse();
         assertThat(result.plan()).isNull();
-        assertThat(result.errors()).extracting(ValidationError::code, ValidationError::nodeId).contains(tuple(code, nodeId));
+        assertThat(result.errors()).extracting(ValidationError::code, ValidationError::nodeId, ValidationError::message)
+                .contains(tuple(code, nodeId, message));
     }
 
     static Stream<Arguments> errorFixtures() {
         return Stream.of(
-                Arguments.of("no-source", "NO_SOURCE", null),
-                Arguments.of("multiple-sources", "MULTIPLE_SOURCES", null),
-                Arguments.of("no-sink", "NO_SINK", null),
-                Arguments.of("duplicate-node-id", "DUPLICATE_NODE_ID", "kb"),
-                Arguments.of("unknown-node-type", "UNKNOWN_NODE_TYPE", "kb"),
-                Arguments.of("edge-unknown-node", "EDGE_UNKNOWN_NODE", "missing"),
-                Arguments.of("cycle", "CYCLE", null),
-                Arguments.of("multiple-inputs", "MULTIPLE_INPUTS", "kb"),
-                Arguments.of("unreachable-node", "UNREACHABLE_NODE", "orphan"),
-                Arguments.of("dangling-node", "DANGLING_NODE", "unused"),
-                Arguments.of("type-mismatch", "TYPE_MISMATCH", "win"),
-                Arguments.of("invalid-config", "INVALID_CONFIG", "win"),
-                Arguments.of("unsupported-key", "UNSUPPORTED_KEY", "kb"));
+                Arguments.of("no-source", "NO_SOURCE", null,
+                        "Pipeline needs a Source. Add one Source block and connect it to the pipeline."),
+                Arguments.of("multiple-sources", "MULTIPLE_SOURCES", null,
+                        "Pipeline has multiple Sources: Source 'other', Source 'src'. Keep exactly one Source block."),
+                Arguments.of("no-sink", "NO_SINK", null,
+                        "Pipeline needs a Sink. Connect a postgres.windows or postgres.alerts Sink to the appropriate output."),
+                Arguments.of("duplicate-node-id", "DUPLICATE_NODE_ID", "kb",
+                        "Key-by 'kb' reuses an id. Give each block a unique id and update its edges."),
+                Arguments.of("unknown-node-type", "UNKNOWN_NODE_TYPE", "kb",
+                        "Node 'kb' has an unknown type. Use source, filter, map, keyBy, window, rule or sink."),
+                Arguments.of("edge-unknown-node", "EDGE_UNKNOWN_NODE", "missing",
+                        "Edge 'src' -> 'missing' names a missing node. Add the missing block or change the edge to existing node ids."),
+                Arguments.of("cycle", "CYCLE", null,
+                        "Pipeline contains a cycle blocking Filter 'a', Filter 'b'. Remove backward connections so every path flows from the Source toward a Sink."),
+                Arguments.of("multiple-inputs", "MULTIPLE_INPUTS", "kb",
+                        "Key-by 'kb' needs exactly one input, but has 2. Connect one upstream block; remove extra incoming edges."),
+                Arguments.of("unreachable-node", "UNREACHABLE_NODE", "orphan",
+                        "Sink 'orphan' cannot be reached from a Source. Connect it to the Source's downstream graph."),
+                Arguments.of("dangling-node", "DANGLING_NODE", "unused",
+                        "Filter 'unused' has no output connection. Connect it to a downstream block ending in a Sink."),
+                Arguments.of("type-mismatch", "TYPE_MISMATCH", "win",
+                        "Window 'win' (One minute speed) needs a Key-by before it. Add a Key-by block between Source 'src' and this Window."),
+                Arguments.of("invalid-config", "INVALID_CONFIG", "win",
+                        "Window 'win' (One minute speed): invalid sizeMs. To fix it, supply an integer from 1000 through 3600000."),
+                Arguments.of("unsupported-key", "UNSUPPORTED_KEY", "kb",
+                        "Key-by 'kb': only 'key' or 'payload.truckId' is supported in v1 because it matches the Kafka partition key. Set field to one of these paths."));
     }
 
     @Test
@@ -251,7 +265,17 @@ class PipelineCompilerTest {
         edges.add(new Edge(parent, target));
         var result = compiler.validate(new PipelineDefinition(demo.id(), demo.version(), demo.name(), demo.nodes(), edges));
         assertThat(result.plan()).isNull();
-        assertThat(result.errors()).extracting(ValidationError::code, ValidationError::nodeId).contains(tuple("TYPE_MISMATCH", target));
+        String message = switch (target) {
+            case "pos" -> "Filter 'pos' needs event input. Connect it after the Source, a Filter or a Map, before Key-by.";
+            case "kb1" -> "Key-by 'kb1' needs event input. Connect it after the Source, a Filter or a Map, before Key-by.";
+            case "speed1m" -> "Window 'speed1m' needs a Key-by before it. Add a Key-by block between Filter 'pos' and this Window.";
+            case "stuck" -> "Rule 'stuck' needs a Window before it. Connect it to a Window's output.";
+            case "speedSink" -> "Sink 'speedSink' needs a Window before it. Connect it to a Window's output.";
+            case "alertSink" -> "Sink 'alertSink' of kind postgres.alerts needs a Rule before it. Add a Rule after a Window and connect this Sink to the Rule.";
+            case "src" -> "Source 'src' (Truck events) cannot receive input. Remove incoming edges from the Source.";
+            default -> throw new AssertionError("Missing type diagnostic for " + target);
+        };
+        assertThat(result.errors()).contains(new ValidationError(target, "TYPE_MISMATCH", message));
     }
 
     static Stream<Arguments> wrongInputs() {
@@ -292,6 +316,33 @@ class PipelineCompilerTest {
     void rejectsNonPositivePartitionCount() {
         assertThatThrownBy(() -> compiler.plan(PipelineCompiler.demoPipeline(), 0))
                 .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("partitions");
+    }
+
+    @ParameterizedTest(name = "{0}: exact {2} diagnostic")
+    @MethodSource("exactInvalidConfigs")
+    void reportsExactConfigDiagnostics(String nodeId, String patch, String field, String description, String repair) throws Exception {
+        var result = compiler.validate(patched(nodeId, patch));
+        assertThat(result.valid()).isFalse();
+        assertThat(result.plan()).isNull();
+        assertThat(result.errors()).containsExactly(new ValidationError(nodeId, "INVALID_CONFIG",
+                description + ": invalid " + field + ". To fix it, " + repair + "."));
+    }
+
+    static Stream<Arguments> exactInvalidConfigs() {
+        return Stream.of(
+                Arguments.of("speed1m", "{\"sizeMs\":999}", "sizeMs", "Window 'speed1m'", "supply an integer from 1000 through 3600000"),
+                Arguments.of("speed1m", "{\"sizeMs\":3600001}", "sizeMs", "Window 'speed1m'", "supply an integer from 1000 through 3600000"),
+                Arguments.of("speed1m", "{\"sizeMs\":null}", "sizeMs", "Window 'speed1m'", "supply an integer from 1000 through 3600000"),
+                Arguments.of("speed1m", "{\"sizeMs\":9223372036854775808}", "sizeMs", "Window 'speed1m'", "supply an integer from 1000 through 3600000"),
+                Arguments.of("speed1m", "{\"outOfOrdernessMs\":-1}", "outOfOrdernessMs", "Window 'speed1m'", "supply an integer from 0 through 600000"),
+                Arguments.of("speed1m", "{\"outOfOrdernessMs\":600001}", "outOfOrdernessMs", "Window 'speed1m'", "supply an integer from 0 through 600000"),
+                Arguments.of("speed1m", "{\"outOfOrdernessMs\":null}", "outOfOrdernessMs", "Window 'speed1m'", "supply an integer from 0 through 600000"),
+                Arguments.of("speed1m", "{\"outOfOrdernessMs\":\"5000\"}", "outOfOrdernessMs", "Window 'speed1m'", "supply an integer from 0 through 600000"),
+                Arguments.of("src", "{\"startFrom\":false}", "startFrom", "Source 'src' (Truck events)", "use 'latest' or 'earliest', or omit it for 'latest'"),
+                Arguments.of("mapped", "{\"ops\":[{\"op\":\"scale\",\"field\":\"payload.speedKmh\",\"factor\":1e400,\"as\":\"payload.speed\"}]}",
+                        "ops[0].factor", "Map 'mapped'", "supply a finite numeric scale factor"),
+                Arguments.of("speed1m", "{\"aggregations\":{}}", "aggregations", "Window 'speed1m'", "supply a non-empty list"),
+                Arguments.of("stuck", "{\"forWindows\":null}", "forWindows", "Rule 'stuck'", "supply an integer from 1 through 2147483647"));
     }
 
     private static PipelineDefinition fixture(String name) throws Exception {
