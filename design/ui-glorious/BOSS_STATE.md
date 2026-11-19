@@ -46,6 +46,12 @@ Fresh boss session: read swarm/BOSS.md, then design/ui-glorious/BOSS_PROMPT.md (
 - ONLY thing to protect: the boss session's tokens (ran out briefly tonight). Keep context lean, delegate, warn Vivek early if low.
 - GOTCHA: pushing swarm .py code while long tasks run stalls dispatch on that PC until they finish (_first_runnable waits for restart). Config JSON pushes are safe.
 
+## 04:45
+- DOCKER UP on utkarsh-pc (t261120-0408-c1a7 merged; ~21 min, wsl --shutdown + restart, no human click). C: only 4.63 GB free after prune -> stack build may hit disk; stack task t261120-0409-2aa3 reports.
+- Preview :8089 now serves build #3 (ui-glorious 8679754: map polish + watermark). VERIFIED LIVE: Live World with 6 real trucks moving on polished city map, Running ~40 ev/s (screenshot sent to Vivek).
+- Merged: a11y pass fca7 (conflict in AnalyticsPanel resolved by boss 664f9c1: <ul> + currentTrucks); gaps 8/9 partial dd12 (no tests) -> t261120-0440-25bb vivek-pc/luna does #10 + tests; DONE-CHECKLIST.md.
+- vimlesh-pc/luna t261120-0441-c064 guarded Playwright recovery spec (ALLOW_KILL=1, refuses :8088).
+
 ## DUPLICATE code-split (04:38)
 - t261120-0355-a603 is RUNNING on upendra-pc/codex-sol (started ~04:32, just before my reject landed) AND its requeue t261120-0432-ec77 runs on vimlesh-pc/codex-sol. The swarm cannot kill a running agent remotely. Merge whichever finishes first, discard the other.
 - DANGER: a603 has no queue file any more -> `swarm merge t261120-0355-a603` would default to MAIN. Always use `swarm merge t261120-0355-a603 --base ui-glorious` (or `swarm reject`).
