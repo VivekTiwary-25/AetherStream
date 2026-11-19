@@ -52,8 +52,8 @@ running / queued:
 - vivek-pc/grok: T95 DEMO.md minute-by-minute + presentation outline
 - vivek-pc/codex-luna: T99 MERGED 07:24 -> T101 CI/CD evidence page + README badges
 - upendra-pc/codex-sol: T78b done (ci-soak running on branch, review when green) -> T100 demo-ready self-heal script (in ci-e2e)
-- utkarsh-pc/codex-luna: T89 web coverage (stuck: utkarsh-pc needs `swarm fix`, branch never pushed)
-- vimlesh-pc (claude, codex x2): asleep since ~06:59 - not routed to.
+- vimlesh-pc back 07:29: claude T102 city polish + visual QA (web/src/city only) · codex-sol T103 compiler+reference tests · codex-luna T104 project report
+- requeued 07:29 (push failures): T89 web coverage -> utkarsh-luna, T97 mock-off guard -> upendra-luna
 next ideas: after T92 -> T98 polish; after T93 -> extended e2e on main; M4 = final README/architecture check, FINAL.md.
 
 ## Lanes

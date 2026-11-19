@@ -26,3 +26,5 @@
 - 07:15 Merged T66 T91 T81 T86 T84 T61 T72 T80 on CI evidence (web failures were the old vitest OOM hang fixed on main; T84 e2e step 9 = T86 bug). Kept E2E_EXTENDED=0 until T93 fixes the restored-execution compare (engine 30 vs ref 27; engine correct).
 - 07:18 Rejected T75/T78 and requeued as salvage tasks T75b/T78b (keep good files from their branches). Not routing to vimlesh-pc (heartbeat stale) or utkarsh-luna (git push broken).
 - 07:22 TaskRuntimeTest race (ack sent before lastCheckpointId set) failed ci-java on main; test now awaits the value (b3e5f3e).
+- 07:29 Root .gitignore now ignores dist/ coverage/ playwright-report/ test-results/ blob-report/; untracked 50 committed files under tests/ui/playwright-report (from T65). Large report blobs likely caused the "push failed" on T89/T97, which are requeued.
+- 07:29 vimlesh-pc back: claude -> T102 city polish (web/src/city/** only, so no conflict with T92 shell work); codex-sol -> T103 compiler/reference tests; codex-luna -> T104 project report.

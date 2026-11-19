@@ -11,5 +11,5 @@ Current public link (quick tunnel, changes if the PC restarts): https://trance-c
 4. [03:45, done 07:10] Boss Opus at its usage limit. Restart the boss on vachana-claude with the restart prompt:
    "You are the boss. Read boss/STATE.md and continue the loop from the original prompt in boss/PROMPT.md."
 5. [07:20] utkarsh-pc: a finished task could not be pushed (T89 web coverage). On utkarsh-pc open a terminal and run: `swarm fix`
-6. [07:20] vimlesh-pc is asleep or offline since ~06:59. Wake it / check power + internet, then run: `swarm up`
+6. [07:20, resolved 07:29] vimlesh-pc is asleep or offline since ~06:59. Wake it / check power + internet, then run: `swarm up`
    Not blocking: the boss routes its work to other PCs.
