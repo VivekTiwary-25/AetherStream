@@ -21,7 +21,7 @@ Vivek drives; keep the browser on the new UI at `http://localhost:8088`. Use onl
   `scripts/expo/preflight` from Bash. Resolve any FAIL before the slot; WARN
   means the AI bridge may need `powershell -ExecutionPolicy Bypass -File
   scripts/ai-bridge/start.ps1`. This check uses GET requests only.
-- In the expo terminal, run `worker status`. Expect the current worker IDs, states and partitions; do not kill a worker during setup.
+- In the expo terminal, run `worker status`. Expect the current worker IDs, states and partitions (check live); do not kill a worker during setup.
 - Know the demo commands (run only at the indicated step): `worker kill 2` and `events late 10`. `worker kill` sends the existing API action; it is not a Docker command. Never repeat it during recovery. Late-event classification depends on the engine watermark.
 - If the new UI or API is unavailable, use `http://localhost:8088/?ui=classic`; the classic controls remain available.
 
@@ -42,7 +42,7 @@ The map menu and **Settings → Truck Breakdown** both confirm before sending: *
 ### 2. Live World — map (about 2 minutes)
 - **Click:** In the left navigation, click **Live World**.
 - **Audience sees:** The Mysuru map and the live truck markers; the map moves up into view. The subtitle reads **“Simulated delivery fleet across Mysuru, updated live”.**
-- **Say:** “The map shows the six configured trucks against real Mysuru roads; their telemetry is live.”
+- **Say:** “The map shows the six configured trucks against real Mysuru roads (check live); their telemetry is live.”
 - **If it fails:** Wait for the map and live telemetry to load. If unavailable, switch to `?ui=classic` rather than claiming frozen positions are live.
 
 ### 3. Live World — truck details (about 2 minutes)
@@ -59,7 +59,7 @@ The map menu and **Settings → Truck Breakdown** both confirm before sending: *
 
 ### 5. Analytics — failed records (about 3 minutes)
 - **Click:** In the expo terminal, run `events late 10` once. In the app, open **Analytics** → **Failed Records**; choose **Late** to narrow the list, or leave **All** selected. Click a record to inspect its details.
-- **Audience sees:** Late or rejected records when the engine classifies them, with event time, partition, offset and reason. Empty state is **No failed records yet.**
+- **Audience sees:** Late or rejected records when the engine classifies them, with event time, partition, offset and reason. When connected to an active run and there are no matching records, the empty state is **No failed records yet.**
 - **Say:** “These are records the live engine classified as late or rejected, with the reason and source position.”
 - **If it fails:** `events late` reports how many events were sent, not that they were classified late. If no late records appear, explain that the watermark determines classification; do not invent records or reasons.
 
@@ -72,7 +72,7 @@ The map menu and **Settings → Truck Breakdown** both confirm before sending: *
 ### 7. Settings — logs and recovery (about 4 minutes)
 - **Click:** Click **Settings** (the app switches to **Live World**) → **Logs & Recovery**. In the expo terminal, run `worker kill 2` once.
 - **Audience sees:** History labels include **“Kill requested (not yet confirmed)”**, **“Worker died”**, **“Partitions reassigned”**, and **“Checkpoint saved”** as those events occur; the panel also shows recovery progress, surviving workers and (if it restarts) the rejoined state.
-- **Say:** “The engine recovers from a completed checkpoint and records the worker failure; the visible pause is part of recovery.”
+- **Say:** “The engine recovers from a completed checkpoint (check live) and records the worker failure; the visible pause is part of recovery.”
 - **If it fails:** Do not repeat the kill. Wait for the live recovery feed; if the command reports an error, use the classic UI’s **Kill worker** flow once, then watch **Logs & Recovery** if available. If recovery is still in progress, describe only the state visible on screen.
 
 ## If the venue has no internet
