@@ -14,3 +14,14 @@ it('shares one import between repeated prefetches and the lazy loader', async ()
   expect(prefetch()).toBe(first)
   expect(importer).toHaveBeenCalledTimes(1)
 })
+
+it('retries the import after a failed prefetch instead of caching the failure', async () => {
+  const importer = vi.fn<() => Promise<string>>()
+    .mockRejectedValueOnce(new Error('chunk load failed'))
+    .mockResolvedValueOnce('loaded')
+  const prefetch = createPrefetch(importer)
+
+  await expect(prefetch()).rejects.toThrow('chunk load failed')
+  await expect(prefetch()).resolves.toBe('loaded')
+  expect(importer).toHaveBeenCalledTimes(2)
+})
