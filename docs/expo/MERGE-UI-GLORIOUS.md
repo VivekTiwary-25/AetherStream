@@ -43,6 +43,7 @@
    <http://localhost:8088/?ui=classic> and check the classic UI still works.
    Check <http://localhost:8088/api/health> reports UP and `/api/version` reports
    the merge SHA; direct API readiness: <http://localhost:18080/api/ready>.
+
    In PowerShell at the repo root, run:
    ```powershell
    $env:PATH = "$PWD\scripts\expo;$env:PATH"
@@ -50,6 +51,19 @@
    ```
    Check all three worker IDs, alive/state, and partitions. Check monitoring at
    <http://localhost:13000> and <http://localhost:19090> if needed for the demo.
+
+## Automated checks after merge
+
+| Check | Loads web UI? | Change |
+|---|---|---|
+| `cd`: `smoke-deploy.sh`, `demo-ready.sh`, `expo-check.sh`, `expo-proofs.sh` | No; API/readiness and stack checks only | None |
+| `ci-e2e`: `demo-e2e.sh`, `expo-check.sh`, `expo-proofs.sh`, `demo-ready.sh`; `ci-coldstart` | No; API checks only | None |
+| `ci-compose`: `smoke.sh` | Yes; checks only that `/` returns HTML, no classic-only content | None |
+| `ci-terraform` | Yes; checks only that `/` returns a nonempty HTML document | None |
+| `ci-k8s` | Yes; checks only that `/` responds | None |
+| `ci-ui-e2e`: classic Playwright specs | Yes; asserts classic dashboard/editor elements | `playwright.config.ts` selects classic via `aether.ui=classic` and runs only `demo.spec.ts` and `features.spec.ts`; new-UI specs remain on their separate Glorious config |
+| `ci-offline` | Yes; asserts the Glorious live map, panels, canvas, and live frames | None; these are new-UI checks |
+| `ci-web` | No browser/web-root load | None |
 
 ## Start Ask AI after deploy (PowerShell, vivek-pc repo root)
 
