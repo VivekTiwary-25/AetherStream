@@ -12,7 +12,7 @@ export function RecoveryHistory({ entries, loaded, unavailable = false }: { entr
             <time dateTime={new Date(entry.at).toISOString()}>{new Date(entry.at).toLocaleString()}</time>
           </div>
           <p className="recovery-event-meta">
-            {entry.workerId && <span>{entry.workerId}</span>}
+            {entry.workerId && <span className="recovery-event-worker">{entry.workerId}</span>}
             {entry.executionId && <span>Execution {entry.executionId}</span>}
             {entry.generation != null && <span>Generation {entry.generation}</span>}
             {entry.actor && <span>Actor: {entry.actor}</span>}
