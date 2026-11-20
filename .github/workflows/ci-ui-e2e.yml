@@ -54,10 +54,7 @@ jobs:
         working-directory: tests/ui
         env:
           EXPECT_SHA: ${{ github.sha }}
-        run: |
-          trap 'rm -f playwright.ci.config.ts' EXIT
-          node -e "const fs = require('fs'); const path = 'playwright.ci.config.ts'; fs.writeFileSync(path, fs.readFileSync('playwright.config.ts', 'utf8').replace(\"testMatch: 'demo.spec.ts'\", \"testMatch: '**/*.spec.ts'\"))"
-          npm test -- --config=playwright.ci.config.ts
+        run: npm test
       - name: Dump Compose status and logs
         if: always()
         run: |
