@@ -1,0 +1,62 @@
+{
+  "taskId": "t261120-0410-1e14",
+  "target": "http://localhost:8089",
+  "result": "BLOCKED_PRECONDITION_TIMEOUT",
+  "readiness": {
+    "required": "GET /api/health succeeds and GET /api/executions/current is RUNNING",
+    "firstPollUtc": "2026-11-19T23:40:46Z",
+    "lastPollUtc": "2026-11-20T00:00:32Z",
+    "deadlineUtcApprox": "2026-11-20T00:00:46Z",
+    "attempts": 79,
+    "pollIntervalSeconds": 15,
+    "requestTimeoutSeconds": 3,
+    "commandDeadlineSeconds": 1200,
+    "observedCommandWallSeconds": 1200.07,
+    "termination": "Command timed out after 1200 seconds",
+    "successfulHealthResponsesObserved": 0,
+    "successfulCurrentExecutionResponsesObserved": 0,
+    "runningExecutionObserved": false,
+    "firstErrorsExact": {
+      "health": "curl: (7) Failed to connect to localhost:8089 after 23 ms: Could not connect to server",
+      "current": "curl: (7) Failed to connect to localhost:8089 after 21 ms: Could not connect to server"
+    },
+    "lastErrorsExact": {
+      "health": "curl: (7) Failed to connect to localhost:8089 after 18 ms: Could not connect to server",
+      "current": "curl: (7) Failed to connect to localhost:8089 after 1 ms: Could not connect to server"
+    },
+    "outputCaveat": "Some captured curl error strings were truncated to c; none showed successful HTTP JSON. The wall-clock deadline terminated the loop before its own timeout marker."
+  },
+  "browserPreparation": {
+    "driver": "Playwright 1.65.1",
+    "browser": "Chromium",
+    "headed": true,
+    "viewport": { "width": 1440, "height": 900 },
+    "storageStateLoaded": false,
+    "pageUrl": "about:blank",
+    "appOpened": false,
+    "closedAfterBlockedResult": true
+  },
+  "environmentObservation": {
+    "drive": "C:",
+    "observedFreeBytesBeforeBrowserLaunch": 974848,
+    "pythonPlaywrightInstall": "Failed with OSError: [Errno 28] No space left on device",
+    "existingNodePlaywrightRuntime": "Available and successfully launched headed Chromium",
+    "stackFailureCause": "Not investigated; disk pressure is not proven to be the cause"
+  },
+  "artifactsNotProduced": [
+    "01-before.png",
+    "02 through 07 recovery screenshots and per-step API JSON",
+    "08-late-events.png",
+    "09 worker-1 repeat screenshots"
+  ],
+  "actionsNotRun": [
+    "worker.cmd status",
+    "worker.cmd kill 2",
+    "events.cmd late",
+    "worker.cmd kill 1"
+  ],
+  "recoveryHistoryFetched": false,
+  "workersFetched": false,
+  "applicationOrSwarmServicesChanged": false,
+  "otherPortsOrMachinesContacted": false
+}
