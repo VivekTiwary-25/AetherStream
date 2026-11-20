@@ -7,12 +7,12 @@ export interface PipelineExample { id: string; prompt: string; pipeline: Pipelin
 export const EXAMPLES: PipelineExample[] = [
   {
     id: 'speeding',
-    prompt: 'Alert me when any truck goes over 60 km/h',
+    prompt: 'Alert me when any truck goes over 45 km/h',
     pipeline: {
       name: 'Speeding alert',
       nodes: [
-        { id: 'n1', type: 'filter', params: { field: 'speedKmh', op: '>', value: 60 } },
-        { id: 'n2', type: 'thresholdAlert', params: { field: 'speedKmh', op: '>', value: 60, message: 'Truck over 60 km/h' } },
+        { id: 'n1', type: 'filter', params: { field: 'speedKmh', op: '>', value: 45 } },
+        { id: 'n2', type: 'thresholdAlert', params: { field: 'speedKmh', op: '>', value: 45, message: 'Truck over 45 km/h' } },
         { id: 'n3', type: 'output', params: { name: 'Speeding trucks' } },
       ],
       edges: [{ from: 'n1', to: 'n2' }, { from: 'n2', to: 'n3' }],
