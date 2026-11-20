@@ -30,7 +30,7 @@ For the 06:00 checkpoint, set `PIPELINES_MODE` in `web/src/glorious/pipelines/mo
 
 - Before: `bash infra/scripts/demo-freeze.sh on`, then `bash infra/scripts/demo-freeze.sh status`. Freeze skips CD deployment and live checks with a green job and a notice in its summary; images still build/push. Wait for any deployment already running to finish before presenting.
 - No `gh`? Repository **Settings → Secrets and variables → Actions → Variables → Repository variables**: set `DEMO_FREEZE` to `1`. The helper prints these instructions when `gh` is missing.
-- A committed `infra/deploy/FREEZE` also freezes CD. After the slot: `bash infra/scripts/demo-freeze.sh off`; remove that file from the deployed branch too, if present. Unfreezing affects future runs only; dispatch CD on `main` to deploy a skipped SHA.
+- A committed `infra/deploy/FREEZE` also freezes CD. After the slot: `bash infra/scripts/demo-freeze.sh off`; remove that file from the deployed branch too, if present. Unfreezing affects future runs only; dispatch CD on `main` with input `sha` set to the skipped SHA (without `sha`, CD deploys `github.sha`).
 - CD and Expo autostart (online/offline) start the `monitoring` profile. Prometheus is capped at **512m**, Grafana at **256m**. Check `docker compose -p aether --profile monitoring ps` and the Grafana URL before the audience arrives.
 
 ## Six clicks (labels from DEMO.md)
@@ -44,7 +44,7 @@ For the 06:00 checkpoint, set `PIPELINES_MODE` in `web/src/glorious/pipelines/mo
 
 ## Five saves (only commands in this checkout)
 
-1. `infra/scripts/expo-check.sh` is not here. Do not run it.
+1. `bash infra/scripts/expo-check.sh` [`API_URL`] is here. Local mode checks `aether-offline` (58s, no container start; calls `demo-ready.sh` only if that project and the API are already healthy). `--ci` checks the built project (up to 180s). Do not run local mode on the live `aether` stack.
 2. Empty panels, no execution, or no window progress: `bash infra/scripts/demo-ready.sh`
 3. Worker stuck after a kill: `docker compose -p aether start worker-1` (substitute `worker-2` or `worker-3`)
 4. No `docker compose restart` of `web` or `control-api` is written here. Page up, no data: `curl -fsS http://localhost:18080/api/ready`
@@ -66,7 +66,7 @@ Read-only: no checkpoint triggers, chaos calls, object writes, or database updat
 
 ## Backup
 
-Recording folder: `docs/expo/backup/` (not in this checkout). Screenshots that exist: `docs/ux/screenshots/`.
+Recording folder: `docs/expo/backup/` (in this checkout). Screenshots that exist: `docs/ux/screenshots/`.
 
 ## Five answers
 
