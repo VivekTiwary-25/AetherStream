@@ -2,6 +2,16 @@
 
 Fresh boss session: read swarm/BOSS.md, then design/ui-glorious/BOSS_PROMPT.md (the mission), then this file. Continue from "Next".
 
+## 12:07 boss state
+- vimlesh-pc = DEMO HOST (works; tunnel blocked by college net -> localhost:8089 / LAN, see docs/expo/STANDBY.md). Its swarm is down; queue NOTHING there; watch for auto-failover moving tasks there and ask Vivek before moving (Vivek: "don't reroute without my permission").
+- utkarsh-pc: NO Docker work any more (disk filled 24->7 GB). Standby stack to be stopped BY HAND by Utkarsh (compose down, keep volumes; builder prune). Never queue destructive/docker tasks that could fail over to vimlesh-pc.
+- 11:44 sent Vivek "REFRESH NOW" for vimlesh at 110f770 (pipelines 45 km/h + event-time windows, editor Run, AI fallback, Dead hold, history by time, MSYS, preview PS5.1 ExitCode). Waiting for Vimlesh re-test results (kill + pipelines + expo-proofs offsets).
+- Ask AI demo sentence: "Alert me when any truck goes over 45 km/h" (sim max 50). Presenter P1 line in DEMO-NEW-UI.md. Vivek decided: NO restart delay; demo honest kill (worker keeps its partitions).
+- Running: utkarsh sol fae5 (survivor Rejoined / stale Dead / rebalance banner); vachana 9fc7 (vitest flakes); vivek sol ffd4 (a11y tests); upendra sol 8a6a (evaluator edge tests) -> 11e8 (stall drops backlog, review finding 3); upendra luna 2a4a (fleet poll timeout, finding 4).
+- Merged since 11:44: AI bridge 429 drain fix, Failed Records no 30-row cap, demo-path spec 45 km/h, FINAL_REPORT, docs (2-min demo, VISITOR-QA, consistency), check-all JDK21 finder, review label-centre fix. Review: design/ui-glorious/proof/review/REVIEW-1145.md (finding 5: AI timeout retry may hit busy - minor).
+- Workers drop report files (old prompt wording); new wording allows own report file. reject deletes the task branch. Hand-merge conflicts in the worktree (CHANGELOG mostly), then reject the task with "merged by hand".
+- grok: 0% until 23:38. Watcher: scratchpad/watcher (this session), AVOID = vimlesh-pc.
+
 ## 10:33 new boss (DEFCON 1: deployed demo ASAP)
 - Demo host: vimlesh-pc (Vimlesh's own Claude builds the stack; his swarm DOWN on purpose; queue NOTHING there). Vivek pastes its results; boss turns failures into fix tasks, merges, tells Vivek to run C:ether-preview\.preview\preview-refresh.ps1 there.
 - HOT STANDBY utkarsh-pc: sol 1028-10bf stack (preview-up) -> 1028-3987 kill test; luna 1028-1ee9 pipelines live -> 1032-3483 e2e rerun. Proof in design/ui-glorious/proof/standby-utkarsh/. First ready host = demo.
