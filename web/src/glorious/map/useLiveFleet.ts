@@ -54,6 +54,7 @@ export function useLiveFleet(): Fleet {
     const controller = new AbortController()
     let active = true
     let polling: number | undefined
+    let requestTimeout: number | undefined
     const backoff = createBackoff('Live fleet')
     // Trucks frames omit running/timeScale. Poll the real control state as well as
     // sharing the existing socket; never assume the Compose default speed of 10.
@@ -61,8 +62,17 @@ export function useLiveFleet(): Fleet {
       let delay = 3000
       const startedAtRevision = socketRevision.current
       const startedAtSnapshotRevision = snapshotRevision.current
+      const requestController = new AbortController()
+      requestTimeout = window.setTimeout(() => requestController.abort(), 4000)
+      const abortParent = () => requestController.abort()
+      if (controller.signal.aborted) abortParent()
+      else controller.signal.addEventListener('abort', abortParent, { once: true })
+      const signal = typeof AbortSignal.any === 'function'
+        ? AbortSignal.any([controller.signal, requestController.signal])
+        : requestController.signal
+      
       try {
-        const response = await fetch('/api/simulator/state', { signal: controller.signal })
+        const response = await fetch('/api/simulator/state', { signal })
         if (!response.ok) throw new Error(`Fleet unavailable (HTTP ${response.status})`)
         const simulator = await response.json() as SimulatorState
         if (!Array.isArray(simulator.trucks) || typeof simulator.running !== 'boolean' || !Number.isFinite(simulator.timeScale) || simulator.timeScale < 0) throw new Error('The simulator sent data that could not be read')
@@ -85,8 +95,11 @@ export function useLiveFleet(): Fleet {
         if (!active) return
         delay = backoff.failure(error)
         setFleet((previous) => snapshotRevision.current !== startedAtSnapshotRevision ? previous : { ...previous, controlsFresh: false, error: error instanceof Error ? error.message : 'Fleet unavailable' })
+      } finally {
+        if (requestTimeout !== undefined) window.clearTimeout(requestTimeout)
+        requestTimeout = undefined
+        if (active) polling = window.setTimeout(() => { void refresh() }, delay)
       }
-      if (active) polling = window.setTimeout(() => { void refresh() }, delay)
     }
     void refresh()
     const freshness = window.setInterval(() => {
@@ -103,6 +116,7 @@ export function useLiveFleet(): Fleet {
       active = false
       controller.abort()
       window.clearTimeout(polling)
+      if (requestTimeout !== undefined) window.clearTimeout(requestTimeout)
       window.clearInterval(freshness)
     }
   }, [])

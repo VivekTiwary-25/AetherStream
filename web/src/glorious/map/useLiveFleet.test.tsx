@@ -113,6 +113,37 @@ describe('live fleet telemetry and cleanup', () => {
     expect(result.current.error).toBe('Simulator controls unavailable')
   })
 
+  it('times out a hung poll, marks telemetry stale, and recovers on the next poll', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const fetch = vi.fn<(url: string, options: RequestInit) => Promise<Response>>()
+      .mockResolvedValueOnce(response(state([truck])))
+      .mockImplementationOnce((_url, options) => new Promise<Response>((_resolve, reject) => {
+        options.signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true })
+      }))
+      .mockResolvedValue(response(state([truck])))
+    vi.stubGlobal('fetch', fetch)
+    const { result, unmount } = renderHook(useLiveFleet)
+    await act(async () => {})
+    expect(result.current.fresh).toBe(true)
+
+    await act(async () => { await vi.advanceTimersByTimeAsync(3000) })
+    expect(fetch).toHaveBeenCalledTimes(2)
+    await act(async () => { await vi.advanceTimersByTimeAsync(4000) })
+    expect((fetch.mock.calls[1][1].signal as AbortSignal).aborted).toBe(true)
+    expect(result.current.controlsFresh).toBe(false)
+    expect(result.current.fresh).toBe(false)
+    expect(fetch).toHaveBeenCalledTimes(2)
+
+    await act(async () => { await vi.advanceTimersByTimeAsync(5000) })
+    expect(fetch).toHaveBeenCalledTimes(3)
+    expect(result.current.fresh).toBe(true)
+    expect(result.current.controlsFresh).toBe(true)
+    expect(result.current.error).toBeNull()
+    unmount()
+    expect(vi.getTimerCount()).toBe(0)
+    warn.mockRestore()
+  })
+
   it('backs off failed HTTP polls, recovers and resets the next outage delay', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const fetch = vi.fn()
