@@ -124,7 +124,7 @@ export function AnalyticsPanel({ id }: { id: AnalyticsId }) {
     }
   }
   const alertEntries = [...alertByMinute].sort(([a], [b]) => a - b).slice(-15)
-  const failedRows = mapFailedRecords(deadLetters).filter((record) => failureKind === 'ALL' || record.kind === failureKind).slice(0, 30)
+  const failedRows = mapFailedRecords(deadLetters).filter((record) => failureKind === 'ALL' || record.kind === failureKind)
   const heading = selectedTruck ? `Truck ${selectedTruck}` : selectedFailure ? 'Failed record details' : undefined
 
   function showTruck(truckId: string) {
@@ -172,11 +172,11 @@ export function AnalyticsPanel({ id }: { id: AnalyticsId }) {
         : <p className="an-empty">{liveStatus !== 'connected' ? 'Disconnected — live throughput unavailable.' : !flowSamples.length ? 'Waiting for live throughput data.' : !flowFresh ? 'Live throughput unavailable — waiting for a fresh sample.' : latestPartitions ? 'No partition rates reported.' : 'Partition rates unavailable.'}</p>}
     </section>}
     {id === 'failed-records' && <section>
-      <p className="an-caption">Records the engine set aside: rejected (invalid data) or late (arrived after their time window closed). Times are simulated time; partition and offset show exactly where each record was read.</p>
+      <p className="an-caption">Records the engine set aside: rejected (invalid data) or late (arrived after their time window closed). All loaded records are shown, newest simulation event first. Times are simulated time; partition and offset show exactly where each record was read.</p>
       <div className="an-tabs" aria-label="Failed record kind">{(['ALL', 'REJECTED', 'LATE'] as const).map((kind) => <button type="button" key={kind} aria-pressed={failureKind === kind} onClick={() => setFailureKind(kind)}>{kind === 'ALL' ? 'All' : kind === 'REJECTED' ? 'Rejected' : 'Late'}</button>)}</div>
-      {failedRows.length ? <div className="an-list">{failedRows.map((row) => <button className="an-row an-row--failure" type="button" key={`${row.partition}:${row.offset}:${row.eventId}`} onClick={() => showFailure(row)}>
+      {failedRows.length ? <div className="an-list">{failedRows.map((row) => <button className="an-row an-row--failure" type="button" key={JSON.stringify([row.eventId, row.kind])} onClick={() => showFailure(row)}>
         <KindChip kind={row.kind} /><strong className="an-truncate" title={row.eventId}>{row.eventId}</strong><span className="an-reason">{row.reason}</span><span className="an-meta">{simClock(row.eventTime)} · partition {row.partition}, offset {row.offset}</span>
-      </button>)}</div> : <EmptyState socketStatus={socketStatus} execution={execution?.state} message="No failed records yet." />}
+      </button>)}</div> : <EmptyState socketStatus={socketStatus} execution={execution?.state} message={failureKind === 'ALL' ? 'No failed records yet.' : failureKind === 'LATE' ? 'No late records yet.' : 'No rejected records yet.'} />}
     </section>}
   </>
 
