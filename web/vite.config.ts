@@ -18,7 +18,10 @@ export default defineConfig({
   },
   test: {
     environment: 'jsdom',
-    setupFiles: ['./src/test/setup-webstorage.ts'],
+    setupFiles: ['./src/test/setup-webstorage.ts', './src/test/setup-testing-library.ts'],
+    // Heavy jsdom renders (App shell, React Flow editor) take 3-7 s when the
+    // whole suite runs at once on every core; 5 s was hit at random.
+    testTimeout: 15_000,
     poolOptions: {
       forks: { execArgv: webstorageArgv },
       threads: { execArgv: webstorageArgv },
