@@ -12,6 +12,7 @@ function Invoke-Checked {
     $err = Join-Path $logDir 'aether-preview-command.err.log'
     $working = if (Test-Path $repo) { $repo } else { $env:TEMP }
     $p = Start-Process -FilePath $File -ArgumentList $Arguments -WorkingDirectory $working -PassThru -NoNewWindow -RedirectStandardOutput $out -RedirectStandardError $err
+    $null = $p.Handle  # PS 5.1: cache the handle so ExitCode is not $null after WaitForExit(timeout)
     if (-not $p.WaitForExit($TimeoutSeconds * 1000)) {
         $p.Kill()
         throw "$File timed out after $TimeoutSeconds seconds; see $out and $err"

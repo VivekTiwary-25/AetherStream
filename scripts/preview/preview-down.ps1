@@ -11,6 +11,7 @@ if (Test-Path $repo) {
     $out = Join-Path $preview 'down.out.log'
     $err = Join-Path $preview 'down.err.log'
     $p = Start-Process docker -ArgumentList @('compose', '-p', 'aether-preview', '-f', 'docker-compose.yml', '-f', (Join-Path $preview 'compose.yml'), 'down') -WorkingDirectory $repo -PassThru -NoNewWindow -RedirectStandardOutput $out -RedirectStandardError $err
+    $null = $p.Handle  # PS 5.1: cache the handle so ExitCode is not $null after WaitForExit(timeout)
     if (-not $p.WaitForExit(180000)) { $p.Kill(); throw 'docker compose down timed out after 180 seconds.' }
     if ($p.ExitCode -ne 0) { throw "docker compose down failed ($($p.ExitCode)); see $out and $err" }
 }
