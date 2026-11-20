@@ -61,6 +61,15 @@ reloading or closing existing windows. `?ui=classic` selects the old app.
 - Home: `home/Home.tsx` uses `/glorious/home-loop.mp4` and
   `/glorious/home-poster.jpg`; reduced motion displays the poster instead.
 
+Live fleet polling cannot overwrite newer socket telemetry or reconnect control
+state. Analytics replaces snapshot truck lists, expires current-speed readings
+after 4.5 seconds, and deduplicates persisted windows and failed records.
+Recovery keeps confirmed deaths visible until a newer heartbeat arrives; missing
+partition data is unavailable, not an empty assignment.
+The pipeline editor preserves drafts in tab-local session storage across refresh
+and Back. Edits invalidate in-flight validation; results polling errors display
+Disconnected until a successful update, and reopening results selects the new run.
+
 Vite serves files in `web/public/` from the site root. Keep required source
 assets out of paths matched by the root `.gitignore` `logs/` pattern: it is
 unanchored and silently ignores matching directories anywhere in the tree.

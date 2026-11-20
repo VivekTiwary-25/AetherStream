@@ -116,3 +116,19 @@ export function readHandoff(): Pipeline | null {
     return isPipeline(parsed) ? parsed : null
   } catch { return null }
 }
+
+const EDITOR_DRAFT_KEY = 'glorious.pipelines.editorDraft'
+
+/** Keep edits in this tab across refresh and Back without changing the shared AI handoff. */
+export function storeEditorDraft(pipeline: Pipeline): void {
+  try { window.sessionStorage.setItem(EDITOR_DRAFT_KEY, JSON.stringify(pipeline)) } catch { /* Storage may be blocked. Editing still works. */ }
+}
+
+export function readEditorDraft(): Pipeline | null {
+  try {
+    const raw = window.sessionStorage.getItem(EDITOR_DRAFT_KEY)
+    if (!raw) return null
+    const parsed: unknown = JSON.parse(raw)
+    return isPipeline(parsed) ? parsed : null
+  } catch { return null }
+}

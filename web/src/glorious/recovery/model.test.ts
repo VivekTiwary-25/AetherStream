@@ -44,6 +44,15 @@ describe('worker lifecycle from sampled workers and recovery audit facts', () =>
     expect(state([], 15_000, { ...worker, state: 'RESTORING' })).toBe('recovering')
     expect(state([], 15_000, { ...worker, state: 'IDLE' })).toBe('idle')
   })
+
+  it('requires a newer heartbeat before clearing a confirmed death', () => {
+    const history = [entry('WORKER_DEAD', 13_000)]
+    for (const lastHeartbeatMs of [undefined, null, Number.NaN]) {
+      const missingHeartbeat = { ...worker, lastHeartbeatMs } as unknown as WorkerInfo
+      expect(state(history, 17_000, missingHeartbeat)).toBe('dead')
+    }
+    expect(state(history, 17_000, { ...worker, lastHeartbeatMs: 16_000 })).toBe('running')
+  })
 })
 
 describe('history hydration and recovery timing', () => {

@@ -48,10 +48,10 @@ export function ResultsView({ runId }: { runId: string }) {
 
   const latest = view.results.slice(-SHOWN_ROWS).reverse()
   const columns = resultColumns(latest)
-  const stateClass = view.state ? `gl-run-state--${view.state.toLowerCase()}` : 'gl-run-state--pending'
+  const stateClass = view.state && !view.pollError ? `gl-run-state--${view.state.toLowerCase()}` : 'gl-run-state--pending'
   return <div className="gl-results" data-testid="pipeline-results">
     <div className="gl-results__bar">
-      <p className={`gl-run-state ${stateClass}`} aria-live="polite"><span className="gl-run-state__dot" aria-hidden="true" />{view.state ? STATE_LABEL[view.state] : 'Connecting...'}</p>
+      <p className={`gl-run-state ${stateClass}`} aria-live="polite"><span className="gl-run-state__dot" aria-hidden="true" />{view.pollError ? 'Disconnected' : view.state ? STATE_LABEL[view.state] : 'Connecting...'}</p>
       <p className="gl-results__count">Events in: <strong>{view.eventsIn ?? '-'}</strong></p>
       <p className="gl-results__count">Results: <strong>{view.results.length}</strong></p>
       <ClayButton onClick={() => void stop()} disabled={finished || stopping || !view.state}>{stopping ? 'Stopping...' : 'Stop'}</ClayButton>
