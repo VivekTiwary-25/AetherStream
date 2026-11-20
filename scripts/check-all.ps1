@@ -32,6 +32,7 @@ function Invoke-Check([string]$Name, [string]$Directory, [int]$TimeoutSeconds, [
     $logPath = Join-Path $logDir ($safeName + '.log')
     $timer = [Diagnostics.Stopwatch]::StartNew()
     $process = Start-Process -FilePath $env:ComSpec -ArgumentList @('/d', '/s', '/c', $Command) -WorkingDirectory $Directory -RedirectStandardOutput $logPath -RedirectStandardError ($logPath + '.err') -PassThru
+    $null = $process.Handle # Retain the handle so Windows PowerShell 5.1 can read ExitCode after waiting.
     $completed = $process.WaitForExit($TimeoutSeconds * 1000)
     if (-not $completed) {
         try { $process.Kill() } catch { }
