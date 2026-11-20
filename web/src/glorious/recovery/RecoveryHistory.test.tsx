@@ -25,13 +25,13 @@ describe('persistent activity rendering', () => {
     expect(screen.getByText('Processing paused for 1.5 s during recovery.')).toBeTruthy()
     expect(screen.getByText('P1: worker-2 → worker-1')).toBeTruthy()
     expect(screen.getAllByText('Actor: coordinator')).toHaveLength(3)
-    expect(screen.getByText('Worker dead')).toBeTruthy()
+    expect(screen.getByText('Worker died')).toBeTruthy()
   })
 
   it('does not invent timing or a checkpoint when audit metadata is missing', () => {
     render(<RecoveryHistory entries={[{ ...base, event: 'RECOVERED', restoredFromCheckpoint: null }]} loaded />)
-    expect(screen.getByText('Recovery pause duration unavailable (no complete timing recorded).')).toBeTruthy()
-    expect(screen.getByText(/Restored checkpoint not recorded/)).toBeTruthy()
+    expect(screen.getByText('Pause length unknown (timing was not fully recorded).')).toBeTruthy()
+    expect(screen.getByText(/Checkpoint used: not recorded/)).toBeTruthy()
   })
 
   it('renders accepted kills as unconfirmed, completed checkpoint IDs, and an honest empty state', () => {
@@ -41,7 +41,7 @@ describe('persistent activity rendering', () => {
       { ...base, event: 'KILL_REQUESTED' },
       { ...base, id: 2, event: 'CHECKPOINT_COMPLETED', checkpointId: 43, durationMs: 120 },
     ]} />)
-    expect(screen.getByText('Kill requested (not confirmed dead)')).toBeTruthy()
+    expect(screen.getByText('Kill requested (not yet confirmed)')).toBeTruthy()
     expect(screen.getByText('Checkpoint #43 · 120 ms')).toBeTruthy()
   })
 })

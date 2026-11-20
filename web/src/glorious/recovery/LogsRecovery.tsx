@@ -23,16 +23,16 @@ export function LogsRecovery() {
   const latestRecovery = currentHistory.find((entry) => entry.event === 'RECOVERING' || entry.event === 'RECOVERED')
   return <div className="recovery-panel" data-testid="logs-recovery">
     <div className="recovery-intro">
-      <p>Worker health, partition ownership and checkpoint recovery from the live engine.</p>
+      <p>How the engine’s workers (the processes that share the work) are doing, which worker owns each partition (slice of the stream), and the checkpoints (saved progress) it recovers from after a failure.</p>
       <p role="status" className="recovery-muted">{feed.status === 'connected' ? 'Live connection' : `${feed.status === 'connecting' ? 'Connecting' : 'Disconnected'} · values may be stale`}</p>
     </div>
     {feed.historyError && <p role="alert">Recovery history unavailable: {feed.historyError}</p>}
-    {feed.executionError && <p role="alert">Execution unavailable: {feed.executionError}</p>}
+    {feed.executionError && <p role="alert">Current run unavailable: {feed.executionError}</p>}
     {latestRecovery?.event === 'RECOVERING' && <p className="recovery-pause">Processing paused for {seconds(now - latestRecovery.at)} s during recovery
       {feed.status !== 'connected' ? ' (last recorded recovery; connection unavailable)' : ' (in progress)'}.</p>}
     <section aria-labelledby="recovery-workers-title">
       <h2 id="recovery-workers-title">Workers</h2>
-      <p className="recovery-muted">Confirmed death or restart is held visibly for at least 3 seconds; live metrics can be newer than the held failure state.</p>
+      <p className="recovery-muted">A worker that died or restarted stays marked for at least 3 seconds so you can see it; its live numbers may already be newer.</p>
       <div className="recovery-workers">{workerIds.length ? workerIds.map((workerId) => {
         const worker = workers.find((candidate) => candidate.workerId === workerId)
         const state = deriveWorkerState(worker, workerId, feed.history, feed.execution, now)
@@ -46,7 +46,7 @@ export function LogsRecovery() {
             </div>
             <WorkerQueue label="Source queue" queue={worker?.sourceQueue} />
             <WorkerQueue label="Sink queue" queue={worker?.sinkQueue} />
-            <p>Backpressure: {worker ? (worker.backpressured ? 'Yes' : 'No') : 'Unavailable'}</p>
+            <p>Slowed by backpressure: {worker ? (worker.backpressured ? 'Yes' : 'No') : 'Unavailable'}</p>
             <p className="recovery-muted">Last heartbeat: {worker?.lastHeartbeatMs && Number.isFinite(worker.lastHeartbeatMs)
               ? `${seconds(now - worker.lastHeartbeatMs)} s ago` : 'Unavailable'}</p>
           </article>
@@ -67,8 +67,9 @@ export function LogsRecovery() {
     </section>
     <section aria-labelledby="recovery-checkpoints-title">
       <h2 id="recovery-checkpoints-title">Completed checkpoints</h2>
+      <p className="recovery-muted">Each checkpoint saves progress so a failed worker’s partitions can restart from it; generation counts restarts.</p>
       {feed.checkpointError && <p role="alert">Checkpoint history unavailable: {feed.checkpointError}</p>}
-      {!feed.execution ? <p>No active execution reported.</p> : !feed.checkpoints.length ? <p>{feed.checkpointError ? 'Checkpoint history could not be loaded.' : feed.checkpointsLoaded ? 'No completed checkpoints yet.' : 'Loading completed checkpoints…'}</p> :
+      {!feed.execution ? <p>No pipeline run is active.</p> : !feed.checkpoints.length ? <p>{feed.checkpointError ? 'Checkpoint history could not be loaded.' : feed.checkpointsLoaded ? 'No completed checkpoints yet.' : 'Loading completed checkpoints…'}</p> :
         <div className="recovery-table-wrap"><table className="recovery-table"><caption>Execution {feed.execution.id}</caption>
           <thead><tr><th scope="col">Checkpoint</th><th scope="col">Generation</th><th scope="col">Completed</th><th scope="col">Duration</th><th scope="col">Source offsets</th></tr></thead>
           <tbody>{[...feed.checkpoints].sort((a, b) => b.checkpointId - a.checkpointId).map((checkpoint) => <tr key={checkpoint.checkpointId}>
@@ -77,7 +78,7 @@ export function LogsRecovery() {
             <td>{Object.entries(checkpoint.sourceOffsets ?? {}).map(([partition, offset]) => `P${partition}: ${offset}`).join(' · ') || 'Not recorded'}</td>
           </tr>)}</tbody>
         </table></div>}
-      {feed.execution?.restoredFromCheckpoint != null && <p>Current execution restored from checkpoint #{feed.execution.restoredFromCheckpoint} · generation {feed.execution.generation}</p>}
+      {feed.execution?.restoredFromCheckpoint != null && <p>Current run restarted from checkpoint #{feed.execution.restoredFromCheckpoint} · generation {feed.execution.generation}</p>}
     </section>
     <RecoveryHistory entries={feed.history} loaded={feed.historyLoaded} unavailable={!!feed.historyError} />
   </div>

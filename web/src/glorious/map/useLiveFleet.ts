@@ -51,7 +51,7 @@ export function useLiveFleet(): Fleet {
         const response = await fetch('/api/simulator/state', { signal: controller.signal })
         if (!response.ok) throw new Error(`Fleet unavailable (HTTP ${response.status})`)
         const simulator = await response.json() as SimulatorState
-        if (!Array.isArray(simulator.trucks) || !Number.isFinite(simulator.timeScale)) throw new Error('Invalid simulator state')
+        if (!Array.isArray(simulator.trucks) || !Number.isFinite(simulator.timeScale)) throw new Error('The simulator sent data that could not be read')
         if (!active) return
         lastTelemetry.current = Date.now()
         setFleet((previous) => ({
@@ -71,7 +71,7 @@ export function useLiveFleet(): Fleet {
     const polling = window.setInterval(() => { void refresh() }, 3000)
     const freshness = window.setInterval(() => {
       if (Date.now() - lastTelemetry.current > 4500) {
-        setFleet((previous) => previous.fresh ? { ...previous, fresh: false, error: 'Live fleet disconnected — movement paused' } : previous)
+        setFleet((previous) => previous.fresh ? { ...previous, fresh: false, error: 'Disconnected · trucks shown at last known position' } : previous)
       }
     }, 1000)
     return () => {

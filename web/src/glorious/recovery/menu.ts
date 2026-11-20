@@ -17,10 +17,10 @@ export const settingsMenu: SidebarItem[] = [
   },
   {
     id: 'truck-breakdown',
-    label: 'Truck breakdown',
+    label: 'Truck Breakdown',
     onSelect: (windows) =>
       windows.open('settings.truck-breakdown', {
-        title: 'Truck breakdown',
+        title: 'Truck Breakdown',
         strong: true,
         initial: { x: 280, y: 130, w: 450, h: 390 },
         render: () => createElement(TruckBreakdown),
