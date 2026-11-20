@@ -1,0 +1,44 @@
+{
+  "source": "design/ui-glorious/proof/standby-utkarsh/pipelines/",
+  "validation": {
+    "status": 200,
+    "ok": true,
+    "body": {
+      "valid": true,
+      "errors": []
+    }
+  },
+  "run": {
+    "status": 201,
+    "ok": true,
+    "body": {
+      "runId": "9b3471cf-f9b9-4552-b511-41bd20a04e2b"
+    }
+  },
+  "polls": [
+    {
+      "status": 200,
+      "ok": true,
+      "body": {
+        "runId": "9b3471cf-f9b9-4552-b511-41bd20a04e2b",
+        "state": "RUNNING",
+        "startedAt": 1795151354390,
+        "eventsIn": 0,
+        "droppedRows": 0,
+        "results": []
+      }
+    },
+    {
+      "status": 200,
+      "ok": true,
+      "body": {
+        "runId": "9b3471cf-f9b9-4552-b511-41bd20a04e2b",
+        "state": "RUNNING",
+        "startedAt": 1795151354390,
+        "eventsIn": 59,
+        "droppedRows": 0,
+        "results": []
+      }
+    }
+  ]
+}

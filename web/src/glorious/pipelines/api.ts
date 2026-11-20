@@ -48,7 +48,7 @@ export interface ErrorView { message: string; errors: ValidationError[] }
 const bodyField = (body: unknown, key: string) => body && typeof body === 'object' && typeof (body as Record<string, unknown>)[key] === 'string' ? (body as Record<string, string>)[key] : undefined
 
 /** Turns any thrown error into an honest message plus any validation errors (400). */
-export function describeError(error: unknown, service: 'pipeline' | 'ai' = 'pipeline'): ErrorView {
+export function describeError(error: unknown, service: 'pipeline' | 'ai' | 'results' = 'pipeline'): ErrorView {
   const unavailable = service === 'ai' ? 'AI service unavailable' : 'Pipeline service unavailable'
   if (!(error instanceof ApiError)) return { message: error instanceof Error ? error.message : 'Unexpected error', errors: [] }
   if (error.status === -1) return { message: 'The AI service returned an unexpected response', errors: [] }
@@ -57,6 +57,10 @@ export function describeError(error: unknown, service: 'pipeline' | 'ai' = 'pipe
   if (error.status === 400) {
     const body = error.body as Partial<ValidationResult> | null
     const errors = Array.isArray(body?.errors) ? body.errors.filter((item): item is ValidationError => !!item && typeof item.message === 'string') : []
+    if (service === 'results') {
+      const detail = errors.length ? errors.map((item) => item.message).join('; ') : bodyField(error.body, 'error') ?? bodyField(error.body, 'message') ?? 'The request was rejected (400)'
+      return { message: `Could not fetch pipeline results: ${detail}`, errors: [] }
+    }
     return { message: errors.length ? 'The pipeline is not valid' : bodyField(error.body, 'error') ?? bodyField(error.body, 'message') ?? 'The request was rejected (400)', errors }
   }
   if (service === 'ai') return { message: unavailable, errors: [] }

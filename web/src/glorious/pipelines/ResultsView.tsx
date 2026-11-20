@@ -36,7 +36,7 @@ export function ResultsView({ runId }: { runId: string }) {
         if (cancelled) return
         delay = backoff.failure(error)
         const status = (error as { status?: number }).status
-        dispatch({ type: 'pollError', message: status === 404 ? 'Run not found. The pipeline service may have restarted.' : describeError(error).message })
+        dispatch({ type: 'pollError', message: status === 404 ? 'Run not found. The pipeline service may have restarted.' : describeError(error, 'results').message })
       }
       // Next poll one interval after the previous one finished, so requests never overlap.
       timer = setTimeout(() => void poll(), delay)

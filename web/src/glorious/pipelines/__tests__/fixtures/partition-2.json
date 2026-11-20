@@ -1,0 +1,135 @@
+{
+  "source": "design/ui-glorious/proof/standby-utkarsh/pipelines/",
+  "validation": {
+    "status": 200,
+    "ok": true,
+    "body": {
+      "valid": true,
+      "errors": []
+    }
+  },
+  "run": {
+    "status": 201,
+    "ok": true,
+    "body": {
+      "runId": "0d055f81-fad4-44f1-9201-4faac16a2eaa"
+    }
+  },
+  "polls": [
+    {
+      "status": 200,
+      "ok": true,
+      "body": {
+        "runId": "0d055f81-fad4-44f1-9201-4faac16a2eaa",
+        "state": "RUNNING",
+        "startedAt": 1795151394580,
+        "eventsIn": 0,
+        "droppedRows": 0,
+        "results": []
+      }
+    },
+    {
+      "status": 200,
+      "ok": true,
+      "body": {
+        "runId": "0d055f81-fad4-44f1-9201-4faac16a2eaa",
+        "state": "RUNNING",
+        "startedAt": 1795151394580,
+        "eventsIn": 59,
+        "droppedRows": 0,
+        "results": [
+          {
+            "seq": 1,
+            "ts": 1795151394714,
+            "output": "Partition 2 speeds",
+            "kind": "row",
+            "data": {
+              "truckId": "truck-002",
+              "speedKmh": 34.672611800177364
+            }
+          },
+          {
+            "seq": 2,
+            "ts": 1795151394909,
+            "output": "Partition 2 speeds",
+            "kind": "row",
+            "data": {
+              "truckId": "truck-002",
+              "speedKmh": 35.744393751091174
+            }
+          },
+          {
+            "seq": 3,
+            "ts": 1795151395111,
+            "output": "Partition 2 speeds",
+            "kind": "row",
+            "data": {
+              "truckId": "truck-002",
+              "speedKmh": 41.44446990389692
+            }
+          },
+          {
+            "seq": 4,
+            "ts": 1795151395310,
+            "output": "Partition 2 speeds",
+            "kind": "row",
+            "data": {
+              "truckId": "truck-002",
+              "speedKmh": 45.810939619448
+            }
+          },
+          {
+            "seq": 5,
+            "ts": 1795151395510,
+            "output": "Partition 2 speeds",
+            "kind": "row",
+            "data": {
+              "truckId": "truck-002",
+              "speedKmh": 48.251277824031256
+            }
+          },
+          {
+            "seq": 6,
+            "ts": 1795151395710,
+            "output": "Partition 2 speeds",
+            "kind": "row",
+            "data": {
+              "truckId": "truck-002",
+              "speedKmh": 48.43433334318509
+            }
+          },
+          {
+            "seq": 7,
+            "ts": 1795151395910,
+            "output": "Partition 2 speeds",
+            "kind": "row",
+            "data": {
+              "truckId": "truck-002",
+              "speedKmh": 46.33526574698646
+            }
+          },
+          {
+            "seq": 8,
+            "ts": 1795151396312,
+            "output": "Partition 2 speeds",
+            "kind": "row",
+            "data": {
+              "truckId": "truck-002",
+              "speedKmh": 36.701154680492074
+            }
+          },
+          {
+            "seq": 9,
+            "ts": 1795151396510,
+            "output": "Partition 2 speeds",
+            "kind": "row",
+            "data": {
+              "truckId": "truck-002",
+              "speedKmh": 0
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
