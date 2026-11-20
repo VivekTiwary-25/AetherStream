@@ -28,6 +28,21 @@ describe('persistent activity rendering', () => {
     expect(screen.getByText('Worker died')).toBeTruthy()
   })
 
+  it('orders conflicting IDs by event time, with descending IDs only breaking time ties', () => {
+    const history = mergeHistory([], [
+      { ...base, id: 41, event: 'RECOVERING', at: base.at - 1 },
+      { ...base, id: 39 },
+      { ...base, id: 42, event: 'RECOVERED', at: base.at + 1_200 },
+      { ...base, id: 40, event: 'WORKER_RESTARTED' },
+    ])
+    render(<RecoveryHistory entries={history} loaded />)
+    const rows = within(screen.getByRole('list')).getAllByRole('listitem')
+    expect(rows.map((row) => row.querySelector('strong')?.textContent)).toEqual([
+      'Recovery finished', 'Worker restarted', 'Worker died', 'Recovery started',
+    ])
+    expect(screen.getByText('Processing paused for 1.2 s during recovery.')).toBeTruthy()
+  })
+
   it('does not invent timing or a checkpoint when audit metadata is missing', () => {
     render(<RecoveryHistory entries={[{ ...base, event: 'RECOVERED', restoredFromCheckpoint: null }]} loaded />)
     expect(screen.getByText('Pause length unknown (timing was not fully recorded).')).toBeTruthy()

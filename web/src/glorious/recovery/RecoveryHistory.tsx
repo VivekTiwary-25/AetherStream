@@ -3,7 +3,7 @@ import { eventLabel, recoveryDuration, seconds, type RecoveryEntry } from './mod
 export function RecoveryHistory({ entries, loaded, unavailable = false }: { entries: RecoveryEntry[]; loaded: boolean; unavailable?: boolean }) {
   return <section aria-labelledby="recovery-activity-title">
     <h2 id="recovery-activity-title">Activity & failure history</h2>
-    <p className="recovery-muted">Newest first · The last 200 events kept by the server, including failures triggered from the terminal.</p>
+    <p className="recovery-muted">Newest event time first (ID breaks ties) · The last 200 events kept by the server, including failures triggered from the terminal.</p>
     {!entries.length ? <p>{unavailable ? 'Recovery history could not be loaded.' : loaded ? 'No recovery activity yet.' : 'Loading recovery history…'}</p> :
       <ol className="recovery-history">{entries.map((entry) => {
         const duration = recoveryDuration(entry, entries)

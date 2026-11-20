@@ -38,7 +38,7 @@ export function LogsRecovery() {
       : <p className="recovery-pause">Recovery started {new Date(latestRecovery.at).toLocaleString()}; its end has not been recorded yet{feed.status !== 'connected' ? ' (connection unavailable)' : ''}.</p>)}
     <section aria-labelledby="recovery-workers-title">
       <h2 id="recovery-workers-title">Workers</h2>
-      <p className="recovery-muted">A worker that died or restarted stays marked for at least 3 seconds so you can see it; its live numbers may already be newer.</p>
+      <p className="recovery-muted">A confirmed death stays marked Dead for 3 seconds from the event time, even if the worker is already alive again; only that worker then shows Rejoined after recovery.</p>
       <div className="recovery-workers">{workerIds.length ? workerIds.map((workerId, workerIndex) => {
         const worker = workers.find((candidate) => candidate.workerId === workerId)
         const state = deriveWorkerState(worker, workerId, feed.history, feed.execution, now)
