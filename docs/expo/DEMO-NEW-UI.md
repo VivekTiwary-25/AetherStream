@@ -96,3 +96,15 @@ With the app, API, and engine already running locally:
 
 Keep the remaining time for questions. Never describe unobserved recovery phases or pipeline results as completed.
 
+## If something goes wrong
+
+| Symptom | What it means | What to say/do |
+|---|---|---|
+| Ask AI says AI is offline or busy. | AI generation is unavailable or still handling the previous request. | Pick a suggestion; its labelled saved example is not AI-generated, but it still runs. |
+| Live World trucks are grey or say **Last known**. | Telemetry is stale; the displayed positions and values are not current. | Wait a few seconds, then check `http://localhost:8089/api/health`. |
+| The status pill says **Last reported**. | The live connection is down; the displayed engine state is the last report. | Call it out as last reported, not live. |
+| Average-speed pipeline results are empty for the first ~30 seconds. | The example uses 30-second windows; its first completed window takes time to arrive. | Wait for the window to complete. |
+| A worker card says **Dead** for about 3 seconds after `worker kill 2`. | This is the expected visible hold, even if recovery finishes sooner. | Wait and watch the recovery feed; do not repeat the kill. |
+| Failed Records is empty before `events late`. | No late events have been sent and classified yet. | Run `events late 10` once; records appear only if the engine classifies them late. |
+| The page looks old after a merge. | The preview host has not refreshed to the merged version. | On the demo host, run `powershell -NoProfile -ExecutionPolicy Bypass -File C:\\aether-preview\\.preview\\preview-refresh.ps1`, then press Ctrl+F5. |
+
