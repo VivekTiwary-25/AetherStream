@@ -8,6 +8,7 @@ function Invoke-Checked {
     $out = Join-Path $preview 'refresh-command.out.log'
     $err = Join-Path $preview 'refresh-command.err.log'
     $p = Start-Process -FilePath $File -ArgumentList $Arguments -WorkingDirectory $repo -PassThru -NoNewWindow -RedirectStandardOutput $out -RedirectStandardError $err
+    $null = $p.Handle  # PS 5.1: cache the handle so ExitCode is not $null after WaitForExit(timeout)
     if (-not $p.WaitForExit($TimeoutSeconds * 1000)) {
         $p.Kill()
         throw "$File timed out after $TimeoutSeconds seconds; see $out and $err"
