@@ -2,6 +2,15 @@
 
 Fresh boss session: read swarm/BOSS.md, then design/ui-glorious/BOSS_PROMPT.md (the mission), then this file. Continue from "Next".
 
+## 10:33 new boss (DEFCON 1: deployed demo ASAP)
+- Demo host: vimlesh-pc (Vimlesh's own Claude builds the stack; his swarm DOWN on purpose; queue NOTHING there). Vivek pastes its results; boss turns failures into fix tasks, merges, tells Vivek to run C:ether-preview\.preview\preview-refresh.ps1 there.
+- HOT STANDBY utkarsh-pc: sol 1028-10bf stack (preview-up) -> 1028-3987 kill test; luna 1028-1ee9 pipelines live -> 1032-3483 e2e rerun. Proof in design/ui-glorious/proof/standby-utkarsh/. First ready host = demo.
+- vivek-pc: luna 1030-7f9c check-all #4 -> db27 Home video test; sol bb53 Playwright locator fixes -> 91e6 fake-audit A (map/analytics/shell); vachana 4984 fake-audit B (recovery) -> efb6 kill-readiness review; grok 919a CHEATSHEET check -> a9bc glorious README check.
+- upendra-pc: luna 1031-b527 DEMO-NEW-UI check -> d326 MORNING UI check; sol 1032-7f36 pipelines honest-failure tests -> 810f classic check.
+- Merged 0647-2758 (MORNING fact-check), 0648-f804 (MERGE doc fact-check). Rejected failed 0645-e502, 0632-6c90 (replaced).
+- Still held unmerged: T181, T185-T188, Android tasks incl. 0623-767d.
+- Watcher restarted in this boss's scratchpad\watcher (AVOID now = vimlesh-pc only; vachana + grok are fed).
+
 ## Where things are
 - Boss clone (Vivek's, on main): D:\projects\AetherStream. Do NOT switch its branch.
 - Boss worktree for ui-glorious: D:\projects\AetherStream-ui-glorious (branch ui-glorious, tracks origin). Commit BOSS_STATE here.
