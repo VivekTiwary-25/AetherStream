@@ -1,0 +1,5 @@
+# Link and path check for tonight's docs (docs only)
+
+Files: README.md, DEMO.md, CHANGELOG.md, docs/expo/*.md, scripts/**/README*.md, web/src/glorious/README.md, design/ui-glorious/FINAL_REPORT.md (fix only broken links/paths). Do NOT read or describe swarm/.
+
+For every relative markdown link and every repo file path or script path mentioned in backticks in those files, check that the target exists on this branch (case-sensitive) and that every mentioned npm script / command flag exists (package.json scripts, script parameters). Fix broken ones with the smallest change; do not rewrite text. Report a table: file -> broken reference -> fix.

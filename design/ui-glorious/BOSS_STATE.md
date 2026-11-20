@@ -46,6 +46,11 @@ Fresh boss session: read swarm/BOSS.md, then design/ui-glorious/BOSS_PROMPT.md (
 - ONLY thing to protect: the boss session's tokens (ran out briefly tonight). Keep context lean, delegate, warn Vivek early if low.
 - GOTCHA: pushing swarm .py code while long tasks run stalls dispatch on that PC until they finish (_first_runnable waits for restart). Config JSON pushes are safe.
 
+## 06:41
+- STRETCH (Android) DECISION: NOT merged. Rule = only if demo path green before 07:00; live kill + live pipeline run still blocked. Merge-ready branch kept: task/t261120-0623-767d (all 3 parts + 8 design fixes; desktop byte-identical on 9 views; 289 tests). Do NOT reject it; Vivek may merge later with `swarm merge t261120-0623-767d --base ui-glorious` (queue file still on main).
+- upendra-pc DEAD (Codex 3%, out of tokens). Its queued link check t261120-0639-ceee auto-moves.
+- Preview :8089 = build #6 (c56c530, all fixes). e2e re-run t261120-0632-6c90 (vivek sol) pending. check-all #2 PASS. Morning runbook t261120-0638-27c1 (vivek luna).
+
 ## 06:22
 - AI eval (boss-run): 14/15 valid real AI pipelines, median 5.8 s (proof/ai-eval). Worker eval cbd6 timed out (closed).
 - Preview e2e on vivek-pc :8089 (build #4): smoke1 (6 markers) PASS, smoke2 (Truck Speeds drilldown) PASS LIVE; demo-path + logs smoke failed on test issues (moving-marker hover, missing partition-chip testid) -> fix t261120-0620-f32b (vivek sol). Generate showed 'Request failed (403)' (preview blocks POST) -> map to 'AI service unavailable'. Committed RESULTS.md + pngs only (51fe00c); 60 MB traces NOT committed.
