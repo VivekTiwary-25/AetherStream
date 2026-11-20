@@ -8,9 +8,10 @@
 | Demo 2 — Live World navigation and map | `BOSS_STATE.md`: six real moving trucks on live preview | VERIFIED-LIVE |
 | Demo 3 — Truck hover card with real telemetry | `BOSS_STATE.md`: live hover card with real partition/worker | VERIFIED-LIVE |
 | Demo 4 — Truck Speeds history graph | `BOSS_STATE.md`: chart seen with live data; `GAP7.md` confirms completed-window label uses timestamps (static review) | VERIFIED-LIVE |
-| Demo 5 — Failed Records with reasons | `BOSS_STATE.md`: live rows seen | VERIFIED-LIVE |
-| Demo 6 — Ask AI → review → editor → Run → results | Ask AI generation 4/4 via live bridge (`BOSS_STATE.md`); live pipeline run blocked because stack never came up; Kafka integration test passed 3 examples offline | BLOCKED — live run unverified |
+| Demo 5 — Failed Records with reasons | Build #4 (~05:57): polished window with live REJECTED rows showing partition/offset | VERIFIED-LIVE |
+| Demo 6 — Ask AI → review → editor → Run → results | Ask AI generation 4/4 via live bridge; executor passed 3/3 examples against real in-JVM Kafka, offline; live run unverified because stack unavailable | BLOCKED — live run unverified |
 | Demo 7 — `worker kill 2` and recovery history | `proof/kill/REPORT.md`: no healthy preview/RUNNING execution during readiness window; disk full on utkarsh-pc, stack unavailable; no kill attempted | BLOCKED |
+| Recovery history attribution and restore checkpoint | `RecoveryHistoryCoordinatorTest`: real Coordinator + embedded Postgres, no Docker; worker-2 attribution and restore checkpoint verified | VERIFIED-OFFLINE |
 | Smoke 1 — Home → Live World, map with 6 trucks | `BOSS_STATE.md`: live preview | VERIFIED-LIVE |
 | Smoke 2 — Truck Speeds row opens chart in same window | Chart seen live (`BOSS_STATE.md`); same-window interaction not recorded | UNVERIFIED |
 | Smoke 3 — Logs & Recovery lists 3 workers with partitions | Live worker cards seen (`BOSS_STATE.md`); exact three-worker/partition check not recorded | UNVERIFIED |
@@ -19,4 +20,4 @@
 | Classic UI at `?ui=classic` and tests | `CLASSIC-CHECK.md`: routes rendered; 154 tests passed, 3 skipped; production build passed | VERIFIED-OFFLINE |
 | Nothing visible is fake; nothing committed to main | No complete live/source and branch-state proof | UNVERIFIED |
 
-Other evidence: `OFFLINE-CHECK.md` is static asset/request review; `GAP7.md` is source inspection. `proof/polish/` and `proof/pipelines-polish/` are visual polish evidence, not live-backend proof. Three `PipelineRunsKafkaIntegrationTest` cases passed against real in-JVM Kafka; this is offline integration evidence, not a live preview run. Mobile is a held stretch, not merged or approved for demo.
+Other evidence: 06:00 checkpoint decision **KEEP `full`** (Ask AI + editor): valid 4/4 AI generation and executor proven on 3/3 in-JVM Kafka examples; live execution remains unverified. If the live run fails, switch `web/src/glorious/pipelines/mode.ts` to `'editor'` or `'hidden'`. Build #4 (~05:57) showed six live trucks and StatusPill **Running** at ~40 ev/s. `docs/expo/DEMO-NEW-UI.md` documents no-internet behavior (guidance, not runtime verification). Eleven pre-freeze bug fixes were completed. `OFFLINE-CHECK.md` is static asset/request review; `GAP7.md` is source inspection. `proof/polish/` and `proof/pipelines-polish/` are visual polish evidence, not live-backend proof. Mobile is held stretch work, not merged or approved for demo.
