@@ -88,9 +88,13 @@ Set `PIPELINES_MODE` in `pipelines/mode.ts` to `'full'`, `'editor'`, or
 editor mode offers only the manual editor path; hidden mode removes Pipelines
 from the sidebar and routes hidden pipeline paths home.
 
-There is no 768px phone breakpoint. The shell adjusts at `max-width: 600px`,
-map controls at `max-width: 800px`, pipeline editor layout at `max-width: 900px`,
-and analytics charts at `max-width: 560px`.
+At `max-width: 768px`, navigation becomes a safe-area-aware bottom bar with
+Analytics/Settings option sheets. Windows become non-draggable, full-width
+sheets; only the active sheet is interactive. Map search collapses to a touch
+toggle, truck cards anchor above the bar, analytics rows/charts stack, and
+recovery tables scroll within their panels. The editor intentionally has no
+bottom bar; its palette scrolls horizontally above the canvas and inspector.
+Desktop styles and window geometry remain unchanged above this breakpoint.
 
 From `web/`, run `npm run dev` to develop, `npm run lint` for ESLint,
 `npm test` for Vitest, and `npm run build` for TypeScript plus Vite production

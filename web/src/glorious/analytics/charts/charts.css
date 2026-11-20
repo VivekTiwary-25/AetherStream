@@ -11,5 +11,11 @@
 .an-chart__bar { fill: #315a48; fill-opacity: .82; }
 .an-chart__empty { margin: 4px 0 6px; color: #4c4f47; font-size: 13px; }
 .an-chart-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-@media (max-width: 560px) { .an-chart-row { grid-template-columns: 1fr; } }
+@media (max-width: 768px) {
+  .an-chart-row { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .an-chart figcaption { font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; }
+  .an-chart figcaption span { font-size: 12px; }
+  /* The 480-unit viewBox scales down on phones; retain readable axis labels. */
+  .an-chart__tick { font-size: 18px; }
+}
 @media (prefers-reduced-motion: reduce) { .an-chart, .an-chart * { animation: none !important; transition: none !important; } }

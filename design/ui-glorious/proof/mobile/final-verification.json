@@ -1,0 +1,406 @@
+{
+  "baselineRef": "origin/ui-glorious",
+  "baselineCommit": "a9d8ca2598c15818640e0f7e46f146edfd504fb7",
+  "sourceBranches": [
+    "origin/task/t261120-0518-0d13",
+    "origin/task/t261120-0512-aed1"
+  ],
+  "engine": "Playwright Chromium, SwiftShader",
+  "motion": "reduce (real home poster path)",
+  "dataMode": "Real HTTP/WebSocket; no request interception or fixtures. Backend localhost:18080 unavailable; disconnected/empty states.",
+  "desktopViewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "phoneViewport": {
+    "width": 390,
+    "height": 844
+  },
+  "desktop": [
+    {
+      "view": "home",
+      "baseline": {
+        "file": "final-desktop-home-baseline.png",
+        "sha256": "9b8247611e0142e4d207f1bc12a9b06de8036408d4ad258d61fbbdd913ead638",
+        "bytes": 1806643
+      },
+      "bundle": {
+        "file": "final-desktop-home-bundle.png",
+        "sha256": "9b8247611e0142e4d207f1bc12a9b06de8036408d4ad258d61fbbdd913ead638",
+        "bytes": 1806643
+      },
+      "byteIdentical": true
+    },
+    {
+      "view": "live",
+      "baseline": {
+        "file": "final-desktop-live-baseline.png",
+        "sha256": "400d4137fc487e92479e19d8a7e4b3e079bd175560dac9115cae9970582cdee0",
+        "bytes": 1186720
+      },
+      "bundle": {
+        "file": "final-desktop-live-bundle.png",
+        "sha256": "400d4137fc487e92479e19d8a7e4b3e079bd175560dac9115cae9970582cdee0",
+        "bytes": 1186720
+      },
+      "byteIdentical": true
+    },
+    {
+      "view": "analytics-truck-speeds",
+      "baseline": {
+        "file": "final-desktop-analytics-truck-speeds-baseline.png",
+        "sha256": "825fe7067997266973e107ca29e348525b3d529c575b92a6abfd5b597dca1e43",
+        "bytes": 1091054
+      },
+      "bundle": {
+        "file": "final-desktop-analytics-truck-speeds-bundle.png",
+        "sha256": "825fe7067997266973e107ca29e348525b3d529c575b92a6abfd5b597dca1e43",
+        "bytes": 1091054
+      },
+      "byteIdentical": true
+    },
+    {
+      "view": "analytics-deliveries",
+      "baseline": {
+        "file": "final-desktop-analytics-deliveries-baseline.png",
+        "sha256": "9ec9bc64f663a3a0b42a5112430c0cdf591b2103540af8a35ed4309993c3d75d",
+        "bytes": 1091580
+      },
+      "bundle": {
+        "file": "final-desktop-analytics-deliveries-bundle.png",
+        "sha256": "9ec9bc64f663a3a0b42a5112430c0cdf591b2103540af8a35ed4309993c3d75d",
+        "bytes": 1091580
+      },
+      "byteIdentical": true
+    },
+    {
+      "view": "analytics-alerts",
+      "baseline": {
+        "file": "final-desktop-analytics-alerts-baseline.png",
+        "sha256": "b067daecce004509470c0ac6e1e758c2afd377fd8dd66eed02cd87bcbaa9b6fd",
+        "bytes": 1085165
+      },
+      "bundle": {
+        "file": "final-desktop-analytics-alerts-bundle.png",
+        "sha256": "b067daecce004509470c0ac6e1e758c2afd377fd8dd66eed02cd87bcbaa9b6fd",
+        "bytes": 1085165
+      },
+      "byteIdentical": true
+    },
+    {
+      "view": "analytics-events-processed",
+      "baseline": {
+        "file": "final-desktop-analytics-events-processed-baseline.png",
+        "sha256": "0bc50ecf121085def6d7f0ed245be5aa956c50435911ce2123fabe3ff4d1936d",
+        "bytes": 1102200
+      },
+      "bundle": {
+        "file": "final-desktop-analytics-events-processed-bundle.png",
+        "sha256": "0bc50ecf121085def6d7f0ed245be5aa956c50435911ce2123fabe3ff4d1936d",
+        "bytes": 1102200
+      },
+      "byteIdentical": true
+    },
+    {
+      "view": "analytics-failed-records",
+      "baseline": {
+        "file": "final-desktop-analytics-failed-records-baseline.png",
+        "sha256": "4df475ab53b96e711c1aa8422507eb7e120fc284c83eed57aca3f13f7c8a2196",
+        "bytes": 1100124
+      },
+      "bundle": {
+        "file": "final-desktop-analytics-failed-records-bundle.png",
+        "sha256": "4df475ab53b96e711c1aa8422507eb7e120fc284c83eed57aca3f13f7c8a2196",
+        "bytes": 1100124
+      },
+      "byteIdentical": true
+    },
+    {
+      "view": "logs-recovery",
+      "baseline": {
+        "file": "final-desktop-logs-recovery-baseline.png",
+        "sha256": "4647f874bd4d2cac95739b92795cfcf6fd5832350a1eb06149fbaf8e8135cd20",
+        "bytes": 747465
+      },
+      "bundle": {
+        "file": "final-desktop-logs-recovery-bundle.png",
+        "sha256": "4647f874bd4d2cac95739b92795cfcf6fd5832350a1eb06149fbaf8e8135cd20",
+        "bytes": 747465
+      },
+      "byteIdentical": true
+    },
+    {
+      "view": "pipelines",
+      "captureNote": "Same browser context and page for both builds; avoids one-level glyph raster variance across renderer processes.",
+      "baseline": {
+        "file": "final-desktop-pipelines-baseline.png",
+        "sha256": "444f4c6d01038ce3835de2cd72a89da5129a61e0cdec0cc3b00697b1558a0b95",
+        "bytes": 193022
+      },
+      "bundle": {
+        "file": "final-desktop-pipelines-bundle.png",
+        "sha256": "444f4c6d01038ce3835de2cd72a89da5129a61e0cdec0cc3b00697b1558a0b95",
+        "bytes": 193022
+      },
+      "byteIdentical": true
+    }
+  ],
+  "phone": [
+    {
+      "view": "home",
+      "file": "final-phone-home.png",
+      "sha256": "68d2ee80d4e728daf8fcd000a2be3a84e6dfb92edcf06e1c994d677160278de5",
+      "bytes": 380036
+    },
+    {
+      "view": "live",
+      "file": "final-phone-live.png",
+      "sha256": "bb1e68462b63c9fee1d793bb1cf6a4aefaa9398cee593757ad97fc5f50cbc371",
+      "bytes": 240730
+    },
+    {
+      "view": "analytics-truck-speeds",
+      "file": "final-phone-analytics-truck-speeds.png",
+      "sha256": "5b9544ecc01c8c9128f5201efb36dcd8fd311267a918edf5542cd17ab3918649",
+      "bytes": 161243
+    },
+    {
+      "view": "analytics-deliveries",
+      "file": "final-phone-analytics-deliveries.png",
+      "sha256": "7e9e096a8fff7c46af07ade2b9a26585f68437f6e2af8a1be4e7a398a094af31",
+      "bytes": 164421
+    },
+    {
+      "view": "analytics-alerts",
+      "file": "final-phone-analytics-alerts.png",
+      "sha256": "3d1b86dee55066df1c987a877ddd2d224c655500f18f12df8fddd4fedf9abcf8",
+      "bytes": 160408
+    },
+    {
+      "view": "analytics-events-processed",
+      "file": "final-phone-analytics-events-processed.png",
+      "sha256": "0678b337c3c4b9aa6e0aff40f283c1f8ca8f66e6705fa290c42819c137bf9d3c",
+      "bytes": 175208
+    },
+    {
+      "view": "analytics-failed-records",
+      "file": "final-phone-analytics-failed-records.png",
+      "sha256": "4c07a09870f2a70fc30bb47b3882e16d69d61e1c4f1c10abca97797662583b88",
+      "bytes": 175669
+    },
+    {
+      "view": "logs-recovery",
+      "file": "final-phone-logs-recovery.png",
+      "sha256": "04cd044f0c07b4b7bceea9c50071bb13179cdd75102d6261947af927324efcd7",
+      "bytes": 165538
+    },
+    {
+      "view": "pipelines",
+      "file": "final-phone-pipelines.png",
+      "sha256": "49b82a857d0ae580d9877bd73c2a81bf00cc786a07acc84950df56b108db6d98",
+      "bytes": 77647
+    },
+    {
+      "view": "analytics-menu",
+      "file": "final-phone-analytics-menu.png",
+      "sha256": "bba0a204b21f5ad9f6f667d880058b97e5f4bc1e2b2b54b8ccbee6891d0d193f",
+      "bytes": 203306
+    },
+    {
+      "view": "settings-menu",
+      "file": "final-phone-settings-menu.png",
+      "sha256": "a822042cb68e193541e70a8d5003814f217ac43409a684c8be5b3fec7bce6252",
+      "bytes": 230021
+    },
+    {
+      "view": "search",
+      "file": "final-phone-search.png",
+      "sha256": "433819fff9e550bd73ec75c3586c86b9c35b67d43880dac40b14eca4dc615d6a",
+      "bytes": 213635
+    },
+    {
+      "view": "editor",
+      "file": "final-phone-editor.png",
+      "sha256": "36527d8b23775d1e4a6a1cb2996309fca5f7b84362477ee14e61d33ebccc3c9b",
+      "bytes": 100854
+    },
+    {
+      "view": "editor-step",
+      "file": "final-phone-editor-step.png",
+      "sha256": "99e6147de6392805a922e5f4a2422d47472fed6a46b876eb4a40a2e30cdae65d",
+      "bytes": 106990
+    }
+  ],
+  "phoneChecks": [
+    {
+      "view": "home",
+      "active": [
+        "Home"
+      ],
+      "pageOverflow": false,
+      "controlsOpacity": null,
+      "controlsPointerEvents": null,
+      "sheetBackground": null
+    },
+    {
+      "view": "live",
+      "active": [
+        "Live World"
+      ],
+      "pageOverflow": false,
+      "controlsOpacity": "1",
+      "controlsPointerEvents": "auto",
+      "sheetBackground": null
+    },
+    {
+      "view": "analytics-truck-speeds",
+      "active": [
+        "Analytics"
+      ],
+      "pageOverflow": false,
+      "controlsOpacity": "0",
+      "controlsPointerEvents": "none",
+      "sheetBackground": "rgba(255, 255, 255, 0.9)"
+    },
+    {
+      "view": "analytics-deliveries",
+      "active": [
+        "Analytics"
+      ],
+      "pageOverflow": false,
+      "controlsOpacity": "0",
+      "controlsPointerEvents": "none",
+      "sheetBackground": "rgba(255, 255, 255, 0.9)"
+    },
+    {
+      "view": "analytics-alerts",
+      "active": [
+        "Analytics"
+      ],
+      "pageOverflow": false,
+      "controlsOpacity": "0",
+      "controlsPointerEvents": "none",
+      "sheetBackground": "rgba(255, 255, 255, 0.9)"
+    },
+    {
+      "view": "analytics-events-processed",
+      "active": [
+        "Analytics"
+      ],
+      "pageOverflow": false,
+      "controlsOpacity": "0",
+      "controlsPointerEvents": "none",
+      "sheetBackground": "rgba(255, 255, 255, 0.9)"
+    },
+    {
+      "view": "analytics-failed-records",
+      "active": [
+        "Analytics"
+      ],
+      "pageOverflow": false,
+      "controlsOpacity": "0",
+      "controlsPointerEvents": "none",
+      "sheetBackground": "rgba(255, 255, 255, 0.9)"
+    },
+    {
+      "view": "logs-recovery",
+      "active": [
+        "Settings"
+      ],
+      "pageOverflow": false,
+      "controlsOpacity": "0",
+      "controlsPointerEvents": "none",
+      "sheetBackground": "rgba(252, 252, 248, 0.96)"
+    },
+    {
+      "view": "pipelines",
+      "active": [
+        "Pipelines"
+      ],
+      "pageOverflow": false,
+      "controlsOpacity": null,
+      "controlsPointerEvents": null,
+      "sheetBackground": null
+    },
+    {
+      "view": "analytics-menu",
+      "active": [
+        "Analytics"
+      ],
+      "pageOverflow": false,
+      "controlsOpacity": "0",
+      "controlsPointerEvents": "none",
+      "sheetBackground": "rgba(255, 255, 255, 0.9)"
+    },
+    {
+      "view": "settings-menu",
+      "active": [
+        "Settings"
+      ],
+      "pageOverflow": false,
+      "controlsOpacity": "0",
+      "controlsPointerEvents": "none",
+      "sheetBackground": "rgba(255, 255, 255, 0.9)"
+    }
+  ],
+  "checks": {
+    "search": {
+      "outlineOffset": "-3px",
+      "fontSize": "16px",
+      "closeButtonFontSize": "22px"
+    },
+    "mapControlsClearancePx": 16,
+    "editor": {
+      "display": "flex",
+      "maskImage": "linear-gradient(90deg, rgb(0, 0, 0) 85%, rgba(0, 0, 0, 0))",
+      "scrollPaddingInline": "12px",
+      "scrollable": true,
+      "bottomBar": false
+    },
+    "disabledButton": {
+      "opacity": "1",
+      "color": "rgb(65, 71, 61)",
+      "background": "rgba(25, 27, 23, 0.05)",
+      "boxShadow": "none"
+    }
+  },
+  "frontendChecks": {
+    "lint": {
+      "passed": true,
+      "warnings": 7,
+      "note": "Existing react-refresh warnings in app/state/store.tsx"
+    },
+    "tests": {
+      "command": "NODE_OPTIONS=--no-experimental-webstorage npm test -- --maxWorkers=2",
+      "passed": 289,
+      "skipped": 3,
+      "filesPassed": 43,
+      "note": "Node 26 default webstorage broke jsdom storage; disabled Node webstorage without source changes."
+    },
+    "build": {
+      "passed": true,
+      "warnings": [
+        "Existing large chunks warning"
+      ]
+    },
+    "noMock": {
+      "passed": true
+    }
+  },
+  "heldCommits": {
+    "parts1And2": "ec153ff6aaae39b8c8dfeff1255cd678620a2b9b",
+    "part3": "aa68d8c38372ab96f9273d35a5b3f5293828e8e2"
+  },
+  "demoGate": {
+    "passed": false,
+    "reason": "localhost:18080 unavailable; Docker executable absent. Live simulator, populated charts and recovery demo cannot be verified on this workstation."
+  },
+  "browserArgs": [
+    "--disable-gpu",
+    "--use-angle=swiftshader",
+    "--enable-unsafe-swiftshader",
+    "--force-color-profile=srgb",
+    "--disable-lcd-text"
+  ],
+  "allDesktopByteIdentical": true
+}

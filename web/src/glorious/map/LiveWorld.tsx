@@ -5,6 +5,7 @@ import { Protocol } from 'pmtiles'
 import { useDashboard } from '../../app/state/store'
 import { partitionForTruck } from '../../city/cityLogic'
 import { GlassSurface } from '../shell/GlassSurface'
+import { usePhone } from '../shell/phone'
 import { advanceDistance, facingLeft, placeMarker, prepareRoute, sampleRoute, truckLabel, type PreparedRoute, type RouteFeature } from './mapLogic'
 import { useLiveFleet } from './useLiveFleet'
 import 'maplibre-gl/dist/maplibre-gl.css'
@@ -31,7 +32,9 @@ const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)'
 function fitRoutes(instance: maplibregl.Map, bounds: maplibregl.LngLatBounds, duration: number) {
   const element = instance.getContainer()
   const sidebar = parseFloat(getComputedStyle(element).getPropertyValue('--gl-sidebar-width')) || 240
-  const padding = { left: sidebar + 64, right: 88, top: element.clientWidth <= 800 ? 220 : 164, bottom: 100 }
+  const padding = window.matchMedia('(max-width: 768px)').matches
+    ? { left: 24, right: 24, top: 168, bottom: 112 }
+    : { left: sidebar + 64, right: 88, top: element.clientWidth <= 800 ? 220 : 164, bottom: 100 }
   // Bounds constraints must use the same visible viewport as the fit calculation.
   instance.setPadding(padding)
   instance.fitBounds(bounds, {
@@ -56,6 +59,10 @@ export function LiveWorld() {
   const breakdownButton = useRef<HTMLButtonElement>(null)
   const confirmDialog = useRef<HTMLDivElement>(null)
   const longPress = useRef<number | undefined>(undefined)
+  const searchToggle = useRef<HTMLButtonElement>(null)
+  const searchInput = useRef<HTMLInputElement>(null)
+  const mobile = usePhone()
+  const [searchOpen, setSearchOpen] = useState(false)
   const pressOrigin = useRef({ x: 0, y: 0, opened: false })
   const pendingRequest = useRef<AbortController | null>(null)
   const [ready, setReady] = useState(false)
@@ -159,7 +166,7 @@ export function LiveWorld() {
 
   useEffect(() => {
     if (ready && map.current && routeBounds) fitRoutes(map.current, routeBounds, 0)
-  }, [ready, routeBounds])
+  }, [ready, routeBounds, mobile])
 
   useEffect(() => {
     const instance = map.current
@@ -184,6 +191,7 @@ export function LiveWorld() {
     let previous = 0
     const scratch = new maplibregl.LngLat(0, 0)
     const placed = Array.from({ length: 6 }, () => ({ x: 0, y: 0 }))
+    const phoneViewport = window.matchMedia('(max-width: 768px)')
     function animate(now: number) {
       const elapsed = previous ? now - previous : 0
       previous = now
@@ -218,7 +226,7 @@ export function LiveWorld() {
           marker.style.setProperty('--truck-facing', facingLeft(motion.point.dx) ? '-1' : '1')
           marker.style.visibility = 'visible'
         }
-        if (selectedRef.current === truck.truckId && card.current) {
+        if (selectedRef.current === truck.truckId && card.current && !phoneViewport.matches) {
           const width = instance.getContainer().clientWidth
           const height = instance.getContainer().clientHeight
           const cardWidth = card.current.offsetWidth
@@ -307,23 +315,40 @@ export function LiveWorld() {
   const foundLandmarks = normalizedQuery ? landmarks.filter((landmark) => landmark.name.toLocaleLowerCase().includes(normalizedQuery)).slice(0, 6) : []
 
   return <section className="gl-live-world" aria-label="Live World map" onKeyDown={(event) => {
-    if (event.key === 'Escape') { event.preventDefault(); closeCard(); setQuery('') }
+    if (event.key === 'Escape') {
+      event.preventDefault()
+      closeCard()
+      setQuery('')
+      if (mobile && searchOpen) { setSearchOpen(false); searchToggle.current?.focus() }
+    }
   }}>
     <div ref={container} className="gl-live-world__map" />
     <header className="gl-live-world__heading"><h1>Live World</h1><p>Simulated delivery fleet across Mysuru, updated live</p></header>
-    <div className="gl-live-world__search">
+    <div className={`gl-live-world__search${mobile && searchOpen ? ' gl-live-world__search--open' : ''}`}>
       <GlassSurface strong>
+        {mobile && <button ref={searchToggle} className="gl-live-world__search-toggle" aria-label={searchOpen ? 'Close map search' : 'Search map'} aria-expanded={searchOpen} aria-controls="gl-map-search" onClick={() => {
+          setSearchOpen(!searchOpen)
+          if (!searchOpen) requestAnimationFrame(() => searchInput.current?.focus())
+          else setQuery('')
+        }}>
+          {searchOpen ? <span aria-hidden="true">×</span> : <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><circle cx="10" cy="10" r="6" /><path d="m15 15 5 5" /></svg>}
+        </button>}
         <label className="gl-sr-only" htmlFor="gl-map-search">Search trucks and Mysuru landmarks</label>
-        <input id="gl-map-search" type="search" placeholder="Search trucks or landmarks" value={query} onChange={(event) => setQuery(event.target.value)} autoComplete="off" aria-controls="gl-map-results" />
-        {normalizedQuery && <ul id="gl-map-results" className="gl-live-world__results">
+        <input ref={searchInput} hidden={mobile && !searchOpen} id="gl-map-search" type="search" placeholder="Search trucks or landmarks" value={query} onChange={(event) => setQuery(event.target.value)} autoComplete="off" aria-controls="gl-map-results" />
+        {normalizedQuery && (!mobile || searchOpen) && <ul id="gl-map-results" className="gl-live-world__results">
           {foundTrucks.map((truck) => <li key={truck.truckId}><button onClick={() => {
             const motion = motions.current.get(truck.truckId)
             if (motion) flyTo([motion.point.lon, motion.point.lat])
             openTruck(truck.truckId)
             setQuery('')
+            if (mobile) setSearchOpen(false)
             requestAnimationFrame(() => card.current?.focus())
           }}>{truckLabel(truck.truckId)} <small>{truck.truckId}</small></button></li>)}
-          {foundLandmarks.map((landmark) => <li key={landmark.source}><button onClick={() => { flyTo([landmark.lon, landmark.lat]); setQuery('') }}>{landmark.name}<small>Landmark</small></button></li>)}
+          {foundLandmarks.map((landmark) => <li key={landmark.source}><button onClick={() => {
+            flyTo([landmark.lon, landmark.lat])
+            setQuery('')
+            if (mobile) { setSearchOpen(false); searchToggle.current?.focus() }
+          }}>{landmark.name}<small>Landmark</small></button></li>)}
           {!foundTrucks.length && !foundLandmarks.length && <li className="gl-live-world__empty">No matching trucks or landmarks</li>}
         </ul>}
       </GlassSurface>
@@ -345,7 +370,7 @@ export function LiveWorld() {
         return <button key={truck.truckId} ref={(element) => { if (element) markers.current.set(truck.truckId, element); else markers.current.delete(truck.truckId) }}
           className={`gl-map-truck gl-map-truck--${tone}`} aria-label={`${truckLabel(truck.truckId)}, ${truck.status}, ${truck.speedKmh.toFixed(1)} kilometers per hour`}
           aria-expanded={selected === truck.truckId} aria-controls={selected === truck.truckId ? 'gl-truck-card' : undefined}
-          onMouseEnter={() => { if (!contextMenu) openTruck(truck.truckId) }}
+          onMouseEnter={() => { if (!mobile && !contextMenu) openTruck(truck.truckId) }}
           onFocus={() => { if (selectedRef.current !== truck.truckId) openTruck(truck.truckId) }}
           onClick={() => { if (!pressOrigin.current.opened) openTruck(truck.truckId) }}
           onContextMenu={(event) => { event.preventDefault(); openTruck(truck.truckId, true) }}

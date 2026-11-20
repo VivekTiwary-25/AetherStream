@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { Rnd } from 'react-rnd'
 import { GlassSurface } from './GlassSurface'
 import { Icon } from './Icon'
+import { usePhone } from './phone'
 import type { WindowGeometry } from './windows'
 
 export interface GlassWindowProps {
@@ -18,24 +19,26 @@ export interface GlassWindowProps {
 }
 
 export function GlassWindow({ title, onBack, onClose, onFocus, initial, strong = true, active, closing, zIndex, children }: GlassWindowProps) {
+  const phone = usePhone()
   // Geometry belongs to the frame, never its changing content.
   const [geometry, setGeometry] = useState(initial)
   const titleId = useId()
   const titleBar = useRef<HTMLDivElement>(null)
   useEffect(() => { if (active) titleBar.current?.focus({ preventScroll: true }) }, [active])
   return <Rnd
-    className={`gl-window${closing ? ' gl-window--closing' : ''}`}
+    className={`gl-window${closing ? ' gl-window--closing' : ''}${phone && active ? ' gl-window--active' : ''}`}
     size={{ width: geometry.w, height: geometry.h }} position={{ x: geometry.x, y: geometry.y }}
     minWidth={Math.min(280, initial.w)} minHeight={Math.min(180, initial.h)} bounds="parent" style={{ zIndex }}
     dragHandleClassName="gl-window__titlebar" cancel="button" onMouseDown={onFocus} onTouchStart={onFocus}
+    disableDragging={phone} enableResizing={phone ? false : undefined}
     onDragStop={(_, data) => setGeometry((previous) => ({ ...previous, x: data.x, y: data.y }))}
     onResizeStop={(_, __, element, ___, position) => setGeometry({ x: position.x, y: position.y, w: element.offsetWidth, h: element.offsetHeight })}
   >
-    <section role="dialog" aria-labelledby={titleId} aria-modal="false" className="gl-window__frame" onFocusCapture={onFocus}>
+    <section role="dialog" aria-labelledby={titleId} aria-modal="false" aria-hidden={phone && !active ? true : undefined} inert={phone && !active ? true : undefined} className="gl-window__frame" onFocusCapture={onFocus}>
       <GlassSurface strong={strong} className="gl-window__surface">
-        <div ref={titleBar} tabIndex={0} className="gl-window__titlebar" aria-label={`${title}. Arrow keys move; Shift plus arrow keys resize.`}
+        <div ref={titleBar} tabIndex={0} className="gl-window__titlebar" aria-label={phone ? title : `${title}. Arrow keys move; Shift plus arrow keys resize.`}
           onKeyDown={(event) => {
-            if (event.target !== event.currentTarget || !event.key.startsWith('Arrow')) return
+            if (phone || event.target !== event.currentTarget || !event.key.startsWith('Arrow')) return
             event.preventDefault()
             const dx = event.key === 'ArrowRight' ? 16 : event.key === 'ArrowLeft' ? -16 : 0
             const dy = event.key === 'ArrowDown' ? 16 : event.key === 'ArrowUp' ? -16 : 0

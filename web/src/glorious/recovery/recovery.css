@@ -46,3 +46,28 @@
 .recovery-confirm p { line-height: 1.5; }
 .recovery-confirm div { display: flex; justify-content: flex-end; gap: 10px; }
 .recovery-confirm button { min-height: 44px; padding: 8px 16px; border: 1px solid #777f6f; border-radius: 10px; background: #fffef9; color: #20251f; font: inherit; cursor: pointer; }
+
+@media (max-width: 768px) {
+  .recovery-panel { min-width: 0; padding: 0; font-size: 14px; overflow-wrap: anywhere; }
+  .recovery-panel section { min-width: 0; }
+  .recovery-intro { flex-direction: column; }
+  .recovery-workers { grid-template-columns: minmax(0, 1fr); }
+  .recovery-worker { min-width: 0; padding: 14px; }
+  .recovery-worker-heading h3 { min-width: 0; }
+  .recovery-chips { max-width: 100%; gap: 8px; }
+  .recovery-chip { max-width: 100%; padding: 4px 8px; }
+  .recovery-partitions { grid-template-columns: repeat(auto-fit, minmax(min(100%, 128px), 1fr)); }
+  .recovery-table-wrap { min-width: 0; max-width: 100%; overscroll-behavior-x: contain; }
+  .recovery-table { min-width: 640px; font-size: 14px; }
+  .recovery-table th, .recovery-table td { padding: 12px; }
+  .recovery-event { padding: 12px; }
+  .recovery-event-heading { flex-direction: column; gap: 4px; }
+  .recovery-event-meta { display: grid; grid-template-columns: minmax(0, 1fr); font-size: 13px; }
+  .recovery-event time { font-size: 13px; }
+  .recovery-breakdown select { width: 100%; font-size: 16px; }
+  .recovery-panel.recovery-breakdown :is(button, select) { min-width: 44px; min-height: 44px; }
+  .recovery-confirm-backdrop { padding: 16px; }
+  .recovery-confirm { max-height: calc(100dvh - 32px); overflow-y: auto; overflow-wrap: anywhere; }
+  .recovery-confirm div { flex-wrap: wrap; }
+  .recovery-confirm button { flex: 1; }
+}

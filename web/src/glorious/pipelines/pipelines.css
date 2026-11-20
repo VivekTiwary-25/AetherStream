@@ -145,6 +145,37 @@
   .gl-pe__palette .gl-small { margin-bottom: 12px; }
   .gl-pe__inspector { grid-column: auto; }
 }
+@media (max-width: 768px) {
+  .gl-track-page.gl-pipelines { width: 100%; min-width: 0; padding: 88px 12px calc(84px + env(safe-area-inset-bottom, 0px)); box-sizing: border-box; }
+  .gl-pipelines__panel { width: 100%; max-width: none; min-width: 0; padding: 18px 14px; box-sizing: border-box; }
+  .gl-pipelines__header { flex-wrap: wrap; gap: 12px; }
+  .gl-pipelines__panel section { min-width: 0; }
+  .gl-pipelines .gl-textarea { box-sizing: border-box; font-size: 16px; }
+  .gl-pipelines .gl-chip { min-height: 44px; max-width: 100%; text-align: left; overflow-wrap: anywhere; }
+  .gl-pipelines .gl-clay-button, .gl-pe .gl-clay-button { min-height: 44px; }
+  .gl-pipelines .gl-clay-button:disabled, .gl-pe .gl-clay-button:disabled { opacity: 1; color: var(--gl-muted); background: rgba(25, 27, 23, 0.05); box-shadow: none; }
+  .gl-pipelines .gl-generated, .gl-pipelines .gl-review, .gl-pipelines .gl-alert { overflow-wrap: anywhere; }
+  .gl-pe { padding: 80px 12px 16px; overflow-y: auto; overflow-x: hidden; }
+  .gl-pe__header { flex: none; padding: 14px; gap: 12px; }
+  .gl-pe__name { width: 100%; min-width: 0; }
+  .gl-pe__header .gl-actions { width: 100%; margin: 0; gap: 8px; }
+  .gl-pe__back { display: inline-flex; align-items: center; min-height: 44px; padding: 0 6px; box-sizing: border-box; }
+  .gl-pe input, .gl-pe select { min-height: 44px; min-width: 0; box-sizing: border-box; font-size: 16px; }
+  .gl-pe__mobile-note { flex: none; margin: 0; padding: 12px 14px; border: var(--gl-border); border-radius: 14px; background: rgba(255, 255, 255, 0.7); color: var(--gl-muted); font-size: 14px; line-height: 1.5; }
+  .gl-pe__body { flex: none; min-width: 0; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto 380px auto; overflow: visible; }
+  .gl-pe__palette, .gl-pe__inspector { min-width: 0; padding: 14px; overflow: visible; }
+  .gl-pe__palette-list { display: flex; flex-direction: row; overflow-x: auto; padding: 4px 2px 10px; overscroll-behavior-x: contain; mask-image: linear-gradient(90deg, #000 85%, transparent); scroll-padding-inline: 12px; }
+  .gl-palette-item { flex: 0 0 auto; max-width: 100%; cursor: pointer; touch-action: pan-x; }
+  .gl-pe__canvas { min-width: 0; min-height: 380px; }
+  .gl-pe__empty { padding: 0 16px; }
+  .gl-pe__canvas .react-flow__controls-button { width: 44px; height: 44px; box-sizing: border-box; }
+  .gl-pe__canvas .react-flow__handle { width: 20px; height: 20px; }
+  .gl-inspector__form fieldset { min-width: 0; margin: 0; }
+  .gl-pe .gl-check { min-height: 44px; overflow-wrap: anywhere; }
+  .gl-pe .gl-check input { width: 22px; height: 22px; min-height: 22px; flex: 0 0 auto; }
+  .gl-pe__inspector { grid-column: auto; max-height: none; overflow-wrap: anywhere; }
+  .gl-pe__feedback { flex: none; max-height: none; overflow: visible; overflow-wrap: anywhere; }
+}
 @media (prefers-reduced-motion: reduce) {
   .gl-thinking__dots span { animation: none; opacity: 0.6; }
 }
