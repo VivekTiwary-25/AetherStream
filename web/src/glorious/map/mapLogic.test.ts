@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { advanceDistance, facingLeft, placeMarker, prepareRoute, sampleRoute, truckLabel, type RouteFeature } from './mapLogic'
+import { advanceDistance, easeLabelOffset, facingLeftWithHysteresis, lookAheadPoint, placeMarker, prepareRoute, sampleRoute, truckLabel, type RouteFeature } from './mapLogic'
 
 // Isolated metric path for numerical assertions, not fleet/demo data.
 const feature: RouteFeature = {
@@ -24,7 +24,7 @@ describe('live road motion', () => {
     expect(advanceDistance(42, -5, 1000, 1, 'DRIVING', 1000)).toBe(42)
   })
 
-  it('samples both directions continuously, flips only on leftward travel and wraps at the loop end', () => {
+  it('samples both route directions continuously and wraps at the loop end', () => {
     const route = prepareRoute(feature)
     const sample = { lon: 0, lat: 0, dx: 0, dy: 0 }
     expect(route.totalMeters).toBeGreaterThan(210)
@@ -32,13 +32,43 @@ describe('live road motion', () => {
     sampleRoute(route, route.totalMeters / 4, sample)
     expect(sample.lon).toBeCloseTo(76.6005, 6)
     expect(sample.lat).toBe(12.3)
-    expect(facingLeft(sample.dx)).toBe(false)
     sampleRoute(route, route.totalMeters * 3 / 4, sample)
     expect(sample.lon).toBeCloseTo(76.6005, 6)
-    expect(facingLeft(sample.dx)).toBe(true)
     sampleRoute(route, route.totalMeters, sample)
     expect(sample.lon).toBe(76.6)
-    expect(facingLeft(0)).toBe(false)
+  })
+
+  it('keeps the truck sample on the route polyline without a perpendicular displacement', () => {
+    const route = prepareRoute(feature)
+    const point = { lon: 0, lat: 0, dx: 0, dy: 0 }
+    sampleRoute(route, route.totalMeters * 0.2, point)
+    const start = route.coordinates[0]
+    const end = route.coordinates[1]
+    const crossTrack = (point.lon - start[0]) * (end[1] - start[1]) - (point.lat - start[1]) * (end[0] - start[0])
+    expect(crossTrack).toBeCloseTo(0, 12)
+  })
+
+  it('looks ahead along the route and retains heading through small zigzags, then flips on a U-turn', () => {
+    const route = prepareRoute({ ...feature, geometry: { type: 'LineString', coordinates: [[76.6, 12.3], [76.602, 12.3], [76.6, 12.3]] } })
+    const ahead = { lon: 0, lat: 0, dx: 0, dy: 0 }
+    lookAheadPoint(route, 0, 100, ahead)
+    expect(ahead.lon).toBeGreaterThan(76.6008)
+
+    let left = facingLeftWithHysteresis(12, false)
+    left = facingLeftWithHysteresis(-1, left)
+    expect(left).toBe(false)
+    left = facingLeftWithHysteresis(-3, left)
+    expect(left).toBe(true)
+    expect(facingLeftWithHysteresis(1, left)).toBe(true)
+    expect(facingLeftWithHysteresis(3, left)).toBe(false)
+  })
+
+  it('eases label overlap offsets over multiple frames', () => {
+    const firstFrame = easeLabelOffset(0, -80)
+    const secondFrame = easeLabelOffset(firstFrame, -80)
+    expect(firstFrame).toBe(-8)
+    expect(secondFrame).toBe(-16)
+    expect(easeLabelOffset(secondFrame, -80)).toBe(-24)
   })
 
   it('skips duplicate road points without NaN and rejects a zero-length path', () => {

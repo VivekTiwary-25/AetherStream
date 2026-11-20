@@ -5,13 +5,13 @@ import { Protocol } from 'pmtiles'
 import { useDashboard } from '../../app/state/store'
 import { partitionForTruck } from '../../city/cityLogic'
 import { GlassSurface } from '../shell/GlassSurface'
-import { advanceDistance, facingLeft, placeMarker, prepareRoute, sampleRoute, truckLabel, type PreparedRoute, type RouteFeature } from './mapLogic'
+import { advanceDistance, easeLabelOffset, facingLeftWithHysteresis, lookAheadPoint, placeMarker, prepareRoute, sampleRoute, truckLabel, type PreparedRoute, type RouteFeature, type RouteSample } from './mapLogic'
 import { useLiveFleet } from './useLiveFleet'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import './LiveWorld.css'
 
 type Landmark = { name: string; lon: number; lat: number; source: string }
-type Motion = { route: PreparedRoute; distance: number; point: { lon: number; lat: number; dx: number; dy: number } }
+type Motion = { route: PreparedRoute; distance: number; point: RouteSample; facingLeft: boolean; labelOffset: number }
 const MYSURU_BOUNDS: [number, number, number, number] = [76.55, 12.23, 76.75, 12.42]
 let protocolUsers = 0
 const protocol = new Protocol()
@@ -183,6 +183,8 @@ export function LiveWorld() {
     let frame = 0
     let previous = 0
     const scratch = new maplibregl.LngLat(0, 0)
+    const aheadScratch = new maplibregl.LngLat(0, 0)
+    const aheadPoint: RouteSample = { lon: 0, lat: 0, dx: 0, dy: 0 }
     const placed = Array.from({ length: 6 }, () => ({ x: 0, y: 0 }))
     function animate(now: number) {
       const elapsed = previous ? now - previous : 0
@@ -194,7 +196,7 @@ export function LiveWorld() {
         const route = routes[index % routes.length]
         let motion = motions.current.get(truck.truckId)
         if (!motion || motion.route !== route) {
-          motion = { route, distance: 0, point: { lon: 0, lat: 0, dx: 0, dy: 0 } }
+          motion = { route, distance: 0, point: { lon: 0, lat: 0, dx: 0, dy: 0 }, facingLeft: false, labelOffset: 0 }
           motions.current.set(truck.truckId, motion)
         }
         // Speed is real km/h, integrated over wall-clock elapsed time × the simulator's real timeScale.
@@ -207,15 +209,21 @@ export function LiveWorld() {
         scratch.lng = motion.point.lon
         scratch.lat = motion.point.lat
         const position = instance.project(scratch)
-        const length = Math.hypot(motion.point.dx, motion.point.dy) || 1
-        const offset = (index - 2.5) * 18
-        const x = position.x - motion.point.dy / length * offset
-        placeMarker(x, position.y - motion.point.dx / length * offset, placed, index)
-        const y = placed[index].y
+        // Labels may separate on screen; the truck itself always stays on its route.
+        placeMarker(position.x, position.y, placed, index)
+        const labelTarget = placed[index].y - position.y
+        motion.labelOffset = easeLabelOffset(motion.labelOffset, labelTarget)
+        lookAheadPoint(route, motion.distance, 100, aheadPoint)
+        aheadScratch.lng = aheadPoint.lon
+        aheadScratch.lat = aheadPoint.lat
+        const aheadPosition = instance.project(aheadScratch)
+        motion.facingLeft = facingLeftWithHysteresis(aheadPosition.x - position.x, motion.facingLeft)
         const marker = markers.current.get(truck.truckId)
         if (marker) {
-          marker.style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%)`
-          marker.style.setProperty('--truck-facing', facingLeft(motion.point.dx) ? '-1' : '1')
+          marker.style.transform = `translate(${position.x}px, ${position.y}px) translate(-50%, -50%)`
+          marker.style.setProperty('--truck-facing', motion.facingLeft ? '-1' : '1')
+          const label = marker.lastElementChild as HTMLElement | null
+          if (label) label.style.transform = `translateY(${motion.labelOffset}px)`
           marker.style.visibility = 'visible'
         }
         if (selectedRef.current === truck.truckId && card.current) {
@@ -223,8 +231,8 @@ export function LiveWorld() {
           const height = instance.getContainer().clientHeight
           const cardWidth = card.current.offsetWidth
           const cardHeight = card.current.offsetHeight
-          const left = Math.max(12, Math.min(x + 36, width - cardWidth - 12))
-          const top = Math.max(84, Math.min(y - 70, height - cardHeight - 35))
+          const left = Math.max(12, Math.min(position.x + 36, width - cardWidth - 12))
+          const top = Math.max(84, Math.min(position.y - 70, height - cardHeight - 35))
           card.current.style.transform = `translate(${left}px, ${top}px)`
           card.current.style.visibility = 'visible'
         }

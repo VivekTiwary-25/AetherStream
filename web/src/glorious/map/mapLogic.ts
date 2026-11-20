@@ -59,9 +59,24 @@ export function sampleRoute(route: PreparedRoute, distance: number, out: RouteSa
   out.lat = start[1] + out.dy * fraction
 }
 
-export function facingLeft(screenDx: number): boolean {
-  return screenDx < 0
+/** Samples a point a fixed distance ahead, wrapping on the closed display route. */
+export function lookAheadPoint(route: PreparedRoute, distance: number, aheadMeters: number, out: RouteSample): void {
+  sampleRoute(route, distance + aheadMeters, out)
 }
+
+/** Retains the prior heading inside a small dead band to prevent sprite flicker. */
+export function facingLeftWithHysteresis(screenDx: number, wasFacingLeft: boolean, threshold = 2): boolean {
+  if (screenDx < -threshold) return true
+  if (screenDx > threshold) return false
+  return wasFacingLeft
+}
+
+/** Moves a label offset by at most maxStep pixels per animation frame. */
+export function easeLabelOffset(current: number, target: number, maxStep = 8): number {
+  const delta = target - current
+  return Math.abs(delta) <= maxStep ? target : current + Math.sign(delta) * maxStep
+}
+
 
 /** Truck T-01 is a display label for the real simulator ID truck-001. */
 export function truckLabel(id: string): string {
