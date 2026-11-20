@@ -33,16 +33,16 @@ export function LogsRecovery() {
     <section aria-labelledby="recovery-workers-title">
       <h2 id="recovery-workers-title">Workers</h2>
       <p className="recovery-muted">A worker that died or restarted stays marked for at least 3 seconds so you can see it; its live numbers may already be newer.</p>
-      <div className="recovery-workers">{workerIds.length ? workerIds.map((workerId) => {
+      <div className="recovery-workers">{workerIds.length ? workerIds.map((workerId, workerIndex) => {
         const worker = workers.find((candidate) => candidate.workerId === workerId)
         const state = deriveWorkerState(worker, workerId, feed.history, feed.execution, now)
-        return <GlassSurface strong className="recovery-worker" key={workerId}>
+        return <GlassSurface strong className={`recovery-worker recovery-worker--owner-${workerIndex % 3}`} key={workerId}>
           <article data-testid={`worker-card-${workerId}`}>
             <div className="recovery-worker-heading"><h3>{workerId}</h3><span className={`recovery-status recovery-status--${state}`}>{labels[state]}</span></div>
-            <p><strong>{number(worker?.recordsPerSec)}</strong> records/s</p>
+            <p className="recovery-rate"><strong>{number(worker?.recordsPerSec)}</strong> <span>records/s</span></p>
             <div className="recovery-chips" aria-label={`${workerId} assigned partitions`}>
               {worker && !Array.isArray(worker.partitions) ? <span>Partition data unavailable</span>
-                : worker?.partitions.length ? worker.partitions.map((partition) => <span className="recovery-chip" key={partition}>P{partition}</span>) : <span>No assigned partitions</span>}
+                : worker?.partitions.length ? worker.partitions.map((partition) => <span className={`recovery-chip recovery-chip--owner-${workerIndex % 3}`} key={partition}>P{partition}</span>) : <span>No assigned partitions</span>}
             </div>
             <WorkerQueue label="Source queue" queue={worker?.sourceQueue} />
             <WorkerQueue label="Sink queue" queue={worker?.sinkQueue} />
@@ -60,7 +60,7 @@ export function LogsRecovery() {
         const ownershipUnknown = workers.some((worker) => worker.alive && !Array.isArray(worker.partitions))
         const change = recentPartitionChange(partition, feed.history, feed.execution?.id, now)
         return <div className="recovery-partition" data-testid={`partition-chip-${partition}`} key={partition}>
-          <strong>P{partition}</strong><span>{owners.length ? owners.map((owner) => owner.workerId).join(', ') : ownershipUnknown ? 'Unavailable' : 'Unassigned'}</span>
+          <strong>P{partition}</strong><span className="recovery-partition-owners">{owners.length ? owners.map((owner) => <span className={`recovery-owner recovery-owner--${workerIds.indexOf(owner.workerId) % 3}`} key={owner.workerId}>{owner.workerId}</span>) : ownershipUnknown ? 'Unavailable' : 'Unassigned'}</span>
           {change && <small>{change.oldOwner ?? 'Unassigned'} → {change.newOwner ?? 'Unassigned'}</small>}
         </div>
       })}</div>
