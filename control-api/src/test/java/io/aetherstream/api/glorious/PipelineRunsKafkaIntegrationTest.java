@@ -73,11 +73,11 @@ class PipelineRunsKafkaIntegrationTest {
     }
 
     @Test
-    void speedingAlertsExcludeTheSixtyKmhBoundaryAndSlowerTrucks() throws Exception {
+    void speedingAlertsExcludeTheFortyFiveKmhBoundaryAndSlowerTrucks() throws Exception {
         long started = System.nanoTime();
         try (Session session = new Session()) {
             session.start("speeding");
-            double[] speeds = {0, 59.99, 60, 60.01, 75, 100};
+            double[] speeds = {0, 44.99, 45, 45.01, 49, 50};
             for (int i = 0; i < speeds.length; i++)
                 session.send("speed-" + i, speeds[i], System.currentTimeMillis());
             session.await(6, 6);
@@ -90,18 +90,18 @@ class PipelineRunsKafkaIntegrationTest {
             assertThat(alerts).extracting(result -> result.data().get("truckId"))
                     .containsExactlyInAnyOrder("speed-3", "speed-4", "speed-5");
             assertThat(alerts).extracting(result -> result.data().get("value"))
-                    .containsExactlyInAnyOrder(60.01, 75.0, 100.0);
+                    .containsExactlyInAnyOrder(45.01, 49.0, 50.0);
             assertThat(alerts).allSatisfy(result -> {
                 assertThat(result.data()).containsEntry("field", "speedKmh")
-                        .containsEntry("message", "Truck over 60 km/h");
-                assertThat(((Number) result.data().get("value")).doubleValue()).isGreaterThan(60);
+                        .containsEntry("message", "Truck over 45 km/h");
+                assertThat(((Number) result.data().get("value")).doubleValue()).isGreaterThan(45);
             });
             var rows = snapshot.results().stream().filter(result -> result.kind().equals("row")).toList();
             assertThat(rows).hasSize(3);
             assertThat(rows).extracting(result -> result.data().get("speedKmh"))
-                    .containsExactlyInAnyOrder(60.01, 75.0, 100.0);
-            report(started, "speeding PASS: 6 inputs; only 60.01, 75, 100 emit (3 alerts + 3 rows);"
-                    + " 0, 59.99, 60 excluded; 6 historical records skipped");
+                    .containsExactlyInAnyOrder(45.01, 49.0, 50.0);
+            report(started, "speeding PASS: 6 inputs; only 45.01, 49, 50 emit (3 alerts + 3 rows);"
+                    + " 0, 44.99, 45 excluded; 6 historical records skipped");
         }
     }
 

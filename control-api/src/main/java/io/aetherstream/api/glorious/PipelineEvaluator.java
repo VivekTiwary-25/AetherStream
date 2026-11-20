@@ -20,6 +20,10 @@ public final class PipelineEvaluator {
     private final List<Node> roots = new ArrayList<>();
     private final List<Node> nodes = new ArrayList<>();
     private long droppedRows;
+    // Newest source eventTime and the wall time it arrived. Event time is simulator time, which
+    // can be hours or days away from the wall clock, so idle closing must not compare them directly.
+    private long sourceWatermark = Long.MIN_VALUE;
+    private long sourceWatermarkWallMs;
 
     public PipelineEvaluator(JsonNode validatedPipeline, Consumer<Emission> sink) {
         this.sink = Objects.requireNonNull(sink, "sink");
@@ -43,6 +47,10 @@ public final class PipelineEvaluator {
         if (!(timestamp instanceof Number number) || !Double.isFinite(number.doubleValue())) {
             throw new IllegalArgumentException("Row eventTime must be a finite epoch timestamp");
         }
+        if (number.longValue() > sourceWatermark) {
+            sourceWatermark = number.longValue();
+            sourceWatermarkWallMs = nowMs;
+        }
         tick(nowMs);
         Map<String, Object> copy = immutable(row);
         Frame frame = new Frame("row", copy, number.longValue(), copy,
@@ -51,19 +59,22 @@ public final class PipelineEvaluator {
     }
 
     public void tick(long nowMs) {
-        // Wall-clock grace closes idle windows two seconds after their event-time end.
+        // Idle windows close two wall-clock seconds after their end, measured on an event-time clock
+        // estimated as the newest source eventTime plus wall time elapsed since it arrived.
         // Nodes are visited topologically so chained windows close in the same tick.
-        for (Node root : roots) tickNode(root, nowMs);
+        if (sourceWatermark == Long.MIN_VALUE) return;
+        long eventNow = sourceWatermark + Math.max(0, nowMs - sourceWatermarkWallMs);
+        for (Node root : roots) tickNode(root, eventNow, nowMs);
     }
 
     public long droppedRows() { return droppedRows; }
 
-    private void tickNode(Node node, long nowMs) {
+    private void tickNode(Node node, long eventNow, long nowMs) {
         // Apply idle finalization only after upstream nodes have delivered their closed windows.
-        if (nowMs >= 2_000) node.finalizedThrough = Math.max(node.finalizedThrough, nowMs - 2_000);
+        if (eventNow >= Long.MIN_VALUE + 2_000) node.finalizedThrough = Math.max(node.finalizedThrough, eventNow - 2_000);
         closeWindows(node, nowMs);
         node.alerts.entrySet().removeIf(entry -> nowMs >= entry.getValue() && nowMs - entry.getValue() >= 10_000);
-        for (Node child : node.children) tickNode(child, nowMs);
+        for (Node child : node.children) tickNode(child, eventNow, nowMs);
     }
 
     private void process(Node node, Frame frame, long nowMs) {

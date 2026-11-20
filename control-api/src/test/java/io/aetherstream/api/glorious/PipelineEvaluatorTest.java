@@ -58,6 +58,93 @@ class PipelineEvaluatorTest {
     }
 
     @Test
+    void emitsThirtySecondAveragesFromRealSimulatorRowsWhoseEventTimeIsFarFromWallTime() throws Exception {
+        // First 40 real truck-002 rows from design/ui-glorious/proof/standby-utkarsh/pipelines/
+        // partition-2-results.json: {wall ts the row was observed, speedKmh}.
+        double[][] real = {
+            {1795151394714L, 34.672611800177364},
+            {1795151394909L, 35.744393751091174},
+            {1795151395111L, 41.44446990389692},
+            {1795151395310L, 45.810939619448},
+            {1795151395510L, 48.251277824031256},
+            {1795151395710L, 48.43433334318509},
+            {1795151395910L, 46.33526574698646},
+            {1795151396312L, 36.701154680492074},
+            {1795151396510L, 0.0},
+            {1795151396712L, 0.0},
+            {1795151396912L, 32.66600181356878},
+            {1795151397112L, 38.1747256548612},
+            {1795151397313L, 42.706868399787915},
+            {1795151397510L, 45.69357157502329},
+            {1795151397712L, 46.75995479745428},
+            {1795151397912L, 45.77216942946431},
+            {1795151398112L, 42.85419878491463},
+            {1795151398311L, 38.372296183589945},
+            {1795151398513L, 32.88901413428705},
+            {1795151398712L, 36.217459076221665},
+            {1795151398908L, 42.28525466579911},
+            {1795151399111L, 46.94846569183548},
+            {1795151399313L, 49.54059003197381},
+            {1795151399513L, 49.69114126291706},
+            {1795151399713L, 47.37860144040176},
+            {1795151399914L, 42.933496609922265},
+            {1795151400113L, 36.99115547246857},
+            {1795151400312L, 31.207910474067027},
+            {1795151400513L, 36.461602919815654},
+            {1795151400712L, 40.89215900930147},
+            {1795151400912L, 43.97510805847822},
+            {1795151401113L, 45.34550346379457},
+            {1795151401313L, 44.841123553495656},
+            {1795151401511L, 42.52167471008308},
+            {1795151401709L, 38.661723578678824},
+            {1795151401912L, 33.71819501688191},
+            {1795151402113L, 30.187484415752053},
+            {1795151402314L, 35.309445842755586},
+            {1795151402511L, 39.709769973585864},
+            {1795151402909L, 44.47247895481307},
+        };
+        // The simulator stamps eventTime on its own clock: START_EPOCH_MS + (wall - SIM_ANCHOR_EPOCH_MS) * 10,
+        // one position every 2000 ms of simulated time. For this demo that is ~7.8 days behind the wall clock.
+        long firstWall = (long) real[0][0];
+        long firstEvent = 1_795_251_600_000L + (firstWall - 1_795_219_200_000L) * 10;
+        assertThat(firstWall - firstEvent).isGreaterThan(24L * 3_600_000);
+        PipelineEvaluator evaluator = validatedEvaluator(new ObjectMapper().readTree(new java.io.File(
+                examplesDir(), "avg-speed-30s.json")).path("pipeline").toString());
+        long firstResultWall = -1;
+        for (int i = 0; i < real.length; i++) {
+            long wall = (long) real[i][0];
+            evaluator.accept(row("truck-002", real[i][1], firstEvent + 2_000L * i), wall);
+            evaluator.tick(wall);
+            if (firstResultWall < 0 && !results.isEmpty()) firstResultWall = wall;
+        }
+        assertThat(firstResultWall).as("first window result").isPositive();
+        assertThat(firstResultWall - firstWall).isLessThan(35_000);
+
+        long windowStart = Math.floorDiv(firstEvent, 30_000L) * 30_000L;
+        int inFirst = (int) ((windowStart + 30_000L - firstEvent + 1_999) / 2_000);
+        double expected = 0;
+        for (int i = 0; i < inFirst; i++) expected += real[i][1];
+        PipelineEvaluator.Emission first = results.get(0);
+        assertThat(first.kind()).isEqualTo("average");
+        assertThat(first.output()).isEqualTo("30-second average speed");
+        assertThat(first.data()).containsEntry("group", "truck-002").containsEntry("count", (long) inFirst)
+                .containsEntry("windowStart", windowStart).containsEntry("windowEnd", windowStart + 30_000L);
+        assertThat((Double) first.data().get("avg")).isCloseTo(expected / inFirst, org.assertj.core.data.Offset.offset(1e-9));
+
+        // With no further events, the last open window still closes from wall-clock idle time.
+        int before = results.size();
+        long lastWall = (long) real[real.length - 1][0];
+        long lastEvent = firstEvent + 2_000L * (real.length - 1);
+        long lastEnd = Math.floorDiv(lastEvent, 30_000L) * 30_000L + 30_000L;
+        evaluator.tick(lastWall + (lastEnd - lastEvent) + 1_999);
+        assertThat(results).hasSize(before);
+        evaluator.tick(lastWall + (lastEnd - lastEvent) + 2_000);
+        assertThat(results).hasSize(before + 1);
+        long total = results.stream().mapToLong(e -> (Long) e.data().get("count")).sum();
+        assertThat(total).as("no real row dropped").isEqualTo(real.length);
+    }
+
+    @Test
     void projectionDoesNotMutateSiblingOrCallerAndPreservesWindowTime() throws Exception {
         PipelineEvaluator evaluator = evaluator("""
             {"nodes":[
@@ -130,9 +217,9 @@ class PipelineEvaluatorTest {
         for (int window = 0; window < 3; window++) {
             long eventTime = base + window * 5_000L + 1_000;
             evaluator.accept(Map.of("truckId", "a", "routeId", "east", "speedKmh", 80.0,
-                    "eventTime", eventTime), eventTime + 2_000);
+                    "eventTime", eventTime), eventTime);
             evaluator.accept(Map.of("truckId", "b", "routeId", "west", "speedKmh", 70.0,
-                    "eventTime", eventTime), eventTime + 2_000);
+                    "eventTime", eventTime), eventTime);
             evaluator.tick(base + window * 5_000L + 7_000);
             assertThat(results.stream().filter(e -> e.kind().equals("alert")))
                     .hasSize(window < 2 ? 2 : 4);
@@ -216,6 +303,13 @@ class PipelineEvaluatorTest {
         var pipeline = new ObjectMapper().readTree(json);
         assertThat(new PipelineValidator().validate(pipeline).errors()).isEmpty();
         return new PipelineEvaluator(pipeline, results::add);
+    }
+
+    private static java.io.File examplesDir() {
+        java.nio.file.Path root = java.nio.file.Path.of("").toAbsolutePath();
+        while (root != null && !java.nio.file.Files.isDirectory(root.resolve("schemas/examples"))) root = root.getParent();
+        assertThat(root).as("repository schemas/examples directory").isNotNull();
+        return root.resolve("schemas/examples").toFile();
     }
 
     private static Map<String, Object> row(String truck, double speed, long time) {

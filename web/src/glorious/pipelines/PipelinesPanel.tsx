@@ -87,7 +87,7 @@ export function PipelinesPanel() {
         <h2 className="gl-pipelines__sub">Ask AI</h2>
         <label htmlFor={promptId} className="gl-label">Describe what you want to see from the live truck stream</label>
         <textarea id={promptId} data-testid="ai-prompt" className="gl-textarea" rows={4} value={prompt}
-          placeholder="e.g. Alert me when any truck goes over 60 km/h"
+          placeholder="e.g. Alert me when any truck goes over 45 km/h"
           onChange={(event) => setPrompt(event.target.value)}
           onKeyDown={(event) => { if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) void generate() }} />
         <div className="gl-chips" role="group" aria-label="Example prompts">
