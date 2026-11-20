@@ -28,7 +28,7 @@ For the 06:00 checkpoint, set `PIPELINES_MODE` in `web/src/glorious/pipelines/mo
 
 Window behavior: Analytics and Settings switch to Live World; their submenu choices open floating windows over the map. Escape closes the front window and restores focus to its opener. Lazy-loaded Live World, Pipelines, and editor screens briefly show **Loading…**.
 
-The map menu and **Settings → Truck breakdown** both confirm before sending: **“Simulate a breakdown of Truck {truckId}? It stops for about 15 simulated minutes and resumes by itself.”** Buttons: **Confirm** and **Cancel**.
+The map menu and **Settings → Truck Breakdown** both confirm before sending: **“Simulate a breakdown of Truck {truckId}? It stops for about 15 simulated minutes and resumes by itself.”** Buttons: **Confirm** and **Cancel**.
 
 ## Seven-step run of show
 
@@ -40,13 +40,13 @@ The map menu and **Settings → Truck breakdown** both confirm before sending: *
 
 ### 2. Live World — map (about 2 minutes)
 - **Click:** In the left navigation, click **Live World**.
-- **Audience sees:** The Mysuru map and the live truck markers; the map moves up into view.
+- **Audience sees:** The Mysuru map and the live truck markers; the map moves up into view. The subtitle reads **“Simulated delivery fleet across Mysuru, updated live”.**
 - **Say:** “The map shows the six configured trucks against real Mysuru roads; their telemetry is live.”
 - **If it fails:** Wait for the map and live telemetry to load. If unavailable, switch to `?ui=classic` rather than claiming frozen positions are live.
 
 ### 3. Live World — truck details (about 2 minutes)
 - **Click:** Hover a truck marker (or focus/select it with the keyboard).
-- **Audience sees:** Its details card: truck ID, status, speed, route ID, display path and current partition/worker assignment. The card identifies the path as a display mapping.
+- **Audience sees:** Its details card: truck ID, status, speed, route ID, display path and current partition/worker assignment. The note reads **“The road path is drawn for display; speed and status are real simulator data.”**
 - **Say:** “The route is a geographic display mapping; speed, status and worker assignment come from the system.”
 - **If it fails:** Try another marker or focus it with Tab. If telemetry is stale, call that out; do not present a frozen speed as current.
 
@@ -57,7 +57,7 @@ The map menu and **Settings → Truck breakdown** both confirm before sending: *
 - **If it fails:** Wait for live samples and completed windows. If the list is empty, say the stream has not produced the required data; use `?ui=classic` only if needed to continue.
 
 ### 5. Analytics — failed records (about 3 minutes)
-- **Click:** In the expo terminal, run `events late 10` once. In the app, open **Analytics** → **Failed Records**; choose **LATE** to narrow the list, or leave **All** selected. Click a record to inspect its details.
+- **Click:** In the expo terminal, run `events late 10` once. In the app, open **Analytics** → **Failed Records**; choose **Late** to narrow the list, or leave **All** selected. Click a record to inspect its details.
 - **Audience sees:** Late or rejected records when the engine classifies them, with event time, partition, offset and reason. Empty state is **No failed records yet.**
 - **Say:** “These are records the live engine classified as late or rejected, with the reason and source position.”
 - **If it fails:** `events late` reports how many events were sent, not that they were classified late. If no late records appear, explain that the watermark determines classification; do not invent records or reasons.
@@ -70,7 +70,7 @@ The map menu and **Settings → Truck breakdown** both confirm before sending: *
 
 ### 7. Settings — logs and recovery (about 4 minutes)
 - **Click:** Click **Settings** (the app switches to **Live World**) → **Logs & Recovery**. In the expo terminal, run `worker kill 2` once.
-- **Audience sees:** Worker 2’s dead state, the recovery pause, checkpoint restore, partition ownership changes, surviving workers and (if it restarts) the rejoined state. The failure remains in history.
+- **Audience sees:** History labels include **“Kill requested (not yet confirmed)”**, **“Worker died”**, **“Partitions reassigned”**, and **“Checkpoint saved”** as those events occur; the panel also shows recovery progress, surviving workers and (if it restarts) the rejoined state.
 - **Say:** “The engine recovers from a completed checkpoint and records the worker failure; the visible pause is part of recovery.”
 - **If it fails:** Do not repeat the kill. Wait for the live recovery feed; if the command reports an error, use the classic UI’s **Kill worker** flow once, then watch **Logs & Recovery** if available. If recovery is still in progress, describe only the state visible on screen.
 
