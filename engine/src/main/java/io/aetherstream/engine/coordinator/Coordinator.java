@@ -777,7 +777,7 @@ public class Coordinator {
         if (e.recoveryStartedMs == null || e.rebalanceInProgress) {
             e.recoveryStartedMs = now;
             audit("execution.recoveryStarted", detail("executionId", e.id, "generation", e.generation,
-                    "checkpointId", null, "atMs", now));
+                    "checkpointId", e.lastCompleted, "atMs", now));
         }
         if (!RECOVERING.equals(e.state)) {
             e.state = RECOVERING;
