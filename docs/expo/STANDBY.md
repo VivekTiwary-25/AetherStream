@@ -1,6 +1,6 @@
 # UI preview standby
 
-The preview runs independently on `vimlesh-pc` (main) and `utkarsh-pc` (hot standby), on port **8089**. These are separate from the live demo.
+The preview runs on `vimlesh-pc` at `http://localhost:8089`; the college network blocks the public tunnel. `utkarsh-pc` is the hot standby. These are separate from the live demo.
 
 ## Check a host
 
@@ -23,7 +23,7 @@ The script fetches `origin/ui-glorious`, resets the preview checkout to it, buil
 
 ## Switch presenter
 
-Read the other host’s `C:\aether-preview\.preview\url.txt` and navigate the presenter’s browser to that exact URL. The quick-tunnel URL can change when the host starts a new tunnel; do not reuse a URL from memory. Current URL: **(check)**.
+Use `http://localhost:8089/` on `vimlesh-pc`; the college network blocks the public tunnel.
 
 ## No tunnel (college network)
 
@@ -33,7 +33,7 @@ The preview port publishes as `8089:80` without a host-IP restriction, so its ho
 New-NetFirewallRule -DisplayName "Aether preview 8089" -Direction Inbound -Protocol TCP -LocalPort 8089 -Action Allow
 ```
 
-Run `ipconfig` on the laptop and use its Wi-Fi adapter’s IPv4 Address (check); open `http://<laptop IPv4>:8089` on the other device. If the quick tunnel is blocked, try connecting the laptop to a phone hotspot and start the preview tunnel again (check).
+Run `ipconfig` on the laptop and use its Wi-Fi adapter’s IPv4 Address (check); open `http://<laptop IPv4>:8089` on the other device.
 
 ## Ask AI
 

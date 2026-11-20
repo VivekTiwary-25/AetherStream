@@ -5,7 +5,7 @@
 2. **Click:** **Analytics** → **Truck Speeds**. **Say:** “See current speed, completed-window averages, and recent history.”
 3. **Click:** **Analytics** → **Failed Records**. **Say:** “The live engine shows records it classified as late or rejected, with the reason and source position.”
 4. **Click:** **Pipelines**; in **Ask AI**, enter `Alert me when any truck goes over 45 km/h`, then click **Generate**, **Open in editor**, and **Run**. **Say:** “The validated pipeline reads the live stream and reports its results here.”
-5. **Click:** **Settings** → **Logs & Recovery**; run `worker kill 2` once in the expo terminal. **Say:** “The worker is Dead for about 2–3 seconds, recovers from a checkpoint with the same partitions, and the failure remains in Recovery History.”
+5. **Click:** **Settings** → **Logs & Recovery**; run `worker kill 2` once in the expo terminal. **Say:** “Dead is shown for about 3 seconds; the worker recovers from a checkpoint in about 4 seconds, keeps its own partitions (no reassignment), and the failure stays in Recovery History.”
 
 Runbook for 21 Nov: [Expo morning runbook](MORNING.md).
 
@@ -81,8 +81,8 @@ The map menu and **Settings → Truck Breakdown** both confirm before sending: *
 
 ### 7. Settings — logs and recovery (about 4 minutes)
 - **Click:** Click **Settings** (the app switches to **Live World**) → **Logs & Recovery**. In the expo terminal, run `worker kill 2` once.
-- **Audience sees:** The killed worker is marked **Dead** briefly; execution shows **Recovering** from a checkpoint (for example, 44). The same worker returns with its original partitions; partitions are not reassigned to survivors. All workers are **Running** again by about 6 seconds, and the failure remains in Recovery History.
-- **If asked why partition 1 has no events:** Truck keys are hashed to partitions, so six trucks do not necessarily land one per partition: P1 is idle while P4 carries two. With more trucks every partition fills; the worker owning P1 is still alive and takes over immediately if more keys arrive.
+- **Audience sees:** After `worker kill 2`, **Dead** is shown for about 3 seconds; the worker recovers from a checkpoint in about 4 seconds, keeps its own partitions (no reassignment), and the failure stays in Recovery History.
+- **If asked why partition 1 has no events:** Truck keys are hashed to partitions, so six trucks do not necessarily land one per partition: P1 is idle while P4 carries two. The worker owning P1 is still alive and takes over immediately if more keys arrive.
 - **Say:** “The engine restores a completed checkpoint, restarts the worker with its own partitions, and records the failure. Processing pauses briefly during recovery.”
 - **If it fails:** Do not repeat the kill. Wait for the live recovery feed; if the command reports an error, use the classic UI’s **Kill worker** flow once, then watch **Logs & Recovery** if available. If recovery is still in progress, describe only the state visible on screen.
 
