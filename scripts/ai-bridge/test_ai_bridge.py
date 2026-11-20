@@ -2,6 +2,7 @@ import json
 import os
 import sys
 import tempfile
+import time
 import threading
 import unittest
 from http.server import ThreadingHTTPServer
@@ -148,6 +149,22 @@ class BridgeTests(unittest.TestCase):
             result = ai_bridge.generate("Average speed per truck")
         self.assertEqual(result["source"], "example")
         self.assertEqual(result["note"], "Showing a saved example: AI was unavailable")
+    def test_fast_cli_network_failure_returns_saved_example(self):
+        failing_cli = self.root / "offline_cli.py"
+        failing_cli.write_text(
+            "import sys\n"
+            "print('network unavailable', file=sys.stderr)\n"
+            "raise SystemExit(1)\n",
+            encoding="utf-8",
+        )
+        os.environ["AI_CMD"] = str(failing_cli)
+        started = time.monotonic()
+        result = ai_bridge.generate("Average speed per truck")
+        elapsed = time.monotonic() - started
+        self.assertLess(elapsed, 3)
+        self.assertEqual(result["source"], "example")
+        self.assertEqual(result["note"], "Showing a saved example: AI was unavailable")
+
 
     def test_busy_request_returns_429(self):
         server = ThreadingHTTPServer(("127.0.0.1", 0), ai_bridge.Handler)

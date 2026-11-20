@@ -74,5 +74,14 @@ The map menu and **Settings → Truck breakdown** both confirm before sending: *
 - **Say:** “The engine recovers from a completed checkpoint and records the worker failure; the visible pause is part of recovery.”
 - **If it fails:** Do not repeat the kill. Wait for the live recovery feed; if the command reports an error, use the classic UI’s **Kill worker** flow once, then watch **Logs & Recovery** if available. If recovery is still in progress, describe only the state visible on screen.
 
+## If the venue has no internet
+
+With the app, API, and engine already running locally:
+- Steps 1–3: the highway video, fonts, and map remain available locally.
+- Steps 4–5: analytics still reads the local live stream and records.
+- Step 6: Ask AI cannot reach Claude Code; it shows **“Showing a saved example: AI was unavailable.”**
+  Say it is a saved example, not AI-generated. The manual editor still works; review before running.
+- Step 7: recovery and the `worker` / `events` terminal commands are local.
+
 Keep the remaining time for questions. Never describe unobserved recovery phases or pipeline results as completed.
 
