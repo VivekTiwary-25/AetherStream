@@ -1,6 +1,6 @@
 import { act, cleanup, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { ExecutionInfo, SimulatorState, WebSocketMessage } from '../../api/types'
+import type { CheckpointInfo, ExecutionInfo, SimulatorState, WebSocketMessage } from '../../api/types'
 import { getCheckpoints, getCurrentExecution, getSimulatorState } from '../../api/client'
 import { TruckBreakdown } from './TruckBreakdown'
 import { useRecoveryFeed } from './useRecoveryFeed'
@@ -21,6 +21,15 @@ const execution: ExecutionInfo = {
   lastCompletedCheckpoint: 8, pipelineId: 'pipeline-1', pipelineVersion: 1, createdAt: '2026-11-20T00:00:00Z',
 }
 const response = (data: unknown) => new Response(JSON.stringify(data), { status: 200, headers: { 'Content-Type': 'application/json' } })
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  let reject!: (error: unknown) => void
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise
+    reject = rejectPromise
+  })
+  return { promise, resolve, reject }
+}
 const fleet = {
   trucks: [
     { truckId: 'truck-004', status: 'DRIVING', speedKmh: 30, x: 0, y: 0, heading: 0 },
@@ -33,7 +42,7 @@ beforeEach(() => {
   vi.mocked(getCheckpoints).mockResolvedValue([])
   vi.mocked(getSimulatorState).mockResolvedValue(fleet)
 })
-afterEach(() => { cleanup(); vi.useRealTimers(); vi.unstubAllGlobals(); vi.resetAllMocks(); socket.listener = null })
+afterEach(() => { cleanup(); vi.useRealTimers(); vi.unstubAllGlobals(); vi.resetAllMocks(); vi.restoreAllMocks(); socket.listener = null })
 
 describe('recovery feed cutover', () => {
   it('keeps a live failure received before REST hydration, with its original hold deadline', async () => {
@@ -48,28 +57,179 @@ describe('recovery feed cutover', () => {
     expect(result.current.historyLoaded).toBe(true)
   })
 
-  it('retries failed history hydration and clears the error when the backend returns', async () => {
+  it('backs history off to the cap, resets after recovery, and cancels polling on unmount', async () => {
     vi.useFakeTimers()
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const fetch = vi.fn()
       .mockRejectedValueOnce(new Error('service unavailable'))
-      .mockResolvedValue(response([{ id: 1, event: 'WORKER_DEAD', at: 10, workerId: 'worker-1', executionId: execution.id }]))
+      .mockRejectedValueOnce(new Error('service unavailable'))
+      .mockRejectedValueOnce(new Error('service unavailable'))
+      .mockRejectedValueOnce(new Error('service unavailable'))
+      .mockResolvedValueOnce(response([{ id: 1, event: 'WORKER_DEAD', at: 10, workerId: 'worker-1', executionId: execution.id }]))
+      .mockRejectedValueOnce(new Error('another outage'))
+      .mockImplementation(async () => response([]))
     vi.stubGlobal('fetch', fetch)
     const { result, unmount } = renderHook(useRecoveryFeed)
-    await act(async () => { await Promise.resolve(); await Promise.resolve() })
+    await act(async () => { await vi.advanceTimersByTimeAsync(0) })
     expect(result.current.historyError).toBe('service unavailable')
 
-    await act(async () => { await vi.advanceTimersByTimeAsync(4_999) })
-    expect(fetch).toHaveBeenCalledTimes(1)
-    expect(result.current.historyError).toBe('service unavailable')
-    await act(async () => { await vi.advanceTimersByTimeAsync(1) })
-    expect(fetch).toHaveBeenCalledTimes(2)
+    for (const [index, delay] of [5_000, 10_000, 15_000, 15_000].entries()) {
+      await act(async () => { await vi.advanceTimersByTimeAsync(delay - 1) })
+      expect(fetch).toHaveBeenCalledTimes(index + 1)
+      await act(async () => { await vi.advanceTimersByTimeAsync(1) })
+      expect(fetch).toHaveBeenCalledTimes(index + 2)
+    }
+    expect(warn).toHaveBeenCalledTimes(1)
     expect(result.current.historyError).toBeNull()
     expect(result.current.history.map((entry) => entry.id)).toEqual([1])
+    expect(getCurrentExecution).toHaveBeenCalledTimes(10)
 
-    unmount()
     await act(async () => { await vi.advanceTimersByTimeAsync(5_000) })
-    expect(fetch).toHaveBeenCalledTimes(2)
-    expect(getCurrentExecution).toHaveBeenCalledTimes(2)
+    expect(result.current.historyError).toBe('another outage')
+    expect(warn).toHaveBeenCalledTimes(2)
+    await act(async () => { await vi.advanceTimersByTimeAsync(4_999) })
+    expect(fetch).toHaveBeenCalledTimes(6)
+    await act(async () => { await vi.advanceTimersByTimeAsync(1) })
+    expect(fetch).toHaveBeenCalledTimes(7)
+    expect(result.current.historyError).toBeNull()
+    // Empty REST hydration must not remove facts already merged.
+    expect(result.current.history.map((entry) => entry.id)).toEqual([1])
+
+    const signal = (fetch.mock.calls[0][1] as RequestInit).signal!
+    unmount()
+    expect(signal.aborted).toBe(true)
+    expect(vi.getTimerCount()).toBe(0)
+    await act(async () => { await vi.advanceTimersByTimeAsync(30_000) })
+    expect(fetch).toHaveBeenCalledTimes(7)
+    expect(getCurrentExecution).toHaveBeenCalledTimes(12)
+  })
+
+  it('polls execution independently of slow history and keeps history moving during slow execution', async () => {
+    vi.useFakeTimers()
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const history = deferred<Response>()
+    const current = deferred<ExecutionInfo | null>()
+    const fetch = vi.fn()
+      .mockReturnValueOnce(history.promise)
+      .mockImplementation(async () => response([]))
+    vi.stubGlobal('fetch', fetch)
+    vi.mocked(getCurrentExecution)
+      .mockRejectedValueOnce(new Error('execution unavailable'))
+      .mockRejectedValueOnce(new Error('execution unavailable'))
+      .mockRejectedValueOnce(new Error('execution unavailable'))
+      .mockResolvedValueOnce(execution)
+      .mockReturnValueOnce(current.promise)
+    const { result, unmount } = renderHook(useRecoveryFeed)
+    await act(async () => { await vi.advanceTimersByTimeAsync(0) })
+    expect(result.current.executionError).toBe('execution unavailable')
+    for (const [index, delay] of [5_000, 10_000, 15_000].entries()) {
+      await act(async () => { await vi.advanceTimersByTimeAsync(delay - 1) })
+      expect(getCurrentExecution).toHaveBeenCalledTimes(index + 1)
+      await act(async () => { await vi.advanceTimersByTimeAsync(1) })
+      expect(getCurrentExecution).toHaveBeenCalledTimes(index + 2)
+    }
+    expect(result.current.execution).toEqual(execution)
+    expect(result.current.executionError).toBeNull()
+    expect(result.current.historyLoaded).toBe(false)
+    expect(fetch).toHaveBeenCalledTimes(1)
+    expect(warn).toHaveBeenCalledTimes(1)
+
+    await act(async () => { history.resolve(response([])); await vi.advanceTimersByTimeAsync(0) })
+    await act(async () => { await vi.advanceTimersByTimeAsync(10_000) })
+    expect(fetch).toHaveBeenCalledTimes(3)
+    expect(getCurrentExecution).toHaveBeenCalledTimes(5)
+    expect(result.current.historyLoaded).toBe(true)
+    unmount()
+    await act(async () => {
+      current.reject(new Error('late execution failure'))
+      await vi.advanceTimersByTimeAsync(30_000)
+    })
+    expect(warn).toHaveBeenCalledTimes(1)
+    expect(getCurrentExecution).toHaveBeenCalledTimes(5)
+    expect(fetch).toHaveBeenCalledTimes(3)
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it('backs checkpoint polling off without overlapping requests or bypassing retries for live events', async () => {
+    vi.useFakeTimers()
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    vi.stubGlobal('fetch', vi.fn(async () => response([])))
+    const checkpoints = deferred<CheckpointInfo[]>()
+    const late = deferred<CheckpointInfo[]>()
+    const completed: CheckpointInfo = {
+      checkpointId: 9, generation: 3, state: 'COMPLETED', durationMs: 40,
+      completedAt: '2026-11-20T00:01:00Z', sourceOffsets: {},
+    }
+    vi.mocked(getCheckpoints)
+      .mockRejectedValueOnce(new Error('checkpoints unavailable'))
+      .mockRejectedValueOnce(new Error('checkpoints unavailable'))
+      .mockRejectedValueOnce(new Error('checkpoints unavailable'))
+      .mockResolvedValueOnce([completed, { ...completed, checkpointId: 10, state: 'IN_PROGRESS' }])
+      .mockReturnValueOnce(checkpoints.promise)
+      .mockReturnValueOnce(late.promise)
+    const { result, unmount } = renderHook(useRecoveryFeed)
+    await act(async () => { await vi.advanceTimersByTimeAsync(0) })
+    expect(result.current.checkpointError).toBe('checkpoints unavailable')
+    for (const [index, delay] of [5_000, 10_000, 15_000].entries()) {
+      act(() => socket.listener!({
+        type: 'recovery', ts: Date.now(),
+        data: { id: index + 1, event: 'CHECKPOINT_COMPLETED', at: Date.now(), executionId: execution.id },
+      } as unknown as WebSocketMessage))
+      await act(async () => { await vi.advanceTimersByTimeAsync(delay - 1) })
+      expect(getCheckpoints).toHaveBeenCalledTimes(index + 1)
+      await act(async () => { await vi.advanceTimersByTimeAsync(1) })
+      expect(getCheckpoints).toHaveBeenCalledTimes(index + 2)
+    }
+    expect(warn).toHaveBeenCalledTimes(1)
+    expect(result.current.checkpointError).toBeNull()
+    expect(result.current.checkpointsLoaded).toBe(true)
+    expect(result.current.checkpoints).toEqual([completed])
+
+    await act(async () => { await vi.advanceTimersByTimeAsync(5_000) })
+    expect(getCheckpoints).toHaveBeenCalledTimes(5)
+    act(() => socket.listener!({
+      type: 'recovery', ts: Date.now(),
+      data: { id: 4, event: 'CHECKPOINT_COMPLETED', at: Date.now(), executionId: execution.id },
+    } as unknown as WebSocketMessage))
+    await act(async () => { await vi.advanceTimersByTimeAsync(20_000) })
+    expect(getCheckpoints).toHaveBeenCalledTimes(5)
+    await act(async () => { checkpoints.resolve([completed]); await vi.advanceTimersByTimeAsync(0) })
+    await act(async () => { await vi.advanceTimersByTimeAsync(4_999) })
+    expect(getCheckpoints).toHaveBeenCalledTimes(5)
+    await act(async () => { await vi.advanceTimersByTimeAsync(1) })
+    expect(getCheckpoints).toHaveBeenCalledTimes(6)
+    unmount()
+    await act(async () => { late.reject(new Error('late checkpoint failure')); await vi.advanceTimersByTimeAsync(30_000) })
+    expect(getCheckpoints).toHaveBeenCalledTimes(6)
+    expect(warn).toHaveBeenCalledTimes(1)
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it('serializes checkpoint requests across execution changes and ignores stale results', async () => {
+    vi.useFakeTimers()
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const history = deferred<Response>()
+    vi.stubGlobal('fetch', vi.fn().mockReturnValue(history.promise))
+    const old = deferred<CheckpointInfo[]>()
+    const current = deferred<CheckpointInfo[]>()
+    vi.mocked(getCheckpoints).mockReturnValueOnce(old.promise).mockReturnValueOnce(current.promise)
+    const { result, unmount } = renderHook(useRecoveryFeed)
+    await act(async () => { await vi.advanceTimersByTimeAsync(0) })
+    act(() => socket.listener!({
+      type: 'execution', ts: Date.now(), data: { ...execution, id: 'execution-2' },
+    }))
+    expect(getCheckpoints).toHaveBeenCalledTimes(1)
+    await act(async () => { old.resolve([]); await vi.advanceTimersByTimeAsync(0) })
+    expect(getCheckpoints).toHaveBeenCalledTimes(2)
+    expect(getCheckpoints).toHaveBeenLastCalledWith('execution-2')
+    expect(result.current.checkpointsLoaded).toBe(false)
+    await act(async () => { current.resolve([]); await vi.advanceTimersByTimeAsync(0) })
+    expect(result.current.checkpointsLoaded).toBe(true)
+    unmount()
+    await act(async () => { history.reject(new Error('late history failure')); await vi.advanceTimersByTimeAsync(30_000) })
+    expect(warn).not.toHaveBeenCalled()
+    expect(getCheckpoints).toHaveBeenCalledTimes(2)
+    expect(vi.getTimerCount()).toBe(0)
   })
 
   it('does not replace a live execution with a stale REST result and shows only completed checkpoints', async () => {
