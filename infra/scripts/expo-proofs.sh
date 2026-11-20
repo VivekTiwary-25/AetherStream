@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Read-only evidence from the running Compose stack; never trigger a checkpoint or chaos.
 set -Eeuo pipefail
+export MSYS_NO_PATHCONV=1 # Git Bash: keep container paths like /opt/kafka/... unrewritten.
 
 fail() { printf 'PROOF ERROR: %s\n' "$*" >&2; exit 1; }
 jq() { command jq --binary "$@"; } # Keep native jq.exe output usable in Git Bash.
