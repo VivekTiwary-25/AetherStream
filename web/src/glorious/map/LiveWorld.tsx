@@ -5,7 +5,7 @@ import { Protocol } from 'pmtiles'
 import { useDashboard } from '../../app/state/store'
 import { partitionForTruck } from '../../city/cityLogic'
 import { GlassSurface } from '../shell/GlassSurface'
-import { advanceDistance, easeLabelOffset, facingLeftWithHysteresis, lookAheadPoint, placeMarker, prepareRoute, sampleRoute, truckLabel, type PreparedRoute, type RouteFeature, type RouteSample } from './mapLogic'
+import { advanceDistance, easeLabelOffset, facingLeftWithHysteresis, labelTransform, lookAheadPoint, placeMarker, prepareRoute, sampleRoute, truckLabel, type PreparedRoute, type RouteFeature, type RouteSample } from './mapLogic'
 import { useLiveFleet } from './useLiveFleet'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import './LiveWorld.css'
@@ -223,7 +223,7 @@ export function LiveWorld() {
           marker.style.transform = `translate(${position.x}px, ${position.y}px) translate(-50%, -50%)`
           marker.style.setProperty('--truck-facing', motion.facingLeft ? '-1' : '1')
           const label = marker.lastElementChild as HTMLElement | null
-          if (label) label.style.transform = `translateY(${motion.labelOffset}px)`
+          if (label) label.style.transform = labelTransform(motion.labelOffset)
           marker.style.visibility = 'visible'
         }
         if (selectedRef.current === truck.truckId && card.current) {
