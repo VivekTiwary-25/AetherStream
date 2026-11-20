@@ -48,10 +48,21 @@ export function deriveWorkerState(
   // History is newest first. Only explicit lifecycle facts identify a failed worker;
   // KILL_REQUESTED is not confirmation that a worker died.
   const entries = history.filter((entry) => entry.executionId === execution?.id)
-  const loss = entries.find((entry) => entry.workerId === workerId &&
+  const lossIndex = entries.findIndex((entry) => entry.workerId === workerId &&
     (entry.event === 'WORKER_DEAD' || entry.event === 'WORKER_RESTARTED'))
+  let loss = entries[lossIndex]
+  if (loss?.event === 'WORKER_RESTARTED') {
+    // Re-registration emits DEAD then RESTARTED for the same failure. Keep the
+    // confirmed death's clock; a restart must not replace or extend that hold.
+    const previous = entries.find((entry, index) => index > lossIndex &&
+      (entry.event === 'RECOVERED' || (entry.workerId === workerId &&
+        (entry.event === 'WORKER_DEAD' || entry.event === 'WORKER_RESTARTED'))))
+    if (previous?.event === 'WORKER_DEAD') loss = previous
+  }
+  const lossAt = loss?.event === 'WORKER_DEAD' ? loss.at : loss?.observedAt ?? loss?.at
+  const deadUntil = lossAt == null ? 0 : lossAt + DEAD_HOLD_MS
   if (worker && !worker.alive) return 'dead'
-  if (loss && now < (loss.observedAt ?? loss.at) + DEAD_HOLD_MS) return 'dead'
+  if (loss && now < deadUntil) return 'dead'
   // A restart is not a death: once its hold ends, a worker missing from /api/workers is just unavailable.
   if (!worker) return loss?.event === 'WORKER_DEAD' ? 'dead' : 'unavailable'
   // A pre-death RUNNING sample must not erase an authoritative death event.
@@ -59,7 +70,7 @@ export function deriveWorkerState(
   if (worker.state === 'RESTORING' || execution?.state === 'RECOVERING') return 'recovering'
   const recovered = loss && entries.find((entry) => entry.event === 'RECOVERED' && entry.at >= loss.at)
   const joinedAt = recovered?.at ?? (loss?.event === 'WORKER_RESTARTED' ? loss.at : null)
-  if (loss && joinedAt !== null && now < Math.max(joinedAt, (loss.observedAt ?? loss.at) + DEAD_HOLD_MS) + REJOINED_HOLD_MS) return 'rejoined'
+  if (loss && joinedAt !== null && now < Math.max(joinedAt, deadUntil) + REJOINED_HOLD_MS) return 'rejoined'
   return worker.state === 'RUNNING' ? 'running' : 'idle'
 }
 

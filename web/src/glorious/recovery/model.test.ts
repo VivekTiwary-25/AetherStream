@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { WorkerInfo } from '../../api/types'
-import { DEAD_HOLD_MS, deriveWorkerState, mergeHistory, recentPartitionChange, recoveryDuration, type RecoveryEntry } from './model'
+import { DEAD_HOLD_MS, REJOINED_HOLD_MS, deriveWorkerState, mergeHistory, recentPartitionChange, recoveryDuration, type RecoveryEntry } from './model'
 
 const execution = { id: 'execution-1', state: 'RUNNING' as const }
 const worker: WorkerInfo = {
@@ -27,6 +27,28 @@ describe('worker lifecycle from sampled workers and recovery audit facts', () =>
     expect(state(history, 11_000 + DEAD_HOLD_MS - 1)).toBe('dead')
     expect(state(history, 11_000 + DEAD_HOLD_MS)).toBe('rejoined')
     expect(state(history, 25_000)).toBe('running')
+  })
+
+  it.each([false, true])('holds re-registration deaths from event time, with paired restart: %s', (restarted) => {
+    const history = mergeHistory([], [
+      entry('WORKER_DEAD', 10_000, { reason: 're-registered', observedAt: 11_000 }),
+      ...(restarted ? [entry('WORKER_RESTARTED', 10_008, { observedAt: 11_008 })] : []),
+      entry('RECOVERED', 11_108),
+    ])
+    expect(state(history, 10_000 + DEAD_HOLD_MS - 1)).toBe('dead')
+    expect(state(history, 10_000 + DEAD_HOLD_MS)).toBe('rejoined')
+    expect(state(history, 10_000 + DEAD_HOLD_MS + REJOINED_HOLD_MS)).toBe('running')
+    expect(state(history, 12_000, { ...worker, workerId: 'worker-1' })).toBe('running')
+  })
+
+  it('does not reuse a previous death clock for a standalone restart after recovery', () => {
+    const history = mergeHistory([], [
+      entry('WORKER_DEAD', 1_000),
+      entry('RECOVERED', 2_000),
+      entry('WORKER_RESTARTED', 10_000, { observedAt: 11_000 }),
+    ])
+    expect(state(history, 11_000 + DEAD_HOLD_MS - 1)).toBe('dead')
+    expect(state(history, 11_000 + DEAD_HOLD_MS)).toBe('rejoined')
   })
 
   it('moves from dead to recovering to rejoined without marking survivors dead', () => {
