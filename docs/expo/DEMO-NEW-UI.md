@@ -71,8 +71,8 @@ The map menu and **Settings → Truck Breakdown** both confirm before sending: *
 
 ### 7. Settings — logs and recovery (about 4 minutes)
 - **Click:** Click **Settings** (the app switches to **Live World**) → **Logs & Recovery**. In the expo terminal, run `worker kill 2` once.
-- **Audience sees:** History labels include **“Kill requested (not yet confirmed)”**, **“Worker died”**, **“Partitions reassigned”**, and **“Checkpoint saved”** as those events occur; the panel also shows recovery progress, surviving workers and (if it restarts) the rejoined state.
-- **Say:** “The engine recovers from a completed checkpoint (check live) and records the worker failure; the visible pause is part of recovery.”
+- **Audience sees:** The killed worker is marked **Dead** briefly; execution shows **Recovering** from a checkpoint (for example, 44). The same worker returns with its original partitions; partitions are not reassigned to survivors. All workers are **Running** again by about 6 seconds, and the failure remains in Recovery History.
+- **Say:** “The engine restores a completed checkpoint, restarts the worker with its own partitions, and records the failure. Processing pauses briefly during recovery.”
 - **If it fails:** Do not repeat the kill. Wait for the live recovery feed; if the command reports an error, use the classic UI’s **Kill worker** flow once, then watch **Logs & Recovery** if available. If recovery is still in progress, describe only the state visible on screen.
 
 ## If the venue has no internet
