@@ -1,20 +1,39 @@
 $ErrorActionPreference = 'Stop'
 $repo = 'C:\aether-preview'
 $preview = Join-Path $repo '.preview'
-$old = (& git -C $repo rev-parse HEAD).Trim()
-if ($LASTEXITCODE -ne 0) { throw 'Cannot read the current preview revision.' }
-$fetch = Start-Process git -ArgumentList @('-C', $repo, 'fetch', 'origin', 'ui-glorious') -PassThru -NoNewWindow
-if (-not $fetch.WaitForExit(180000)) { $fetch.Kill(); throw 'git fetch timed out after 180 seconds.' }
-if ($fetch.ExitCode -ne 0) { throw 'git fetch failed.' }
-$files = @(& git -C $repo diff --name-only $old origin/ui-glorious)
-if ($LASTEXITCODE -ne 0) { throw 'Cannot compare preview revisions.' }
+$deployed = Join-Path $preview 'deployed-revision.txt'
+
+function Invoke-Checked {
+    param([string]$File, [string[]]$Arguments, [int]$TimeoutSeconds)
+    $out = Join-Path $preview 'refresh-command.out.log'
+    $err = Join-Path $preview 'refresh-command.err.log'
+    $p = Start-Process -FilePath $File -ArgumentList $Arguments -WorkingDirectory $repo -PassThru -NoNewWindow -RedirectStandardOutput $out -RedirectStandardError $err
+    if (-not $p.WaitForExit($TimeoutSeconds * 1000)) {
+        $p.Kill()
+        throw "$File timed out after $TimeoutSeconds seconds; see $out and $err"
+    }
+    if ($p.ExitCode -ne 0) { throw "$File failed ($($p.ExitCode)); see $out and $err" }
+    if (Test-Path $out) { Get-Content $out }
+}
+
+$env:GIT_TERMINAL_PROMPT = '0'
+$env:GCM_INTERACTIVE = 'Never'
+$old = (Invoke-Checked 'git' @('-C', $repo, 'rev-parse', 'HEAD') 30).Trim()
+if (Test-Path $deployed) {
+    $baseline = (Get-Content $deployed -Raw).Trim()
+} else {
+    $baseline = $old
+    $baseline | Set-Content -Encoding ascii $deployed
+}
+$null = Invoke-Checked 'git' @('-C', $repo, 'fetch', 'origin', 'ui-glorious') 180
+$target = (Invoke-Checked 'git' @('-C', $repo, 'rev-parse', 'origin/ui-glorious') 30).Trim()
+$files = @(Invoke-Checked 'git' @('-C', $repo, 'diff', '--name-only', $baseline, $target) 60)
 $apiChanged = @($files | Where-Object { $_ -match '^(control-api/|common/|compiler/|reference/|engine/|simulator/|infra/docker/control-api\.Dockerfile$|gradle/|gradlew$|settings\.gradle\.kts$|build\.gradle\.kts$)' }).Count -gt 0
-$reset = Start-Process git -ArgumentList @('-C', $repo, 'reset', '--hard', 'origin/ui-glorious') -PassThru -NoNewWindow
-if (-not $reset.WaitForExit(60000)) { $reset.Kill(); throw 'git reset timed out after 60 seconds.' }
-if ($reset.ExitCode -ne 0) { throw 'git reset failed.' }
-$compose = @('compose', '-p', 'aether-preview', '-f', 'docker-compose.yml', '-f', (Join-Path $preview 'compose.yml'), 'up', '-d', '--build', '--no-deps', '--wait', '--wait-timeout', '240')
-if ($apiChanged) { $compose += @('control-api', 'web') } else { $compose += 'web' }
-$p = Start-Process docker -ArgumentList $compose -WorkingDirectory $repo -PassThru -NoNewWindow -RedirectStandardOutput (Join-Path $preview 'refresh.out.log') -RedirectStandardError (Join-Path $preview 'refresh.err.log')
-if (-not $p.WaitForExit(270000)) { $p.Kill(); throw 'Docker refresh timed out after 270 seconds.' }
-if ($p.ExitCode -ne 0) { throw "Docker refresh failed ($($p.ExitCode)); see $preview\refresh.out.log and refresh.err.log" }
-Write-Output "Refreshed to $((& git -C $repo rev-parse --short HEAD).Trim()); control-api rebuilt: $apiChanged"
+$null = Invoke-Checked 'git' @('-C', $repo, 'reset', '--hard', $target) 60
+$composeBase = @('compose', '-p', 'aether-preview', '-f', 'docker-compose.yml', '-f', (Join-Path $preview 'compose.yml'))
+if ($apiChanged) { $services = @('control-api', 'web') } else { $services = @('web') }
+$null = Invoke-Checked 'docker' ($composeBase + @('build') + $services) 270
+$null = Invoke-Checked 'docker' ($composeBase + @('up', '-d', '--no-build', '--no-deps', '--wait', '--wait-timeout', '240') + $services) 270
+$target | Set-Content -Encoding ascii $deployed
+$revision = (Invoke-Checked 'git' @('-C', $repo, 'rev-parse', '--short', 'HEAD') 30).Trim()
+Write-Output "Refreshed to $revision; control-api rebuilt: $apiChanged"
