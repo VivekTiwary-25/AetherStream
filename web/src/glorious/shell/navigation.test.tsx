@@ -1,7 +1,7 @@
 import type { ComponentProps } from 'react'
 import type * as WindowManagerModule from './WindowManager'
 import type { WindowsApi } from './windows'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { GloriousApp } from '../GloriousApp'
 import { useWindows } from './windows'
@@ -24,6 +24,13 @@ vi.mock('./WindowManager', async (importOriginal) => {
     </WindowManager>,
   }
 })
+
+// GloriousApp loads Live World and the Pipelines panel with lazy(). Load those
+// modules once up front so the first test does not spend its findBy* budget
+// waiting for Vite to transform them while every other worker is busy.
+beforeAll(async () => {
+  await Promise.all([import('../map/LiveWorld'), import('../pipelines/PipelinesPanel')])
+}, 30_000)
 
 beforeEach(() => {
   vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('Service unavailable'))))
