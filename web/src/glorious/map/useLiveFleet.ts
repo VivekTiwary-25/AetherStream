@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { SimulatorState, SimulatorTruck } from '../../api/types'
 import { useAetherMessages } from '../../api/ws'
+import { createBackoff } from '../data/backoff'
 
 export type LiveTruck = SimulatorTruck & { routeId?: string }
 type Fleet = { trucks: LiveTruck[]; timeScale: number; running: boolean; fresh: boolean; error: string | null }
@@ -39,12 +40,12 @@ export function useLiveFleet(): Fleet {
   useEffect(() => {
     const controller = new AbortController()
     let active = true
-    let busy = false
+    let polling: number | undefined
+    const backoff = createBackoff('Live fleet')
     // Trucks frames omit running/timeScale. Poll the real control state as well as
     // sharing the existing socket; never assume the Compose default speed of 10.
     const refresh = async () => {
-      if (busy) return
-      busy = true
+      let delay = 3000
       const startedAtRevision = socketRevision.current
       const startedAtSnapshotRevision = snapshotRevision.current
       try {
@@ -53,6 +54,7 @@ export function useLiveFleet(): Fleet {
         const simulator = await response.json() as SimulatorState
         if (!Array.isArray(simulator.trucks) || !Number.isFinite(simulator.timeScale)) throw new Error('The simulator sent data that could not be read')
         if (!active) return
+        backoff.success()
         lastTelemetry.current = Date.now()
         setFleet((previous) => ({
           trucks: socketRevision.current !== startedAtRevision ? previous.trucks : fleetTrucks(simulator.trucks),
@@ -62,13 +64,13 @@ export function useLiveFleet(): Fleet {
           error: null,
         }))
       } catch (error) {
-        if (active) setFleet((previous) => ({ ...previous, error: error instanceof Error ? error.message : 'Fleet unavailable' }))
-      } finally {
-        busy = false
+        if (!active) return
+        delay = backoff.failure(error)
+        setFleet((previous) => ({ ...previous, error: error instanceof Error ? error.message : 'Fleet unavailable' }))
       }
+      if (active) polling = window.setTimeout(() => { void refresh() }, delay)
     }
     void refresh()
-    const polling = window.setInterval(() => { void refresh() }, 3000)
     const freshness = window.setInterval(() => {
       if (Date.now() - lastTelemetry.current > 4500) {
         setFleet((previous) => previous.fresh ? { ...previous, fresh: false, error: 'Disconnected · trucks shown at last known position' } : previous)
@@ -77,7 +79,7 @@ export function useLiveFleet(): Fleet {
     return () => {
       active = false
       controller.abort()
-      window.clearInterval(polling)
+      window.clearTimeout(polling)
       window.clearInterval(freshness)
     }
   }, [])

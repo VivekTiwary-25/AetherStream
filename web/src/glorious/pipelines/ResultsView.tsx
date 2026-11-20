@@ -1,4 +1,5 @@
 import { useEffect, useReducer, useRef, useState } from 'react'
+import { createBackoff } from '../data/backoff'
 import { ClayButton } from '../shell/ClayButton'
 import { describeError, getResults, stopRun, type RunResult } from './api'
 import { formatCell, formatTime, initialRunView, resultColumns, runReducer } from './results'
@@ -7,7 +8,7 @@ const POLL_MS = 1000
 const SHOWN_ROWS = 100
 const STATE_LABEL = { RUNNING: 'Running', STOPPED: 'Stopped', FAILED: 'Failed' } as const
 
-/** Polls GET .../results?after=seq every second while mounted (the window is open) and the run is RUNNING. */
+/** Polls results while mounted and RUNNING, backing off during service outages. */
 export function ResultsView({ runId }: { runId: string }) {
   const [view, dispatch] = useReducer(runReducer, runId, initialRunView)
   const [stopping, setStopping] = useState(false)
@@ -22,19 +23,23 @@ export function ResultsView({ runId }: { runId: string }) {
     let cancelled = false
     let timer: ReturnType<typeof setTimeout> | undefined
     const controller = new AbortController()
+    const backoff = createBackoff('Pipeline results')
     const poll = async () => {
+      let delay = POLL_MS
       try {
         const page = await getResults(runId, afterRef.current, controller.signal)
         if (cancelled) return
+        backoff.success()
         dispatch({ type: 'page', page })
         if (page.state !== 'RUNNING') return
       } catch (error) {
         if (cancelled) return
+        delay = backoff.failure(error)
         const status = (error as { status?: number }).status
         dispatch({ type: 'pollError', message: status === 404 ? 'Run not found. The pipeline service may have restarted.' : describeError(error).message })
       }
       // Next poll one interval after the previous one finished, so requests never overlap.
-      timer = setTimeout(() => void poll(), POLL_MS)
+      timer = setTimeout(() => void poll(), delay)
     }
     void poll()
     return () => { cancelled = true; controller.abort(); if (timer) clearTimeout(timer) }

@@ -144,6 +144,7 @@ describe('pipeline results lifecycle', () => {
 
   it('marks failed polling as disconnected and recovers without duplicating rows or leaking timers', async () => {
     vi.useFakeTimers()
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     let polls = 0
     const fetchMock = vi.fn(() => {
       polls++
@@ -158,12 +159,69 @@ describe('pipeline results lifecycle', () => {
     await act(async () => { vi.advanceTimersByTime(1000) })
     expect(screen.getByText('Disconnected')).toBeTruthy()
     expect(screen.queryByText('Running')).toBeNull()
-    await act(async () => { vi.advanceTimersByTime(1000) })
+    await act(async () => { vi.advanceTimersByTime(4999) })
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    await act(async () => { vi.advanceTimersByTime(1) })
     expect(screen.getByText('Running')).toBeTruthy()
     expect(screen.queryByText('Disconnected')).toBeNull()
     expect(screen.getAllByText('Truck A')).toHaveLength(1)
+    expect(warn).toHaveBeenCalledTimes(1)
     results!.unmount()
     await act(async () => { vi.advanceTimersByTime(5000) })
     expect(fetchMock).toHaveBeenCalledTimes(3)
+  })
+
+  it('caps outage retries, preserves the cursor, and resets backoff after recovery', async () => {
+    vi.useFakeTimers()
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    let polls = 0
+    const fetchMock = vi.fn(() => {
+      polls++
+      return [2, 3, 4, 5, 7].includes(polls)
+        ? respond(503, {})
+        : respond(200, { runId: 'r1', state: polls === 8 ? 'STOPPED' : 'RUNNING', eventsIn: polls, results: [{ seq: 7, ts: 1, output: 'Saved output', kind: 'row', data: {} }] })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    await act(async () => { render(<ResultsView runId="r1" />) })
+    await act(async () => { vi.advanceTimersByTime(1000) })
+    expect(screen.getByRole('alert').textContent).toContain('Pipeline service unavailable')
+    for (const delay of [5000, 10000, 15000, 15000]) {
+      const previousCalls = fetchMock.mock.calls.length
+      await act(async () => { vi.advanceTimersByTime(delay - 1) })
+      expect(fetchMock).toHaveBeenCalledTimes(previousCalls)
+      await act(async () => { vi.advanceTimersByTime(1) })
+      expect(fetchMock).toHaveBeenCalledTimes(previousCalls + 1)
+    }
+    expect(screen.getByText('Running')).toBeTruthy()
+    expect(screen.queryByRole('alert')).toBeNull()
+    expect(screen.getAllByText('Saved output')).toHaveLength(1)
+    expect(warn).toHaveBeenCalledTimes(1)
+    expect(fetchMock).toHaveBeenLastCalledWith(expect.stringContaining('after=7'), expect.anything())
+    await act(async () => { vi.advanceTimersByTime(1000) })
+    expect(screen.getByText('Disconnected')).toBeTruthy()
+    expect(warn).toHaveBeenCalledTimes(2)
+    await act(async () => { vi.advanceTimersByTime(4999) })
+    expect(fetchMock).toHaveBeenCalledTimes(7)
+    await act(async () => { vi.advanceTimersByTime(1) })
+    expect(screen.getByText('Stopped')).toBeTruthy()
+    await act(async () => { vi.advanceTimersByTime(30000) })
+    expect(fetchMock).toHaveBeenCalledTimes(8)
+  })
+
+  it('does not overlap requests and ignores a page received after unmount', async () => {
+    vi.useFakeTimers()
+    let finish!: (response: Response) => void
+    const fetchMock = vi.fn<(url: string, init?: RequestInit) => Promise<Response>>(() => new Promise<Response>((resolve) => { finish = resolve }))
+    vi.stubGlobal('fetch', fetchMock)
+    const results = render(<ResultsView runId="r1" />)
+    const signal = fetchMock.mock.calls[0]![1]!.signal!
+    await act(async () => { vi.advanceTimersByTime(30000) })
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    results.unmount()
+    expect(signal.aborted).toBe(true)
+    await act(async () => { finish(await respond(200, { runId: 'r1', state: 'RUNNING', eventsIn: 1, results: [] })) })
+    await act(async () => { vi.advanceTimersByTime(30000) })
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(vi.getTimerCount()).toBe(0)
   })
 })

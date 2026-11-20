@@ -70,6 +70,13 @@ The pipeline editor preserves drafts in tab-local session storage across refresh
 and Back. Edits invalidate in-flight validation; results polling errors display
 Disconnected until a successful update, and reopening results selects the new run.
 
+Fleet, recovery history/execution/checkpoint, and pipeline-results requests never
+overlap within a poller. Failed polls wait 5, 10, then at most 15 seconds, emit one
+warning per endpoint outage, and reset after a successful response; normal cadences
+remain 3, 5, and 1 seconds respectively. Checkpoint events do not bypass outage
+backoff. The shared WebSocket retains its existing reconnect backoff (10-second
+cap); browser-generated network errors remain visible.
+
 Vite serves files in `web/public/` from the site root. Keep required source
 assets out of paths matched by the root `.gitignore` `logs/` pattern: it is
 unanchored and silently ignores matching directories anywhere in the tree.

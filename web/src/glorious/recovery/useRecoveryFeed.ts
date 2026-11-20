@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { getCheckpoints, getCurrentExecution } from '../../api/client'
 import type { CheckpointInfo, ExecutionInfo } from '../../api/types'
 import { useAetherMessages } from '../../api/ws'
+import { createBackoff } from '../data/backoff'
 import { mergeHistory, type RecoveryEntry } from './model'
 
 async function recoveryRequest(path: string, init?: RequestInit): Promise<Response> {
@@ -32,6 +33,8 @@ export function useRecoveryFeed() {
   const [checkpointsLoaded, setCheckpointsLoaded] = useState(false)
   const executionRevision = useRef(0)
   const historyRevision = useRef(0)
+  const checkpointRequest = useRef<Promise<CheckpointInfo[]> | null>(null)
+  const refreshCheckpoints = useRef<(() => void) | null>(null)
   const status = useAetherMessages((message) => {
     // The shared classic client union predates the additive server `recovery` frame.
     const type: string = message.type
@@ -66,33 +69,58 @@ export function useRecoveryFeed() {
   useEffect(() => {
     let active = true
     let timer: number | undefined
-    let pending = false
+    const controller = new AbortController()
+    const backoff = createBackoff('Recovery history')
     const refresh = async () => {
-      if (pending) return
-      pending = true
       const historyVersion = historyRevision.current
-      const executionVersion = executionRevision.current
+      let delay = 5_000
       try {
-        const response = await recoveryRequest('/api/recovery/history')
+        const response = await recoveryRequest('/api/recovery/history', { signal: controller.signal })
         const entries = await response.json() as RecoveryEntry[]
+        if (!active) return
+        backoff.success()
         // History is additive: merge REST facts even if live entries arrived in flight.
-        if (active) {
-          setHistory((previous) => mergeHistory(previous, entries))
-          setHistoryLoaded(true)
-          setHistoryError(null)
-        }
+        setHistory((previous) => mergeHistory(previous, entries))
+        setHistoryLoaded(true)
+        setHistoryError(null)
       } catch (error) {
-        if (active && historyRevision.current === historyVersion) setHistoryError((error as Error).message)
-      } finally { pending = false }
-      getCurrentExecution().then((current) => {
-        if (active && executionRevision.current === executionVersion) {
+        if (!active) return
+        delay = backoff.failure(error)
+        if (historyRevision.current === historyVersion) setHistoryError((error as Error).message)
+      } finally {
+        if (active) timer = window.setTimeout(() => { void refresh() }, delay)
+      }
+    }
+    void refresh()
+    return () => {
+      active = false
+      controller.abort()
+      if (timer !== undefined) window.clearTimeout(timer)
+    }
+  }, [])
+
+  useEffect(() => {
+    let active = true
+    let timer: number | undefined
+    const backoff = createBackoff('Recovery execution')
+    const refresh = async () => {
+      const executionVersion = executionRevision.current
+      let delay = 5_000
+      try {
+        const current = await getCurrentExecution()
+        if (!active) return
+        backoff.success()
+        if (executionRevision.current === executionVersion) {
           setExecution(current)
           setExecutionError(null)
         }
-      }).catch((error: Error) => {
-        if (active && executionRevision.current === executionVersion) setExecutionError(error.message)
-      })
-      if (active) timer = window.setTimeout(() => { void refresh() }, 5_000)
+      } catch (error) {
+        if (!active) return
+        delay = backoff.failure(error)
+        if (executionRevision.current === executionVersion) setExecutionError((error as Error).message)
+      } finally {
+        if (active) timer = window.setTimeout(() => { void refresh() }, delay)
+      }
     }
     void refresh()
     return () => { active = false; if (timer !== undefined) window.clearTimeout(timer) }
@@ -104,26 +132,54 @@ export function useRecoveryFeed() {
     if (!executionId) return
     let active = true
     let pending = false
+    let unavailable = false
+    let timer: number | undefined
+    const backoff = createBackoff('Recovery checkpoints')
     const refresh = async () => {
-      if (pending) return
+      if (pending || !active) return
       pending = true
+      if (timer !== undefined) window.clearTimeout(timer)
+      let delay = 5_000
+      let request: Promise<CheckpointInfo[]> | undefined
       try {
-        const rows = await getCheckpoints(executionId)
-        if (active) {
-          setCheckpointData({ executionId, rows: rows.filter((row) => row.state === 'COMPLETED') })
-          setCheckpointError(null)
-          setCheckpointsLoaded(true)
-        }
+        // The client cannot abort checkpoint requests. Wait for an old execution's
+        // request to settle before starting one for the new execution.
+        if (checkpointRequest.current) await checkpointRequest.current.catch(() => {})
+        if (!active) return
+        request = getCheckpoints(executionId)
+        checkpointRequest.current = request
+        const rows = await request
+        if (!active) return
+        unavailable = false
+        backoff.success()
+        setCheckpointData({ executionId, rows: rows.filter((row) => row.state === 'COMPLETED') })
+        setCheckpointError(null)
+        setCheckpointsLoaded(true)
       } catch (error) {
-        if (active) setCheckpointError(error instanceof Error ? error.message : 'Checkpoints unavailable')
-      } finally { pending = false }
+        if (!active) return
+        unavailable = true
+        delay = backoff.failure(error)
+        setCheckpointError(error instanceof Error ? error.message : 'Checkpoints unavailable')
+      } finally {
+        if (checkpointRequest.current === request) checkpointRequest.current = null
+        pending = false
+        if (active) timer = window.setTimeout(() => { void refresh() }, delay)
+      }
     }
+    refreshCheckpoints.current = () => { if (!unavailable) void refresh() }
     setCheckpointsLoaded(false)
     setCheckpointError(null)
     void refresh()
-    const timer = window.setInterval(() => { void refresh() }, 5_000)
-    return () => { active = false; window.clearInterval(timer) }
-  }, [executionId, latestCheckpoint])
+    return () => {
+      active = false
+      refreshCheckpoints.current = null
+      if (timer !== undefined) window.clearTimeout(timer)
+    }
+  }, [executionId])
+
+  useEffect(() => {
+    if (latestCheckpoint !== undefined) refreshCheckpoints.current?.()
+  }, [latestCheckpoint])
 
   return {
     history, historyLoaded, historyError, execution, executionError, status,
