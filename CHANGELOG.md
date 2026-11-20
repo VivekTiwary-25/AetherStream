@@ -4,21 +4,37 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
-### Added
+### Live World
 
 - Added the Glorious UI as the default, with Home and live status, the Live World map and truck details, analytics for speeds and failed records, AI-assisted pipeline review and execution, editor results, and Logs & Recovery history. The classic UI remains available at `?ui=classic`.
+- Prefetch the Live World chunk once after Home renders during browser idle time, with a timer fallback and reduced-data opt-out.
+- Fixed production Live World basemap loading by bundling MapLibre's worker through Vite and serving `.mjs` as JavaScript in nginx.
 
-### Fixed
+### Pipelines/Ask AI
 
 - Pipeline windows now wait a full window plus two seconds of source idleness before wall-clock finalization, protecting queued rows during short consumer stalls while retaining event-time closure.
-- Failed Records now shows every loaded row rather than hiding late arrivals below a 30-row cutoff; kind filters report their own empty state, and row keys match persisted event/kind identity.
 - Ask AI now offers an explicitly labelled saved pipeline for exact suggestion prompts when the bridge is offline or generation exceeds 60 seconds. Unmatched prompts retain the error with a suggestion hint; saved workflows still use the real Run API.
-- Distinguished pipeline-results request errors from pipeline validation failures and added editor Validate → Run regressions using captured API responses, including the non-negative initial cursor and real result rows.
-- Prefetch the Live World chunk once after Home renders during browser idle time, with a timer fallback and reduced-data opt-out.
-- Fixed Glorious walkthrough interaction with moving truck markers and retained analytics dialogs, restored worker partition-chip test IDs, and mapped AI generation HTTP/network failures to unavailable while preserving validation and busy messages.
-- Fixed production Live World basemap loading by bundling MapLibre's worker through Vite and serving `.mjs` as JavaScript in nginx.
+- Mapped AI generation HTTP/network failures to unavailable while preserving validation and busy messages; retained the AI bridge busy-drain behavior.
 - Fixed live pipeline result cursors across runs, consumer stop/close races, and failure reporting during stop and shutdown.
-- Fixed chained window finalization, grouped threshold cooldown identity after field projection, and recovery audit history attribution, timestamps, retention, and replay deduplication.
+- Fixed chained window finalization and grouped threshold cooldown identity after field projection.
+
+### Recovery
+
+- Fixed recovery audit history attribution, timestamps, retention, and replay deduplication; history is ordered by event time. Preserved Dead hold behavior.
+
+### Analytics
+
+- Failed Records now shows every loaded row rather than hiding late arrivals below a 30-row cutoff; kind filters report their own empty state, and row keys match persisted event/kind identity.
+- Kept the 45 km/h analytics threshold because the simulator caps speeds at 50 km/h; added a timeout to fleet polling.
+
+### Preview/expo scripts
+
+- Fixed Glorious walkthrough interaction with moving truck markers and retained analytics dialogs.
+
+### Tests
+
+- Distinguished pipeline-results request errors from pipeline validation failures and added editor Validate → Run regressions using captured API responses, including the non-negative initial cursor and real result rows.
+- Restored worker partition-chip test IDs.
 
 ## [1.0.0] - 2026-11-19
 
