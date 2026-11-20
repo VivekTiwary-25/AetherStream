@@ -349,7 +349,7 @@ export function LiveWorld() {
     <div className="gl-live-world__markers">
       {trucks.map((truck) => {
         const recentAlert = dashboard.simTime !== null && dashboard.alerts.some((alert) => alert.key === truck.truckId && alert.eventTime <= dashboard.simTime! && dashboard.simTime! - alert.eventTime <= 60_000)
-        const tone = stopped(truck.status) ? 'grey' : recentAlert || truck.speedKmh < 10 ? 'amber' : 'green'
+        const tone = !fleet.fresh || stopped(truck.status) ? 'grey' : recentAlert || truck.speedKmh < 10 ? 'amber' : 'green'
         return <button key={truck.truckId} ref={(element) => { if (element) markers.current.set(truck.truckId, element); else markers.current.delete(truck.truckId) }}
           className={`gl-map-truck gl-map-truck--${tone}`} aria-label={`${truckLabel(truck.truckId)}, ${truck.status}, ${truck.speedKmh.toFixed(1)} kilometers per hour`}
           aria-expanded={selected === truck.truckId} aria-controls={selected === truck.truckId ? 'gl-truck-card' : undefined}
@@ -385,13 +385,13 @@ export function LiveWorld() {
           <div className="gl-live-world__card-main">
             <div className="gl-live-world__card-title">
               <h2>{truckLabel(active.truckId)}</h2>
-              <span className={`gl-live-world__status gl-live-world__status--${stopped(active.status) ? 'stopped' : 'moving'}`} title={`Status: ${active.status}`}>{active.status}</span>
+              <span className={`gl-live-world__status gl-live-world__status--${stopped(active.status) ? 'stopped' : 'moving'}`} title={`Status: ${active.status}`}>{fleet.fresh ? active.status : `Last known: ${active.status}`}</span>
               <button aria-label="Close truck details" onClick={closeCard}>×</button>
             </div>
             <dl>
               <div><dt><CardIcon d={cardIcons.speed} /><span className="gl-sr-only">Speed</span></dt><dd>{active.speedKmh.toFixed(1)} km/h</dd></div>
               <div><dt><CardIcon d={cardIcons.route} /><span className="gl-sr-only">Display path</span></dt><dd>{route ? `${route.from} → ${route.to}` : 'Loading routes'}<small>Route ID {active.routeId ?? 'not provided'} · {active.truckId}</small></dd></div>
-              <div><dt><CardIcon d={cardIcons.assignment} /><span className="gl-sr-only">Assignment</span></dt><dd>Partition {partition} · {owner ? `Worker ${owner.workerId.replace(/^worker-/, 'W')}` : 'reassigning'}</dd></div>
+              <div><dt><CardIcon d={cardIcons.assignment} /><span className="gl-sr-only">Assignment</span></dt><dd>Partition {partition} · {dashboard.socketStatus !== 'connected' ? 'Worker unavailable' : owner ? `Worker ${owner.workerId.replace(/^worker-/, 'W')}` : 'reassigning'}</dd></div>
             </dl>
           </div>
         </div>
