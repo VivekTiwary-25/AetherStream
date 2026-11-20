@@ -4,8 +4,8 @@ import { useAetherMessages } from '../../api/ws'
 import { createBackoff } from '../data/backoff'
 
 export type LiveTruck = SimulatorTruck & { routeId?: string }
-type Fleet = { trucks: LiveTruck[]; timeScale: number; running: boolean; fresh: boolean; error: string | null }
-const emptyFleet: Fleet = { trucks: [], timeScale: 0, running: false, fresh: false, error: null }
+type Fleet = { trucks: LiveTruck[]; timeScale: number; running: boolean; fresh: boolean; controlsFresh: boolean; error: string | null }
+const emptyFleet: Fleet = { trucks: [], timeScale: 0, running: false, fresh: false, controlsFresh: false, error: null }
 
 function fleetTrucks(trucks: LiveTruck[]): LiveTruck[] {
   // Only the configured six-truck fleet has geographic routes. Surge trucks remain in analytics.
@@ -17,6 +17,7 @@ function fleetTrucks(trucks: LiveTruck[]): LiveTruck[] {
 export function useLiveFleet(): Fleet {
   const [fleet, setFleet] = useState<Fleet>(emptyFleet)
   const lastTelemetry = useRef(0)
+  const lastControls = useRef<number | null>(null)
   const socketRevision = useRef(0)
   const snapshotRevision = useRef(0)
   useAetherMessages((message) => {
@@ -27,13 +28,25 @@ export function useLiveFleet(): Fleet {
       lastTelemetry.current = now
       socketRevision.current++
       snapshotRevision.current++
-      setFleet({ trucks: fleetTrucks(simulator.trucks), timeScale: simulator.timeScale, running: simulator.running, fresh: true, error: null })
+      const controlsFresh = typeof simulator.running === 'boolean' && Number.isFinite(simulator.timeScale) && simulator.timeScale >= 0
+      lastControls.current = controlsFresh ? now : null
+      setFleet((previous) => ({
+        trucks: fleetTrucks(simulator.trucks),
+        timeScale: controlsFresh ? simulator.timeScale : previous.timeScale,
+        running: controlsFresh ? simulator.running : previous.running,
+        fresh: true,
+        controlsFresh,
+        error: controlsFresh ? null : 'Simulator controls unavailable',
+      }))
     } else if (message.type === 'trucks') {
       const data = message.data as { trucks?: LiveTruck[] } | null
       if (!Array.isArray(data?.trucks)) return
       lastTelemetry.current = now
       socketRevision.current++
-      setFleet((previous) => ({ ...previous, trucks: fleetTrucks(data.trucks!), fresh: true, error: null }))
+      setFleet((previous) => {
+        const controlsFresh = previous.controlsFresh && lastControls.current !== null && now - lastControls.current <= 4500
+        return { ...previous, trucks: fleetTrucks(data.trucks!), fresh: true, controlsFresh, error: controlsFresh ? null : 'Simulator controls unavailable' }
+      })
     }
   })
 
@@ -52,29 +65,39 @@ export function useLiveFleet(): Fleet {
         const response = await fetch('/api/simulator/state', { signal: controller.signal })
         if (!response.ok) throw new Error(`Fleet unavailable (HTTP ${response.status})`)
         const simulator = await response.json() as SimulatorState
-        if (!Array.isArray(simulator.trucks) || !Number.isFinite(simulator.timeScale)) throw new Error('The simulator sent data that could not be read')
+        if (!Array.isArray(simulator.trucks) || typeof simulator.running !== 'boolean' || !Number.isFinite(simulator.timeScale) || simulator.timeScale < 0) throw new Error('The simulator sent data that could not be read')
         if (!active) return
         backoff.success()
-        lastTelemetry.current = Date.now()
+        const now = Date.now()
+        const newerTrucks = socketRevision.current !== startedAtRevision
+        const newerControls = snapshotRevision.current !== startedAtSnapshotRevision
+        if (!newerTrucks) lastTelemetry.current = now
+        if (!newerControls) lastControls.current = now
         setFleet((previous) => ({
-          trucks: socketRevision.current !== startedAtRevision ? previous.trucks : fleetTrucks(simulator.trucks),
-          timeScale: snapshotRevision.current !== startedAtSnapshotRevision ? previous.timeScale : simulator.timeScale,
-          running: snapshotRevision.current !== startedAtSnapshotRevision ? previous.running : simulator.running,
-          fresh: true,
-          error: null,
+          trucks: newerTrucks ? previous.trucks : fleetTrucks(simulator.trucks),
+          timeScale: newerControls ? previous.timeScale : simulator.timeScale,
+          running: newerControls ? previous.running : simulator.running,
+          fresh: now - lastTelemetry.current <= 4500,
+          controlsFresh: lastControls.current !== null && now - lastControls.current <= 4500,
+          error: lastControls.current === null || now - lastControls.current > 4500 ? 'Simulator controls unavailable' : now - lastTelemetry.current <= 4500 ? null : 'Disconnected · trucks shown at last known position',
         }))
       } catch (error) {
         if (!active) return
         delay = backoff.failure(error)
-        setFleet((previous) => ({ ...previous, error: error instanceof Error ? error.message : 'Fleet unavailable' }))
+        setFleet((previous) => snapshotRevision.current !== startedAtSnapshotRevision ? previous : { ...previous, controlsFresh: false, error: error instanceof Error ? error.message : 'Fleet unavailable' })
       }
       if (active) polling = window.setTimeout(() => { void refresh() }, delay)
     }
     void refresh()
     const freshness = window.setInterval(() => {
-      if (Date.now() - lastTelemetry.current > 4500) {
-        setFleet((previous) => previous.fresh ? { ...previous, fresh: false, error: 'Disconnected · trucks shown at last known position' } : previous)
-      }
+      const now = Date.now()
+      const fresh = now - lastTelemetry.current <= 4500
+      const controlsFresh = lastControls.current !== null && now - lastControls.current <= 4500
+      setFleet((previous) => {
+        if (!fresh && previous.fresh) return { ...previous, fresh: false, controlsFresh, error: 'Disconnected · trucks shown at last known position' }
+        if (!controlsFresh && previous.controlsFresh) return { ...previous, controlsFresh: false, error: 'Simulator controls unavailable' }
+        return previous
+      })
     }, 1000)
     return () => {
       active = false
