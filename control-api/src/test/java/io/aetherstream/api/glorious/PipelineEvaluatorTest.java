@@ -2,6 +2,8 @@ package io.aetherstream.api.glorious;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -35,7 +37,7 @@ class PipelineEvaluatorTest {
                 "windowStart", 0L, "windowEnd", 5_000L));
         assertThat(results.get(1).data()).containsEntry("group", "b").containsEntry("avg", 80.0);
         evaluator.accept(row("a", 100, 2_000), 5_100);
-        evaluator.tick(12_000);
+        evaluator.tick(12_100);
         assertThat(results).hasSize(3);
         assertThat(results.get(2).data()).containsEntry("group", "c");
         evaluator.accept(row("a", 100, 2_000), 1_000);
@@ -44,21 +46,39 @@ class PipelineEvaluatorTest {
     }
 
     @Test
-    void closesGlobalWindowAfterTwoSecondGraceWithoutNewRecords() throws Exception {
+    void closesGlobalWindowAfterFullIdleWindowAndTwoSecondGrace() throws Exception {
         PipelineEvaluator evaluator = evaluator(windowPipeline());
         evaluator.accept(row("a", 20, 1_000), 1_000);
         evaluator.accept(row("b", 40, 2_000), 2_000);
-        evaluator.tick(6_999);
+        evaluator.tick(8_999);
         assertThat(results).isEmpty();
-        evaluator.tick(7_000);
+        evaluator.tick(9_000);
         assertThat(results).singleElement().satisfies(result ->
                 assertThat(result.data()).containsEntry("group", "global").containsEntry("avg", 30.0).containsEntry("count", 2L));
-        evaluator.tick(8_000);
+        evaluator.tick(10_000);
         assertThat(results).hasSize(1);
     }
 
-    @Test
-    void emitsThirtySecondAveragesFromRealSimulatorRowsWhoseEventTimeIsFarFromWallTime() throws Exception {
+    @ParameterizedTest
+    @ValueSource(longs = {0, 1_000})
+    void repeatedOrOlderSourceTimestampsDoNotCountAsIdle(long eventTime) throws Exception {
+        PipelineEvaluator evaluator = evaluator(windowPipeline());
+        evaluator.accept(row("a", 20, 1_000), 1_000);
+        for (long wall = 2_000; wall <= 10_000; wall += 1_000) {
+            evaluator.accept(row("a", 40, eventTime), wall);
+            evaluator.tick(wall + 999);
+        }
+        assertThat(results).isEmpty();
+        evaluator.tick(16_999);
+        assertThat(results).isEmpty();
+        evaluator.tick(17_000);
+        assertThat(results).singleElement().satisfies(result ->
+                assertThat(result.data()).containsEntry("count", 10L).containsEntry("avg", 38.0));
+    }
+
+    @ParameterizedTest(name = "real simulator flow with {0} ms consumer stall")
+    @ValueSource(longs = {0, 10_000})
+    void preservesRealSimulatorWindowsDuringFlowStallsAndPauses(long stallMs) throws Exception {
         // First 40 real truck-002 rows from design/ui-glorious/proof/standby-utkarsh/pipelines/
         // partition-2-results.json: {wall ts the row was observed, speedKmh}.
         double[][] real = {
@@ -112,7 +132,14 @@ class PipelineEvaluatorTest {
                 examplesDir(), "avg-speed-30s.json")).path("pipeline").toString());
         long firstResultWall = -1;
         for (int i = 0; i < real.length; i++) {
-            long wall = (long) real[i][0];
+            if (i == 10) {
+                long lastArrival = (long) real[i - 1][0];
+                for (long elapsed = 1_000; elapsed <= stallMs; elapsed += 1_000) {
+                    evaluator.tick(lastArrival + elapsed);
+                }
+                assertThat(results).as("no partial window emitted during stall").isEmpty();
+            }
+            long wall = (long) real[i][0] + (i >= 10 ? stallMs : 0);
             evaluator.accept(row("truck-002", real[i][1], firstEvent + 2_000L * i), wall);
             evaluator.tick(wall);
             if (firstResultWall < 0 && !results.isEmpty()) firstResultWall = wall;
@@ -133,13 +160,14 @@ class PipelineEvaluatorTest {
 
         // With no further events, the last open window still closes from wall-clock idle time.
         int before = results.size();
-        long lastWall = (long) real[real.length - 1][0];
+        long lastWall = (long) real[real.length - 1][0] + stallMs;
         long lastEvent = firstEvent + 2_000L * (real.length - 1);
         long lastEnd = Math.floorDiv(lastEvent, 30_000L) * 30_000L + 30_000L;
-        evaluator.tick(lastWall + (lastEnd - lastEvent) + 1_999);
+        evaluator.tick(lastWall + 31_999);
         assertThat(results).hasSize(before);
-        evaluator.tick(lastWall + (lastEnd - lastEvent) + 2_000);
+        evaluator.tick(lastWall + 32_000);
         assertThat(results).hasSize(before + 1);
+        assertThat(results.get(results.size() - 1).data()).containsEntry("windowEnd", lastEnd);
         long total = results.stream().mapToLong(e -> (Long) e.data().get("count")).sum();
         assertThat(total).as("no real row dropped").isEqualTo(real.length);
     }
@@ -161,7 +189,7 @@ class PipelineEvaluatorTest {
         assertThat(results.get(0).data()).containsOnlyKeys("truckId", "speedKmh");
         assertThat(results.get(1).data()).containsEntry("eventTime", 1_000L).containsEntry("speedKmh", 42.0);
         assertThatThrownBy(() -> results.get(0).data().put("x", 1)).isInstanceOf(UnsupportedOperationException.class);
-        evaluator.tick(7_000);
+        evaluator.tick(8_000);
         assertThat(results.get(2).data()).containsEntry("avg", 42.0);
     }
 
@@ -196,7 +224,7 @@ class PipelineEvaluatorTest {
             """);
         evaluator.accept(row("a", 80, 1_000), 1_000);
         evaluator.accept(row("b", 70, 1_000), 1_000);
-        evaluator.tick(7_000);
+        evaluator.tick(8_000);
         assertThat(results).hasSize(4);
         assertThat(results.stream().filter(e -> e.kind().equals("alert")).map(e -> e.data().get("truckId")))
                 .containsExactly("a", "b");
@@ -220,7 +248,7 @@ class PipelineEvaluatorTest {
                     "eventTime", eventTime), eventTime);
             evaluator.accept(Map.of("truckId", "b", "routeId", "west", "speedKmh", 70.0,
                     "eventTime", eventTime), eventTime);
-            evaluator.tick(base + window * 5_000L + 7_000);
+            evaluator.tick(base + window * 5_000L + 8_000);
             assertThat(results.stream().filter(e -> e.kind().equals("alert")))
                     .hasSize(window < 2 ? 2 : 4);
         }
@@ -243,15 +271,15 @@ class PipelineEvaluatorTest {
         evaluator.accept(row("a", 40, base + 2_000), base + 2_000);
         evaluator.accept(row("b", 60, base + 6_000), base + 6_000);
         evaluator.accept(row("b", 80, base + 7_000), base + 7_000);
-        evaluator.tick(base + 11_999);
+        evaluator.tick(base + 18_999);
         assertThat(results).isEmpty();
-        evaluator.tick(base + 12_000);
+        evaluator.tick(base + 19_000);
         assertThat(results).singleElement().satisfies(result ->
                 assertThat(result.data()).containsExactlyInAnyOrderEntriesOf(Map.of(
                         "group", "global", "field", "eventTime", "avg", base + 4_000.0,
                         "count", 2L, "windowStart", base, "windowEnd", base + 10_000)));
-        evaluator.accept(row("a", 100, base + 6_000), base + 12_001);
-        evaluator.tick(base + 20_000);
+        evaluator.accept(row("a", 100, base + 6_000), base + 19_001);
+        evaluator.tick(base + 30_000);
         assertThat(results).hasSize(1);
     }
 

@@ -10,6 +10,7 @@ All notable changes to this project are documented here.
 
 ### Fixed
 
+- Pipeline windows now wait a full window plus two seconds of source idleness before wall-clock finalization, protecting queued rows during short consumer stalls while retaining event-time closure.
 - Failed Records now shows every loaded row rather than hiding late arrivals below a 30-row cutoff; kind filters report their own empty state, and row keys match persisted event/kind identity.
 - Ask AI now offers an explicitly labelled saved pipeline for exact suggestion prompts when the bridge is offline or generation exceeds 60 seconds. Unmatched prompts retain the error with a suggestion hint; saved workflows still use the real Run API.
 - Distinguished pipeline-results request errors from pipeline validation failures and added editor Validate → Run regressions using captured API responses, including the non-negative initial cursor and real result rows.
