@@ -38,7 +38,10 @@ export const getResults = (runId: string, after: number, signal?: AbortSignal) =
 export const stopRun = (runId: string) => call<{ state: RunState }>(`${BASE}/runs/${encodeURIComponent(runId)}/stop`, { method: 'POST' })
 
 export async function generatePipeline(prompt: string): Promise<GenerateResponse> {
-  const result = await call<GenerateResponse>('/api/glorious/ai/generate', json({ prompt }))
+  const result = await call<GenerateResponse>('/api/glorious/ai/generate', {
+    ...json({ prompt }),
+    signal: AbortSignal.timeout(60_000),
+  })
   if (!result || !isPipeline(result.pipeline)) throw new ApiError(-1, result)
   return result
 }
@@ -52,7 +55,7 @@ export function describeError(error: unknown, service: 'pipeline' | 'ai' = 'pipe
   const unavailable = service === 'ai' ? 'AI service unavailable' : 'Pipeline service unavailable'
   if (!(error instanceof ApiError)) return { message: error instanceof Error ? error.message : 'Unexpected error', errors: [] }
   if (error.status === -1) return { message: 'The AI service returned an unexpected response', errors: [] }
-  if (error.status === 0 || error.status === 404 || error.status === 502 || error.status === 503 || error.status === 504) return { message: unavailable, errors: [] }
+  if (error.status === 0 || error.status === 404 || error.status === 408 || error.status === 502 || error.status === 503 || error.status === 504) return { message: unavailable, errors: [] }
   if (error.status === 429) return { message: service === 'ai' ? 'The AI is busy with another request. Try again in a moment.' : 'The pipeline service is busy. Try again in a moment.', errors: [] }
   if (error.status === 400) {
     const body = error.body as Partial<ValidationResult> | null

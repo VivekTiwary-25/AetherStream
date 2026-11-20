@@ -10,6 +10,7 @@ All notable changes to this project are documented here.
 
 ### Fixed
 
+- Ask AI now offers an explicitly labelled saved pipeline for exact suggestion prompts when the bridge is offline or generation exceeds 60 seconds. Unmatched prompts retain the error with a suggestion hint; saved workflows still use the real Run API.
 - Fixed Glorious walkthrough interaction with moving truck markers and retained analytics dialogs, restored worker partition-chip test IDs, and mapped AI generation HTTP/network failures to unavailable while preserving validation and busy messages.
 - Fixed production Live World basemap loading by bundling MapLibre's worker through Vite and serving `.mjs` as JavaScript in nginx.
 - Fixed live pipeline result cursors across runs, consumer stop/close races, and failure reporting during stop and shutdown.
