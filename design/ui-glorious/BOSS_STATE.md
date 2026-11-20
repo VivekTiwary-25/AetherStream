@@ -2,6 +2,14 @@
 
 Fresh boss session: read swarm/BOSS.md, then design/ui-glorious/BOSS_PROMPT.md (the mission), then this file. Continue from "Next".
 
+## 12:47 FINAL: demo frozen, swarm stopping (Vivek's order)
+- DEMO READY since 12:33 on vimlesh-pc at ui-glorious fb333a3 (public link on the demo-link branch, never in public files). Kill + recovery verified live: checkpoint #37, 1803 ms. Nothing may be merged/refreshed onto vimlesh-pc without Vivek's OK.
+- ui-glorious head after the freeze: 25b20f9 (+ this note). Merged after fb333a3, NOT on the demo host: fleet-poll timeout + listener-leak fix, PipelineEvaluator stall fix (control-api), AI 429 busy message (+ test fix), a11y tests + build fix, recovery/demo-path Playwright specs, CHANGELOG/docs (2-min demo, VISITOR-QA, STANDBY, troubleshooting table, README of scripts), check-all JDK21 finder. `npm run build` passes at 25b20f9.
+- Rejected at the freeze (not merged; redo later if wanted): fae5 survivor "Rejoined"/stale Dead/endless rebalance banner (the only refresh-worthy fix), 34d8 README rewrite (had auto-failed-over to vimlesh-pc), 113f prefetch review + web gates, 5e82 web gate, 5d26 docs link check, 915d console-error hunt. Reject does NOT stop a running agent; `swarm down` on each PC does.
+- Still held unmerged on purpose: T181, T185-T188, Android tasks incl. 0623-767d.
+- Watcher and boss monitors stopped. utkarsh-pc: no Docker work (disk); its standby stack must be stopped by hand (compose down without -v, builder prune).
+- Lessons: run `npm run build` after web merges (vitest does not type-check); the swarm auto-fails-over queued tasks from DOWN PCs to any online PC, including the demo host.
+
 ## 12:40 DEMO READY (since 12:33)
 - Host vimlesh-pc at ui-glorious commit fb333a3; public link lives on the demo-link branch (never write it into public files). Kill + recovery verified live there: checkpoint #37, 1803 ms.
 - RULE (Vivek): nothing is refreshed onto vimlesh-pc without Vivek's OK. Keep merging fixes into ui-glorious; tell Vivek only about fixes worth a refresh. Only current candidate: survivor "Rejoined" / endless rebalance banner fix (t261120-1122-fae5, utkarsh sol).
