@@ -144,6 +144,29 @@ describe('live fleet telemetry and cleanup', () => {
     warn.mockRestore()
   })
 
+  it('does not pile up abort listeners on the long-lived controller across polls', async () => {
+    let live = 0
+    const add = AbortSignal.prototype.addEventListener
+    const remove = AbortSignal.prototype.removeEventListener
+    const addSpy = vi.spyOn(AbortSignal.prototype, 'addEventListener').mockImplementation(function (this: AbortSignal, ...args: Parameters<AbortSignal['addEventListener']>) {
+      if (args[0] === 'abort') live++
+      return add.apply(this, args)
+    })
+    const removeSpy = vi.spyOn(AbortSignal.prototype, 'removeEventListener').mockImplementation(function (this: AbortSignal, ...args: Parameters<AbortSignal['removeEventListener']>) {
+      if (args[0] === 'abort') live--
+      return remove.apply(this, args)
+    })
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response(state([truck]))))
+    const { unmount } = renderHook(useLiveFleet)
+    await act(async () => {})
+    const afterFirstPoll = live
+    await act(async () => { await vi.advanceTimersByTimeAsync(30_000) })
+    expect(live).toBe(afterFirstPoll)
+    unmount()
+    addSpy.mockRestore()
+    removeSpy.mockRestore()
+  })
+
   it('backs off failed HTTP polls, recovers and resets the next outage delay', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const fetch = vi.fn()

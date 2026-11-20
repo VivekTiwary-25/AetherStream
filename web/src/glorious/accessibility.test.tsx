@@ -151,7 +151,8 @@ describe('Glorious accessibility', () => {
     await act(async () => {
       ;({ container } = render(<div className="glorious-app"><DashboardContext.Provider value={{
         ...runningDashboard, socketStatus: 'disconnected',
-        workers: [{ workerId: 'worker-1', alive: true, partitions: [0, 1, 2, 3, 4, 5] }],
+        // Full WorkerInfo: `npm run build` runs tsc -b over test files too (web.Dockerfile).
+        workers: [{ workerId: 'worker-1', alive: true, state: 'RUNNING', partitions: [0, 1, 2, 3, 4, 5], sourceQueue: { size: 0, capacity: 1000 }, sinkQueue: { size: 0, capacity: 1000 }, backpressured: false, recordsPerSec: 0, lastHeartbeatMs: 0 }],
       }}><LiveWorld /></DashboardContext.Provider></div>))
     })
     fireEvent.click(screen.getByRole('button', { name: /kilometers per hour/ }))
