@@ -81,40 +81,42 @@ export function AnalyticsPanel({ id }: { id: AnalyticsId }) {
   const content = selectedTruck ? <TruckDetail truckId={selectedTruck} windows={speedWindows} liveSamples={speedSamples} /> : selectedFailure ? <FailureDetail record={selectedFailure} /> : <>
     {id === 'truck-speeds' && <section data-testid="analytics-truck-speeds">
       <p className="an-caption">Current speed from live simulator readings · completed averages and reading counts use simulation windows.</p>
-      {truckIds.length ? <ul className="an-list" aria-label="Truck speeds">{truckIds.map((truckId) => {
+      {truckIds.length ? <><TableHead columns={['Truck', 'Now', 'Window avg · readings']} /><ul className="an-list" aria-label="Truck speeds">{truckIds.map((truckId) => {
         const current = currentTrucks.find((truck) => truck.truckId === truckId)
         const latest = speedByTruck.get(truckId)
         return <li key={truckId}><button className="an-row" type="button" data-testid={`truck-row-${truckId}`} onClick={() => showTruck(truckId)}>
           <strong>{truckId}</strong><span>{current ? `${current.speedKmh.toFixed(1)} km/h now` : 'Live speed unavailable'}</span>
           <span>{latest ? `${typeof latest.values.avgSpeedKmh === 'number' ? `${latest.values.avgSpeedKmh.toFixed(1)} km/h ${windowLengthLabel(latest)}` : 'No average'} · ${latest.eventCount} readings` : 'No completed speed window'}</span>
         </button></li>
-      })}</ul> : <EmptyState socketStatus={socketStatus} execution={execution?.state} message="No live trucks or completed speed windows yet." />}
+      })}</ul></> : <EmptyState socketStatus={socketStatus} execution={execution?.state} message="No live trucks or completed speed windows yet." />}
     </section>}
     {id === 'deliveries' && <section>
       <p className="an-caption">Per-truck counts use each truck's latest completed delSink window; the trend sums by simulation window end.</p>
-      <div className="an-list">{latestDeliveryByTruck.size ? [...latestDeliveryByTruck].sort(([a], [b]) => a.localeCompare(b)).map(([truckId, row]) => <div className="an-row" key={truckId}><strong>{truckId}</strong><span>{row.values.deliveries ?? 0} deliveries · {simClock(row.windowEnd)} sim time</span></div>) : <EmptyState socketStatus={socketStatus} execution={execution?.state} message="No delivery windows yet." />}</div>
+      {latestDeliveryByTruck.size > 0 && <TableHead columns={['Truck', 'Latest window', 'Window end']} />}
+      <div className="an-list">{latestDeliveryByTruck.size ? [...latestDeliveryByTruck].sort(([a], [b]) => a.localeCompare(b)).map(([truckId, row]) => <div className="an-row" key={truckId}><strong>{truckId}</strong><span>{row.values.deliveries ?? 0} deliveries</span><span>{simClock(row.windowEnd)} sim time</span></div>) : <EmptyState socketStatus={socketStatus} execution={execution?.state} message="No delivery windows yet." />}</div>
       <Bars values={deliveryEntries.map(([, count]) => count)} label="Total deliveries per completed window" unit="deliveries" />
     </section>}
-    {id === 'alerts' && <section>
+    {id === 'alerts' && <section className="an-cols-alerts">
       <p className="an-caption">Alert event times are simulation time.</p>
       <Bars values={alertEntries.map(([, count]) => count)} label="Alerts per simulation minute" unit="alerts/min" />
-      {sortedAlerts.length ? <div className="an-list">{sortedAlerts.map((alert) => <AlertRow key={alert.alertId} alert={alert} />)}</div> : <EmptyState socketStatus={socketStatus} execution={execution?.state} message="No alerts yet." />}
+      {sortedAlerts.length ? <><TableHead columns={['Truck', 'Alert', 'Sim time']} /><div className="an-list">{sortedAlerts.map((alert) => <AlertRow key={alert.alertId} alert={alert} />)}</div></> : <EmptyState socketStatus={socketStatus} execution={execution?.state} message="No alerts yet." />}
     </section>}
-    {id === 'events-processed' && <section>
+    {id === 'events-processed' && <section className="an-cols-2">
       <p className="an-caption">Rates are live flow messages. Per-partition values are estimates divided evenly across owned partitions.</p>
       <LineChart values={flowSamples.map((sample) => sample.eventsPerSec)} label="Events processed" unit="events/s" times={flowTimes(flowSamples)} />
       <ChartRow>
         <LineChart values={flowSamples.map((sample) => sample.rejectedPerSec)} label="Rejected" unit="records/s" />
         <LineChart values={flowSamples.map((sample) => sample.latePerSec)} label="Late" unit="records/s" />
       </ChartRow>
+      {flowSamples.length > 0 && <TableHead columns={['Partition', 'Estimated rate']} />}
       {flowSamples.length > 0 && <div className="an-list">{Object.keys(flowSamples.at(-1)!.byPartition).sort((a, b) => Number(a) - Number(b)).map((partition) => <div className="an-row" key={partition}><strong>Partition {partition}</strong><span>Estimated {flowSamples.at(-1)!.byPartition[partition]!.toFixed(2)} events/s</span></div>)}</div>}
       {!flowSamples.length && <EmptyState socketStatus={socketStatus} execution={execution?.state} message="Waiting for live flow samples." />}
     </section>}
     {id === 'failed-records' && <section>
       <p className="an-caption">Event timestamps are simulation time; partition and offset identify the consumed record.</p>
       <div className="an-tabs" aria-label="Failed record kind">{(['ALL', 'REJECTED', 'LATE'] as const).map((kind) => <button type="button" key={kind} aria-pressed={failureKind === kind} onClick={() => setFailureKind(kind)}>{kind === 'ALL' ? 'All' : kind}</button>)}</div>
-      {failedRows.length ? <div className="an-list">{failedRows.map((row) => <button className="an-row" type="button" key={`${row.partition}:${row.offset}:${row.eventId}`} onClick={() => showFailure(deadLetters.find((item) => item.eventId === row.eventId)!)}>
-        <strong>{row.kind} · {row.eventId}</strong><span>{simClock(row.eventTime)} · partition {row.partition}, offset {row.offset}</span><span>{row.reason}</span>
+      {failedRows.length ? <div className="an-list">{failedRows.map((row) => <button className="an-row an-row--failure" type="button" key={`${row.partition}:${row.offset}:${row.eventId}`} onClick={() => showFailure(deadLetters.find((item) => item.eventId === row.eventId)!)}>
+        <KindChip kind={row.kind} /><strong className="an-truncate" title={row.eventId}>{row.eventId}</strong><span className="an-reason">{row.reason}</span><span className="an-meta">{simClock(row.eventTime)} · partition {row.partition}, offset {row.offset}</span>
       </button>)}</div> : <EmptyState socketStatus={socketStatus} execution={execution?.state} message="No failed records yet." />}
     </section>}
   </>
@@ -139,7 +141,15 @@ function TruckDetail({ truckId, windows, liveSamples }: { truckId: string; windo
 function FailureDetail({ record }: { record: DeadLetter }) {
   return <dl className="an-details">{[
     ['Kind', record.kind], ['Reason', record.reason], ['Partition', record.partition], ['Offset', record.offset], ['Event ID', record.eventId], ['Event time (simulation)', simClock(record.eventTime)],
-  ].map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
+  ].map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{label === 'Kind' ? <KindChip kind={record.kind} /> : value}</dd></div>)}</dl>
+}
+
+function KindChip({ kind }: { kind: DeadLetter['kind'] }) {
+  return <span className={`an-chip an-chip--${String(kind).toLowerCase()}`}>{kind}</span>
+}
+
+function TableHead({ columns }: { columns: string[] }) {
+  return <div className="an-head" aria-hidden="true">{columns.map((column) => <span key={column}>{column}</span>)}</div>
 }
 
 function AlertRow({ alert }: { alert: Alert }) {

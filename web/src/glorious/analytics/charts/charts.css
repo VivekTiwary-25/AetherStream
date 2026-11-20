@@ -1,11 +1,15 @@
-.an-chart { min-width: 0; margin: 16px 0; color: #282a24; }
-.an-chart figcaption { margin-bottom: 5px; font-size: 13px; font-weight: 650; }
-.an-chart figcaption span, .an-chart__tick { fill: #4c4f47; color: #4c4f47; font-size: 10px; font-weight: 400; }
+.an-chart { min-width: 0; margin: 0 0 14px; padding: 12px 14px 8px; border: 1px solid rgba(39, 42, 34, .12); border-radius: 14px; background: rgba(255, 255, 255, .5); color: #282a24; }
+.an-chart figcaption { margin-bottom: 6px; font-size: 13px; font-weight: 650; }
+.an-chart figcaption span { color: #4c4f47; font-size: 12px; font-weight: 400; }
+.an-chart__tick { fill: #4c4f47; font-size: 10.5px; font-variant-numeric: tabular-nums; }
 .an-chart svg { display: block; width: 100%; overflow: visible; }
-.an-chart__axis { stroke: #73766d; stroke-width: 1; }
-.an-chart__line { fill: none; stroke: #315a48; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
-.an-chart__point { fill: #315a48; }
-.an-chart__bar { fill: #416d58; }
-.an-chart__empty { margin: 0; color: #4c4f47; font-size: 13px; }
-.an-chart-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.an-chart__grid { stroke: rgba(39, 42, 34, .1); stroke-width: 1; stroke-dasharray: 3 4; vector-effect: non-scaling-stroke; }
+.an-chart__axis { stroke: rgba(39, 42, 34, .38); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.an-chart__line { fill: none; stroke: #315a48; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.an-chart__area { fill: #315a48; fill-opacity: .08; stroke: none; }
+.an-chart__point { fill: #315a48; stroke: #fff; stroke-width: 1.5; }
+.an-chart__bar { fill: #315a48; fill-opacity: .82; }
+.an-chart__empty { margin: 4px 0 6px; color: #4c4f47; font-size: 13px; }
+.an-chart-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 @media (max-width: 560px) { .an-chart-row { grid-template-columns: 1fr; } }
+@media (prefers-reduced-motion: reduce) { .an-chart, .an-chart * { animation: none !important; transition: none !important; } }
