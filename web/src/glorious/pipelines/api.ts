@@ -56,7 +56,7 @@ export function describeError(error: unknown, service: 'pipeline' | 'ai' | 'resu
   if (!(error instanceof ApiError)) return { message: error instanceof Error ? error.message : 'Unexpected error', errors: [] }
   if (error.status === -1) return { message: 'The AI service returned an unexpected response', errors: [] }
   if (error.status === 0 || error.status === 404 || error.status === 408 || error.status === 502 || error.status === 503 || error.status === 504) return { message: unavailable, errors: [] }
-  if (error.status === 429) return { message: service === 'ai' ? 'The AI is busy with another request. Try again in a moment.' : 'The pipeline service is busy. Try again in a moment.', errors: [] }
+  if (error.status === 429) return { message: service === 'ai' ? 'The AI is still finishing the previous request. Try again in a few seconds, or pick a suggestion to use a saved example.' : 'The pipeline service is busy. Try again in a moment.', errors: [] }
   if (error.status === 400) {
     const body = error.body as Partial<ValidationResult> | null
     const errors = Array.isArray(body?.errors) ? body.errors.filter((item): item is ValidationError => !!item && typeof item.message === 'string') : []
