@@ -76,6 +76,15 @@ class PipelineEvaluatorTest {
                 assertThat(result.data()).containsEntry("count", 10L).containsEntry("avg", 38.0));
     }
 
+    @Test
+    void emptyRunCanTickWithoutEmittingOrThrowing() throws Exception {
+        PipelineEvaluator evaluator = evaluator(windowPipeline());
+        evaluator.tick(0);
+        evaluator.tick(60_000);
+        assertThat(results).isEmpty();
+        assertThat(evaluator.droppedRows()).isZero();
+    }
+
     @ParameterizedTest(name = "real simulator flow with {0} ms consumer stall")
     @ValueSource(longs = {0, 10_000})
     void preservesRealSimulatorWindowsDuringFlowStallsAndPauses(long stallMs) throws Exception {
