@@ -1,0 +1,167 @@
+{
+  "url": "http://localhost:8089/api/results/dead-letters?kind=LATE&limit=50",
+  "status": 200,
+  "capturedAt": "2026-11-20T05:28:46.391Z",
+  "body": [
+    {
+      "eventId": "s42-truck-002-184413114968481302531204825041529878037006103-late-20",
+      "kind": "LATE",
+      "reason": "window [1794584040000,1794584100000) already closed (watermark 1794584223430)",
+      "partition": 2,
+      "offset": 6102,
+      "eventTime": 1794584048750
+    },
+    {
+      "eventId": "s42-truck-004-184413114968481302531204825041529878037006095-late-17",
+      "kind": "LATE",
+      "reason": "window [1794584040000,1794584100000) already closed (watermark 1794584223430)",
+      "partition": 0,
+      "offset": 6094,
+      "eventTime": 1794584048750
+    },
+    {
+      "eventId": "s42-truck-004-184413114968481302531204825041529878037006094-late-15",
+      "kind": "LATE",
+      "reason": "window [1794584040000,1794584100000) already closed (watermark 1794584223430)",
+      "partition": 0,
+      "offset": 6093,
+      "eventTime": 1794584048750
+    },
+    {
+      "eventId": "s42-truck-005-184413114968481302531204825041529878037006096-late-14",
+      "kind": "LATE",
+      "reason": "window [1794584040000,1794584100000) already closed (watermark 1794584223430)",
+      "partition": 3,
+      "offset": 6095,
+      "eventTime": 1794584048750
+    },
+    {
+      "eventId": "s42-truck-005-184413114968481302531204825041529878037006095-late-13",
+      "kind": "LATE",
+      "reason": "window [1794584040000,1794584100000) already closed (watermark 1794584223430)",
+      "partition": 3,
+      "offset": 6094,
+      "eventTime": 1794584048750
+    },
+    {
+      "eventId": "s42-truck-005-184413114968481302531204825041529878037006094-late-11",
+      "kind": "LATE",
+      "reason": "window [1794584040000,1794584100000) already closed (watermark 1794584223430)",
+      "partition": 3,
+      "offset": 6093,
+      "eventTime": 1794584048750
+    },
+    {
+      "eventId": "s42-truck-006-184413114968481302531204825041529878037006092-late-18",
+      "kind": "LATE",
+      "reason": "window [1794584040000,1794584100000) already closed (watermark 1794584223430)",
+      "partition": 4,
+      "offset": 12184,
+      "eventTime": 1794584048750
+    },
+    {
+      "eventId": "s42-truck-006-184413114968481302531204825041529878037006091-late-10",
+      "kind": "LATE",
+      "reason": "window [1794584040000,1794584100000) already closed (watermark 1794584223430)",
+      "partition": 4,
+      "offset": 12183,
+      "eventTime": 1794584048750
+    },
+    {
+      "eventId": "s42-truck-003-184413114968481302531204825041529878037006093-late-4",
+      "kind": "LATE",
+      "reason": "window [1794584040000,1794584100000) already closed (watermark 1794584223430)",
+      "partition": 4,
+      "offset": 12182,
+      "eventTime": 1794584048750
+    },
+    {
+      "eventId": "s42-truck-003-184413114968481302531204825041529878037006092-late-3",
+      "kind": "LATE",
+      "reason": "window [1794584040000,1794584100000) already closed (watermark 1794584223430)",
+      "partition": 4,
+      "offset": 12181,
+      "eventTime": 1794584048750
+    },
+    {
+      "eventId": "s42-truck-002-184413114968481302531204825041529878037006102-late-19",
+      "kind": "LATE",
+      "reason": "window [1794584040000,1794584100000) already closed (watermark 1794584223430)",
+      "partition": 2,
+      "offset": 6101,
+      "eventTime": 1794584048750
+    },
+    {
+      "eventId": "s42-truck-002-184413114968481302531204825041529878037006101-late-16",
+      "kind": "LATE",
+      "reason": "window [1794584040000,1794584100000) already closed (watermark 1794584223430)",
+      "partition": 2,
+      "offset": 6100,
+      "eventTime": 1794584048750
+    },
+    {
+      "eventId": "s42-truck-002-184413114968481302531204825041529878037006100-late-12",
+      "kind": "LATE",
+      "reason": "window [1794584040000,1794584100000) already closed (watermark 1794584223430)",
+      "partition": 2,
+      "offset": 6099,
+      "eventTime": 1794584048750
+    },
+    {
+      "eventId": "s42-truck-001-184413114968481302531204825041529878037006093-late-9",
+      "kind": "LATE",
+      "reason": "window [1794584040000,1794584100000) already closed (watermark 1794584223430)",
+      "partition": 5,
+      "offset": 6092,
+      "eventTime": 1794584048750
+    },
+    {
+      "eventId": "s42-truck-002-184413114968481302531204825041529878037006099-late-8",
+      "kind": "LATE",
+      "reason": "window [1794584040000,1794584100000) already closed (watermark 1794584223430)",
+      "partition": 2,
+      "offset": 6098,
+      "eventTime": 1794584048750
+    },
+    {
+      "eventId": "s42-truck-002-184413114968481302531204825041529878037006098-late-7",
+      "kind": "LATE",
+      "reason": "window [1794584040000,1794584100000) already closed (watermark 1794584223430)",
+      "partition": 2,
+      "offset": 6097,
+      "eventTime": 1794584048750
+    },
+    {
+      "eventId": "s42-truck-001-184413114968481302531204825041529878037006092-late-1",
+      "kind": "LATE",
+      "reason": "window [1794584040000,1794584100000) already closed (watermark 1794584223430)",
+      "partition": 5,
+      "offset": 6091,
+      "eventTime": 1794584048750
+    },
+    {
+      "eventId": "s42-truck-004-184413114968481302531204825041529878037006093-late-6",
+      "kind": "LATE",
+      "reason": "window [1794584040000,1794584100000) already closed (watermark 1794584223430)",
+      "partition": 0,
+      "offset": 6092,
+      "eventTime": 1794584048750
+    },
+    {
+      "eventId": "s42-truck-004-184413114968481302531204825041529878037006092-late-5",
+      "kind": "LATE",
+      "reason": "window [1794584040000,1794584100000) already closed (watermark 1794584223430)",
+      "partition": 0,
+      "offset": 6091,
+      "eventTime": 1794584048750
+    },
+    {
+      "eventId": "s42-truck-005-184413114968481302531204825041529878037006093-late-2",
+      "kind": "LATE",
+      "reason": "window [1794584040000,1794584100000) already closed (watermark 1794584223430)",
+      "partition": 3,
+      "offset": 6092,
+      "eventTime": 1794584048750
+    }
+  ]
+}

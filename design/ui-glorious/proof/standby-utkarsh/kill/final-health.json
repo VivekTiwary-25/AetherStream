@@ -1,0 +1,8 @@
+{
+  "url": "http://localhost:8089/api/health",
+  "status": 200,
+  "capturedAt": "2026-11-20T05:30:55.174Z",
+  "body": {
+    "status": "UP"
+  }
+}

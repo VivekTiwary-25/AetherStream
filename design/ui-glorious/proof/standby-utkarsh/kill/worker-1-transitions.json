@@ -1,0 +1,2181 @@
+[
+  {
+    "at": "2026-11-20T05:28:47.039Z",
+    "workers": [
+      {
+        "workerId": "worker-1",
+        "alive": true,
+        "state": "RUNNING",
+        "partitions": [
+          0,
+          3
+        ],
+        "sourceQueue": {
+          "size": 0,
+          "capacity": 32
+        },
+        "sinkQueue": {
+          "size": 0,
+          "capacity": 32
+        },
+        "backpressured": false,
+        "recordsPerSec": 9.993643391172686,
+        "lastHeartbeatMs": 1795152526383
+      },
+      {
+        "workerId": "worker-2",
+        "alive": true,
+        "state": "RUNNING",
+        "partitions": [
+          1,
+          4
+        ],
+        "sourceQueue": {
+          "size": 0,
+          "capacity": 32
+        },
+        "sinkQueue": {
+          "size": 0,
+          "capacity": 32
+        },
+        "backpressured": false,
+        "recordsPerSec": 10.030239648635378,
+        "lastHeartbeatMs": 1795152526470
+      },
+      {
+        "workerId": "worker-3",
+        "alive": true,
+        "state": "RUNNING",
+        "partitions": [
+          2,
+          5
+        ],
+        "sourceQueue": {
+          "size": 0,
+          "capacity": 32
+        },
+        "sinkQueue": {
+          "size": 0,
+          "capacity": 32
+        },
+        "backpressured": false,
+        "recordsPerSec": 9.991123142681548,
+        "lastHeartbeatMs": 1795152526461
+      }
+    ],
+    "execution": {
+      "id": "exec-20261120-051856-8aa5",
+      "pipelineId": "logistics-demo",
+      "pipelineVersion": 2,
+      "state": "RUNNING",
+      "generation": 3,
+      "restoredFromCheckpoint": 44,
+      "lastCompletedCheckpoint": 57,
+      "createdAt": "2026-11-20T05:18:56.642Z"
+    },
+    "events": [
+      {
+        "id": 38,
+        "event": "KILL_REQUESTED",
+        "at": 1795151959960,
+        "workerId": "worker-1",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": null,
+        "restoredFromCheckpoint": null,
+        "actor": "api:demo",
+        "reason": "Kill command accepted; worker death is not yet confirmed"
+      },
+      {
+        "id": 39,
+        "event": "WORKER_DEAD",
+        "at": 1795151962173,
+        "workerId": "worker-1",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": null,
+        "restoredFromCheckpoint": null,
+        "actor": "coordinator",
+        "reason": "re-registered"
+      },
+      {
+        "id": 40,
+        "event": "WORKER_RESTARTED",
+        "at": 1795151962176,
+        "workerId": "worker-1",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": null,
+        "restoredFromCheckpoint": null,
+        "actor": "coordinator",
+        "reason": "re-registered"
+      },
+      {
+        "id": 41,
+        "event": "RECOVERING",
+        "at": 1795151962173,
+        "workerId": "worker-1",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": 1,
+        "restoredFromCheckpoint": 2,
+        "actor": "coordinator"
+      },
+      {
+        "id": 42,
+        "event": "RECOVERED",
+        "at": 1795151963400,
+        "workerId": "worker-1",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": 2,
+        "restoredFromCheckpoint": 2,
+        "actor": "coordinator",
+        "durationMs": 1227
+      },
+      {
+        "id": 85,
+        "event": "KILL_REQUESTED",
+        "at": 1795152382811,
+        "workerId": "worker-2",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": null,
+        "restoredFromCheckpoint": null,
+        "actor": "api:demo",
+        "reason": "Kill command accepted; worker death is not yet confirmed"
+      },
+      {
+        "id": 86,
+        "event": "WORKER_DEAD",
+        "at": 1795152385334,
+        "workerId": "worker-2",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": null,
+        "restoredFromCheckpoint": null,
+        "actor": "coordinator",
+        "reason": "re-registered"
+      },
+      {
+        "id": 87,
+        "event": "WORKER_RESTARTED",
+        "at": 1795152385342,
+        "workerId": "worker-2",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": null,
+        "restoredFromCheckpoint": null,
+        "actor": "coordinator",
+        "reason": "re-registered"
+      },
+      {
+        "id": 88,
+        "event": "RECOVERING",
+        "at": 1795152385334,
+        "workerId": "worker-2",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": 2,
+        "restoredFromCheckpoint": 44,
+        "actor": "coordinator"
+      },
+      {
+        "id": 89,
+        "event": "RECOVERED",
+        "at": 1795152386442,
+        "workerId": "worker-2",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": 3,
+        "restoredFromCheckpoint": 44,
+        "actor": "coordinator",
+        "durationMs": 1108
+      }
+    ]
+  },
+  {
+    "at": "2026-11-20T05:28:48.542Z",
+    "workers": [
+      {
+        "workerId": "worker-1",
+        "alive": true,
+        "state": "RUNNING",
+        "partitions": [
+          0,
+          3
+        ],
+        "sourceQueue": {
+          "size": 0,
+          "capacity": 32
+        },
+        "sinkQueue": {
+          "size": 0,
+          "capacity": 32
+        },
+        "backpressured": false,
+        "recordsPerSec": 9.997661534296862,
+        "lastHeartbeatMs": 1795152527383
+      },
+      {
+        "workerId": "worker-2",
+        "alive": true,
+        "state": "RUNNING",
+        "partitions": [
+          1,
+          4
+        ],
+        "sourceQueue": {
+          "size": 0,
+          "capacity": 32
+        },
+        "sinkQueue": {
+          "size": 0,
+          "capacity": 32
+        },
+        "backpressured": false,
+        "recordsPerSec": 10.011124545041204,
+        "lastHeartbeatMs": 1795152527471
+      },
+      {
+        "workerId": "worker-3",
+        "alive": true,
+        "state": "RUNNING",
+        "partitions": [
+          2,
+          5
+        ],
+        "sourceQueue": {
+          "size": 0,
+          "capacity": 32
+        },
+        "sinkQueue": {
+          "size": 0,
+          "capacity": 32
+        },
+        "backpressured": false,
+        "recordsPerSec": 9.990419086691443,
+        "lastHeartbeatMs": 1795152527461
+      }
+    ],
+    "execution": {
+      "id": "exec-20261120-051856-8aa5",
+      "pipelineId": "logistics-demo",
+      "pipelineVersion": 2,
+      "state": "RUNNING",
+      "generation": 3,
+      "restoredFromCheckpoint": 44,
+      "lastCompletedCheckpoint": 58,
+      "createdAt": "2026-11-20T05:18:56.642Z"
+    },
+    "events": [
+      {
+        "id": 38,
+        "event": "KILL_REQUESTED",
+        "at": 1795151959960,
+        "workerId": "worker-1",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": null,
+        "restoredFromCheckpoint": null,
+        "actor": "api:demo",
+        "reason": "Kill command accepted; worker death is not yet confirmed"
+      },
+      {
+        "id": 39,
+        "event": "WORKER_DEAD",
+        "at": 1795151962173,
+        "workerId": "worker-1",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": null,
+        "restoredFromCheckpoint": null,
+        "actor": "coordinator",
+        "reason": "re-registered"
+      },
+      {
+        "id": 40,
+        "event": "WORKER_RESTARTED",
+        "at": 1795151962176,
+        "workerId": "worker-1",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": null,
+        "restoredFromCheckpoint": null,
+        "actor": "coordinator",
+        "reason": "re-registered"
+      },
+      {
+        "id": 41,
+        "event": "RECOVERING",
+        "at": 1795151962173,
+        "workerId": "worker-1",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": 1,
+        "restoredFromCheckpoint": 2,
+        "actor": "coordinator"
+      },
+      {
+        "id": 42,
+        "event": "RECOVERED",
+        "at": 1795151963400,
+        "workerId": "worker-1",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": 2,
+        "restoredFromCheckpoint": 2,
+        "actor": "coordinator",
+        "durationMs": 1227
+      },
+      {
+        "id": 85,
+        "event": "KILL_REQUESTED",
+        "at": 1795152382811,
+        "workerId": "worker-2",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": null,
+        "restoredFromCheckpoint": null,
+        "actor": "api:demo",
+        "reason": "Kill command accepted; worker death is not yet confirmed"
+      },
+      {
+        "id": 86,
+        "event": "WORKER_DEAD",
+        "at": 1795152385334,
+        "workerId": "worker-2",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": null,
+        "restoredFromCheckpoint": null,
+        "actor": "coordinator",
+        "reason": "re-registered"
+      },
+      {
+        "id": 87,
+        "event": "WORKER_RESTARTED",
+        "at": 1795152385342,
+        "workerId": "worker-2",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": null,
+        "restoredFromCheckpoint": null,
+        "actor": "coordinator",
+        "reason": "re-registered"
+      },
+      {
+        "id": 88,
+        "event": "RECOVERING",
+        "at": 1795152385334,
+        "workerId": "worker-2",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": 2,
+        "restoredFromCheckpoint": 44,
+        "actor": "coordinator"
+      },
+      {
+        "id": 89,
+        "event": "RECOVERED",
+        "at": 1795152386442,
+        "workerId": "worker-2",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": 3,
+        "restoredFromCheckpoint": 44,
+        "actor": "coordinator",
+        "durationMs": 1108
+      }
+    ]
+  },
+  {
+    "at": "2026-11-20T05:28:49.585Z",
+    "workers": [
+      {
+        "workerId": "worker-1",
+        "alive": true,
+        "state": "RUNNING",
+        "partitions": [
+          0,
+          3
+        ],
+        "sourceQueue": {
+          "size": 0,
+          "capacity": 32
+        },
+        "sinkQueue": {
+          "size": 0,
+          "capacity": 32
+        },
+        "backpressured": false,
+        "recordsPerSec": 10.631804081910284,
+        "lastHeartbeatMs": 1795152529383
+      },
+      {
+        "workerId": "worker-2",
+        "alive": true,
+        "state": "RUNNING",
+        "partitions": [
+          1,
+          4
+        ],
+        "sourceQueue": {
+          "size": 0,
+          "capacity": 32
+        },
+        "sinkQueue": {
+          "size": 0,
+          "capacity": 32
+        },
+        "backpressured": false,
+        "recordsPerSec": 10.00150554345403,
+        "lastHeartbeatMs": 1795152529472
+      },
+      {
+        "workerId": "worker-3",
+        "alive": true,
+        "state": "RUNNING",
+        "partitions": [
+          2,
+          5
+        ],
+        "sourceQueue": {
+          "size": 0,
+          "capacity": 32
+        },
+        "sinkQueue": {
+          "size": 0,
+          "capacity": 32
+        },
+        "backpressured": false,
+        "recordsPerSec": 10.23124752231855,
+        "lastHeartbeatMs": 1795152529461
+      }
+    ],
+    "execution": {
+      "id": "exec-20261120-051856-8aa5",
+      "pipelineId": "logistics-demo",
+      "pipelineVersion": 2,
+      "state": "RUNNING",
+      "generation": 3,
+      "restoredFromCheckpoint": 44,
+      "lastCompletedCheckpoint": 58,
+      "createdAt": "2026-11-20T05:18:56.642Z"
+    },
+    "events": [
+      {
+        "id": 38,
+        "event": "KILL_REQUESTED",
+        "at": 1795151959960,
+        "workerId": "worker-1",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": null,
+        "restoredFromCheckpoint": null,
+        "actor": "api:demo",
+        "reason": "Kill command accepted; worker death is not yet confirmed"
+      },
+      {
+        "id": 39,
+        "event": "WORKER_DEAD",
+        "at": 1795151962173,
+        "workerId": "worker-1",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": null,
+        "restoredFromCheckpoint": null,
+        "actor": "coordinator",
+        "reason": "re-registered"
+      },
+      {
+        "id": 40,
+        "event": "WORKER_RESTARTED",
+        "at": 1795151962176,
+        "workerId": "worker-1",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": null,
+        "restoredFromCheckpoint": null,
+        "actor": "coordinator",
+        "reason": "re-registered"
+      },
+      {
+        "id": 41,
+        "event": "RECOVERING",
+        "at": 1795151962173,
+        "workerId": "worker-1",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": 1,
+        "restoredFromCheckpoint": 2,
+        "actor": "coordinator"
+      },
+      {
+        "id": 42,
+        "event": "RECOVERED",
+        "at": 1795151963400,
+        "workerId": "worker-1",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": 2,
+        "restoredFromCheckpoint": 2,
+        "actor": "coordinator",
+        "durationMs": 1227
+      },
+      {
+        "id": 85,
+        "event": "KILL_REQUESTED",
+        "at": 1795152382811,
+        "workerId": "worker-2",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": null,
+        "restoredFromCheckpoint": null,
+        "actor": "api:demo",
+        "reason": "Kill command accepted; worker death is not yet confirmed"
+      },
+      {
+        "id": 86,
+        "event": "WORKER_DEAD",
+        "at": 1795152385334,
+        "workerId": "worker-2",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": null,
+        "restoredFromCheckpoint": null,
+        "actor": "coordinator",
+        "reason": "re-registered"
+      },
+      {
+        "id": 87,
+        "event": "WORKER_RESTARTED",
+        "at": 1795152385342,
+        "workerId": "worker-2",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": null,
+        "restoredFromCheckpoint": null,
+        "actor": "coordinator",
+        "reason": "re-registered"
+      },
+      {
+        "id": 88,
+        "event": "RECOVERING",
+        "at": 1795152385334,
+        "workerId": "worker-2",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": 2,
+        "restoredFromCheckpoint": 44,
+        "actor": "coordinator"
+      },
+      {
+        "id": 89,
+        "event": "RECOVERED",
+        "at": 1795152386442,
+        "workerId": "worker-2",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": 3,
+        "restoredFromCheckpoint": 44,
+        "actor": "coordinator",
+        "durationMs": 1108
+      },
+      {
+        "id": 104,
+        "event": "KILL_REQUESTED",
+        "at": 1795152529472,
+        "workerId": "worker-1",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": null,
+        "restoredFromCheckpoint": null,
+        "actor": "api:demo",
+        "reason": "Kill command accepted; worker death is not yet confirmed"
+      }
+    ]
+  },
+  {
+    "at": "2026-11-20T05:28:52.460Z",
+    "workers": [
+      {
+        "workerId": "worker-1",
+        "alive": true,
+        "state": "IDLE",
+        "partitions": [
+          0,
+          3
+        ],
+        "sourceQueue": null,
+        "sinkQueue": null,
+        "backpressured": false,
+        "recordsPerSec": 0,
+        "lastHeartbeatMs": 1795152532177
+      },
+      {
+        "workerId": "worker-2",
+        "alive": true,
+        "state": "RUNNING",
+        "partitions": [
+          1,
+          4
+        ],
+        "sourceQueue": {
+          "size": 0,
+          "capacity": 32
+        },
+        "sinkQueue": {
+          "size": 0,
+          "capacity": 32
+        },
+        "backpressured": false,
+        "recordsPerSec": 10.000203753149776,
+        "lastHeartbeatMs": 1795152531469
+      },
+      {
+        "workerId": "worker-3",
+        "alive": true,
+        "state": "RUNNING",
+        "partitions": [
+          2,
+          5
+        ],
+        "sourceQueue": {
+          "size": 0,
+          "capacity": 32
+        },
+        "sinkQueue": {
+          "size": 0,
+          "capacity": 32
+        },
+        "backpressured": false,
+        "recordsPerSec": 10.031295948930746,
+        "lastHeartbeatMs": 1795152531461
+      }
+    ],
+    "execution": {
+      "id": "exec-20261120-051856-8aa5",
+      "pipelineId": "logistics-demo",
+      "pipelineVersion": 2,
+      "state": "RECOVERING",
+      "generation": 4,
+      "restoredFromCheckpoint": 58,
+      "lastCompletedCheckpoint": 58,
+      "createdAt": "2026-11-20T05:18:56.642Z"
+    },
+    "events": [
+      {
+        "id": 38,
+        "event": "KILL_REQUESTED",
+        "at": 1795151959960,
+        "workerId": "worker-1",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": null,
+        "restoredFromCheckpoint": null,
+        "actor": "api:demo",
+        "reason": "Kill command accepted; worker death is not yet confirmed"
+      },
+      {
+        "id": 39,
+        "event": "WORKER_DEAD",
+        "at": 1795151962173,
+        "workerId": "worker-1",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": null,
+        "restoredFromCheckpoint": null,
+        "actor": "coordinator",
+        "reason": "re-registered"
+      },
+      {
+        "id": 40,
+        "event": "WORKER_RESTARTED",
+        "at": 1795151962176,
+        "workerId": "worker-1",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": null,
+        "restoredFromCheckpoint": null,
+        "actor": "coordinator",
+        "reason": "re-registered"
+      },
+      {
+        "id": 41,
+        "event": "RECOVERING",
+        "at": 1795151962173,
+        "workerId": "worker-1",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": 1,
+        "restoredFromCheckpoint": 2,
+        "actor": "coordinator"
+      },
+      {
+        "id": 42,
+        "event": "RECOVERED",
+        "at": 1795151963400,
+        "workerId": "worker-1",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": 2,
+        "restoredFromCheckpoint": 2,
+        "actor": "coordinator",
+        "durationMs": 1227
+      },
+      {
+        "id": 85,
+        "event": "KILL_REQUESTED",
+        "at": 1795152382811,
+        "workerId": "worker-2",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": null,
+        "restoredFromCheckpoint": null,
+        "actor": "api:demo",
+        "reason": "Kill command accepted; worker death is not yet confirmed"
+      },
+      {
+        "id": 86,
+        "event": "WORKER_DEAD",
+        "at": 1795152385334,
+        "workerId": "worker-2",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": null,
+        "restoredFromCheckpoint": null,
+        "actor": "coordinator",
+        "reason": "re-registered"
+      },
+      {
+        "id": 87,
+        "event": "WORKER_RESTARTED",
+        "at": 1795152385342,
+        "workerId": "worker-2",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": null,
+        "restoredFromCheckpoint": null,
+        "actor": "coordinator",
+        "reason": "re-registered"
+      },
+      {
+        "id": 88,
+        "event": "RECOVERING",
+        "at": 1795152385334,
+        "workerId": "worker-2",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": 2,
+        "restoredFromCheckpoint": 44,
+        "actor": "coordinator"
+      },
+      {
+        "id": 89,
+        "event": "RECOVERED",
+        "at": 1795152386442,
+        "workerId": "worker-2",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": 3,
+        "restoredFromCheckpoint": 44,
+        "actor": "coordinator",
+        "durationMs": 1108
+      },
+      {
+        "id": 104,
+        "event": "KILL_REQUESTED",
+        "at": 1795152529472,
+        "workerId": "worker-1",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": null,
+        "restoredFromCheckpoint": null,
+        "actor": "api:demo",
+        "reason": "Kill command accepted; worker death is not yet confirmed"
+      }
+    ]
+  },
+  {
+    "at": "2026-11-20T05:28:52.907Z",
+    "workers": [
+      {
+        "workerId": "worker-1",
+        "alive": true,
+        "state": "IDLE",
+        "partitions": [
+          0,
+          3
+        ],
+        "sourceQueue": {
+          "size": 0,
+          "capacity": 32
+        },
+        "sinkQueue": {
+          "size": 0,
+          "capacity": 32
+        },
+        "backpressured": false,
+        "recordsPerSec": 0,
+        "lastHeartbeatMs": 1795152532294
+      },
+      {
+        "workerId": "worker-2",
+        "alive": true,
+        "state": "RUNNING",
+        "partitions": [
+          1,
+          4
+        ],
+        "sourceQueue": {
+          "size": 0,
+          "capacity": 32
+        },
+        "sinkQueue": {
+          "size": 0,
+          "capacity": 32
+        },
+        "backpressured": false,
+        "recordsPerSec": 10.000074956594876,
+        "lastHeartbeatMs": 1795152532468
+      },
+      {
+        "workerId": "worker-3",
+        "alive": true,
+        "state": "RUNNING",
+        "partitions": [
+          2,
+          5
+        ],
+        "sourceQueue": {
+          "size": 0,
+          "capacity": 32
+        },
+        "sinkQueue": {
+          "size": 0,
+          "capacity": 32
+        },
+        "backpressured": false,
+        "recordsPerSec": 10.005183064842086,
+        "lastHeartbeatMs": 1795152532462
+      }
+    ],
+    "execution": {
+      "id": "exec-20261120-051856-8aa5",
+      "pipelineId": "logistics-demo",
+      "pipelineVersion": 2,
+      "state": "RECOVERING",
+      "generation": 4,
+      "restoredFromCheckpoint": 58,
+      "lastCompletedCheckpoint": 58,
+      "createdAt": "2026-11-20T05:18:56.642Z"
+    },
+    "events": [
+      {
+        "id": 38,
+        "event": "KILL_REQUESTED",
+        "at": 1795151959960,
+        "workerId": "worker-1",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": null,
+        "restoredFromCheckpoint": null,
+        "actor": "api:demo",
+        "reason": "Kill command accepted; worker death is not yet confirmed"
+      },
+      {
+        "id": 39,
+        "event": "WORKER_DEAD",
+        "at": 1795151962173,
+        "workerId": "worker-1",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": null,
+        "restoredFromCheckpoint": null,
+        "actor": "coordinator",
+        "reason": "re-registered"
+      },
+      {
+        "id": 40,
+        "event": "WORKER_RESTARTED",
+        "at": 1795151962176,
+        "workerId": "worker-1",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": null,
+        "restoredFromCheckpoint": null,
+        "actor": "coordinator",
+        "reason": "re-registered"
+      },
+      {
+        "id": 41,
+        "event": "RECOVERING",
+        "at": 1795151962173,
+        "workerId": "worker-1",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": 1,
+        "restoredFromCheckpoint": 2,
+        "actor": "coordinator"
+      },
+      {
+        "id": 42,
+        "event": "RECOVERED",
+        "at": 1795151963400,
+        "workerId": "worker-1",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": 2,
+        "restoredFromCheckpoint": 2,
+        "actor": "coordinator",
+        "durationMs": 1227
+      },
+      {
+        "id": 85,
+        "event": "KILL_REQUESTED",
+        "at": 1795152382811,
+        "workerId": "worker-2",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": null,
+        "restoredFromCheckpoint": null,
+        "actor": "api:demo",
+        "reason": "Kill command accepted; worker death is not yet confirmed"
+      },
+      {
+        "id": 86,
+        "event": "WORKER_DEAD",
+        "at": 1795152385334,
+        "workerId": "worker-2",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": null,
+        "restoredFromCheckpoint": null,
+        "actor": "coordinator",
+        "reason": "re-registered"
+      },
+      {
+        "id": 87,
+        "event": "WORKER_RESTARTED",
+        "at": 1795152385342,
+        "workerId": "worker-2",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": null,
+        "restoredFromCheckpoint": null,
+        "actor": "coordinator",
+        "reason": "re-registered"
+      },
+      {
+        "id": 88,
+        "event": "RECOVERING",
+        "at": 1795152385334,
+        "workerId": "worker-2",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": 2,
+        "restoredFromCheckpoint": 44,
+        "actor": "coordinator"
+      },
+      {
+        "id": 89,
+        "event": "RECOVERED",
+        "at": 1795152386442,
+        "workerId": "worker-2",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": 3,
+        "restoredFromCheckpoint": 44,
+        "actor": "coordinator",
+        "durationMs": 1108
+      },
+      {
+        "id": 104,
+        "event": "KILL_REQUESTED",
+        "at": 1795152529472,
+        "workerId": "worker-1",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": null,
+        "restoredFromCheckpoint": null,
+        "actor": "api:demo",
+        "reason": "Kill command accepted; worker death is not yet confirmed"
+      },
+      {
+        "id": 105,
+        "event": "WORKER_DEAD",
+        "at": 1795152532178,
+        "workerId": "worker-1",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": null,
+        "restoredFromCheckpoint": null,
+        "actor": "coordinator",
+        "reason": "re-registered"
+      },
+      {
+        "id": 106,
+        "event": "WORKER_RESTARTED",
+        "at": 1795152532183,
+        "workerId": "worker-1",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": null,
+        "restoredFromCheckpoint": null,
+        "actor": "coordinator",
+        "reason": "re-registered"
+      },
+      {
+        "id": 107,
+        "event": "RECOVERING",
+        "at": 1795152532177,
+        "workerId": "worker-1",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": 3,
+        "restoredFromCheckpoint": 58,
+        "actor": "coordinator"
+      }
+    ]
+  },
+  {
+    "at": "2026-11-20T05:28:53.879Z",
+    "workers": [
+      {
+        "workerId": "worker-1",
+        "alive": true,
+        "state": "RUNNING",
+        "partitions": [
+          0,
+          3
+        ],
+        "sourceQueue": {
+          "size": 0,
+          "capacity": 32
+        },
+        "sinkQueue": {
+          "size": 0,
+          "capacity": 32
+        },
+        "backpressured": false,
+        "recordsPerSec": 0,
+        "lastHeartbeatMs": 1795152533273
+      },
+      {
+        "workerId": "worker-2",
+        "alive": true,
+        "state": "RUNNING",
+        "partitions": [
+          1,
+          4
+        ],
+        "sourceQueue": {
+          "size": 0,
+          "capacity": 32
+        },
+        "sinkQueue": {
+          "size": 0,
+          "capacity": 32
+        },
+        "backpressured": false,
+        "recordsPerSec": 0,
+        "lastHeartbeatMs": 1795152533469
+      },
+      {
+        "workerId": "worker-3",
+        "alive": true,
+        "state": "RUNNING",
+        "partitions": [
+          2,
+          5
+        ],
+        "sourceQueue": {
+          "size": 0,
+          "capacity": 32
+        },
+        "sinkQueue": {
+          "size": 0,
+          "capacity": 32
+        },
+        "backpressured": false,
+        "recordsPerSec": 0,
+        "lastHeartbeatMs": 1795152533463
+      }
+    ],
+    "execution": {
+      "id": "exec-20261120-051856-8aa5",
+      "pipelineId": "logistics-demo",
+      "pipelineVersion": 2,
+      "state": "RUNNING",
+      "generation": 4,
+      "restoredFromCheckpoint": 58,
+      "lastCompletedCheckpoint": 58,
+      "createdAt": "2026-11-20T05:18:56.642Z"
+    },
+    "events": [
+      {
+        "id": 38,
+        "event": "KILL_REQUESTED",
+        "at": 1795151959960,
+        "workerId": "worker-1",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": null,
+        "restoredFromCheckpoint": null,
+        "actor": "api:demo",
+        "reason": "Kill command accepted; worker death is not yet confirmed"
+      },
+      {
+        "id": 39,
+        "event": "WORKER_DEAD",
+        "at": 1795151962173,
+        "workerId": "worker-1",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": null,
+        "restoredFromCheckpoint": null,
+        "actor": "coordinator",
+        "reason": "re-registered"
+      },
+      {
+        "id": 40,
+        "event": "WORKER_RESTARTED",
+        "at": 1795151962176,
+        "workerId": "worker-1",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": null,
+        "restoredFromCheckpoint": null,
+        "actor": "coordinator",
+        "reason": "re-registered"
+      },
+      {
+        "id": 41,
+        "event": "RECOVERING",
+        "at": 1795151962173,
+        "workerId": "worker-1",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": 1,
+        "restoredFromCheckpoint": 2,
+        "actor": "coordinator"
+      },
+      {
+        "id": 42,
+        "event": "RECOVERED",
+        "at": 1795151963400,
+        "workerId": "worker-1",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": 2,
+        "restoredFromCheckpoint": 2,
+        "actor": "coordinator",
+        "durationMs": 1227
+      },
+      {
+        "id": 85,
+        "event": "KILL_REQUESTED",
+        "at": 1795152382811,
+        "workerId": "worker-2",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": null,
+        "restoredFromCheckpoint": null,
+        "actor": "api:demo",
+        "reason": "Kill command accepted; worker death is not yet confirmed"
+      },
+      {
+        "id": 86,
+        "event": "WORKER_DEAD",
+        "at": 1795152385334,
+        "workerId": "worker-2",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": null,
+        "restoredFromCheckpoint": null,
+        "actor": "coordinator",
+        "reason": "re-registered"
+      },
+      {
+        "id": 87,
+        "event": "WORKER_RESTARTED",
+        "at": 1795152385342,
+        "workerId": "worker-2",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": null,
+        "restoredFromCheckpoint": null,
+        "actor": "coordinator",
+        "reason": "re-registered"
+      },
+      {
+        "id": 88,
+        "event": "RECOVERING",
+        "at": 1795152385334,
+        "workerId": "worker-2",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": 2,
+        "restoredFromCheckpoint": 44,
+        "actor": "coordinator"
+      },
+      {
+        "id": 89,
+        "event": "RECOVERED",
+        "at": 1795152386442,
+        "workerId": "worker-2",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": 3,
+        "restoredFromCheckpoint": 44,
+        "actor": "coordinator",
+        "durationMs": 1108
+      },
+      {
+        "id": 104,
+        "event": "KILL_REQUESTED",
+        "at": 1795152529472,
+        "workerId": "worker-1",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": null,
+        "restoredFromCheckpoint": null,
+        "actor": "api:demo",
+        "reason": "Kill command accepted; worker death is not yet confirmed"
+      },
+      {
+        "id": 105,
+        "event": "WORKER_DEAD",
+        "at": 1795152532178,
+        "workerId": "worker-1",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": null,
+        "restoredFromCheckpoint": null,
+        "actor": "coordinator",
+        "reason": "re-registered"
+      },
+      {
+        "id": 106,
+        "event": "WORKER_RESTARTED",
+        "at": 1795152532183,
+        "workerId": "worker-1",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": null,
+        "restoredFromCheckpoint": null,
+        "actor": "coordinator",
+        "reason": "re-registered"
+      },
+      {
+        "id": 107,
+        "event": "RECOVERING",
+        "at": 1795152532177,
+        "workerId": "worker-1",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": 3,
+        "restoredFromCheckpoint": 58,
+        "actor": "coordinator"
+      },
+      {
+        "id": 108,
+        "event": "RECOVERED",
+        "at": 1795152533473,
+        "workerId": "worker-1",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": 4,
+        "restoredFromCheckpoint": 58,
+        "actor": "coordinator",
+        "durationMs": 1296
+      }
+    ]
+  },
+  {
+    "at": "2026-11-20T05:29:04.661Z",
+    "workers": [
+      {
+        "workerId": "worker-1",
+        "alive": true,
+        "state": "RUNNING",
+        "partitions": [
+          0,
+          3
+        ],
+        "sourceQueue": {
+          "size": 0,
+          "capacity": 32
+        },
+        "sinkQueue": {
+          "size": 0,
+          "capacity": 32
+        },
+        "backpressured": false,
+        "recordsPerSec": 10.003302557659799,
+        "lastHeartbeatMs": 1795152544277
+      },
+      {
+        "workerId": "worker-2",
+        "alive": true,
+        "state": "RUNNING",
+        "partitions": [
+          1,
+          4
+        ],
+        "sourceQueue": {
+          "size": 0,
+          "capacity": 32
+        },
+        "sinkQueue": {
+          "size": 0,
+          "capacity": 32
+        },
+        "backpressured": false,
+        "recordsPerSec": 9.991215634825167,
+        "lastHeartbeatMs": 1795152544473
+      },
+      {
+        "workerId": "worker-3",
+        "alive": true,
+        "state": "RUNNING",
+        "partitions": [
+          2,
+          5
+        ],
+        "sourceQueue": {
+          "size": 0,
+          "capacity": 32
+        },
+        "sinkQueue": {
+          "size": 0,
+          "capacity": 32
+        },
+        "backpressured": false,
+        "recordsPerSec": 10.040472528836801,
+        "lastHeartbeatMs": 1795152544465
+      }
+    ],
+    "execution": {
+      "id": "exec-20261120-051856-8aa5",
+      "pipelineId": "logistics-demo",
+      "pipelineVersion": 2,
+      "state": "RUNNING",
+      "generation": 4,
+      "restoredFromCheckpoint": 58,
+      "lastCompletedCheckpoint": 59,
+      "createdAt": "2026-11-20T05:18:56.642Z"
+    },
+    "events": [
+      {
+        "id": 38,
+        "event": "KILL_REQUESTED",
+        "at": 1795151959960,
+        "workerId": "worker-1",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": null,
+        "restoredFromCheckpoint": null,
+        "actor": "api:demo",
+        "reason": "Kill command accepted; worker death is not yet confirmed"
+      },
+      {
+        "id": 39,
+        "event": "WORKER_DEAD",
+        "at": 1795151962173,
+        "workerId": "worker-1",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": null,
+        "restoredFromCheckpoint": null,
+        "actor": "coordinator",
+        "reason": "re-registered"
+      },
+      {
+        "id": 40,
+        "event": "WORKER_RESTARTED",
+        "at": 1795151962176,
+        "workerId": "worker-1",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": null,
+        "restoredFromCheckpoint": null,
+        "actor": "coordinator",
+        "reason": "re-registered"
+      },
+      {
+        "id": 41,
+        "event": "RECOVERING",
+        "at": 1795151962173,
+        "workerId": "worker-1",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": 1,
+        "restoredFromCheckpoint": 2,
+        "actor": "coordinator"
+      },
+      {
+        "id": 42,
+        "event": "RECOVERED",
+        "at": 1795151963400,
+        "workerId": "worker-1",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": 2,
+        "restoredFromCheckpoint": 2,
+        "actor": "coordinator",
+        "durationMs": 1227
+      },
+      {
+        "id": 85,
+        "event": "KILL_REQUESTED",
+        "at": 1795152382811,
+        "workerId": "worker-2",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": null,
+        "restoredFromCheckpoint": null,
+        "actor": "api:demo",
+        "reason": "Kill command accepted; worker death is not yet confirmed"
+      },
+      {
+        "id": 86,
+        "event": "WORKER_DEAD",
+        "at": 1795152385334,
+        "workerId": "worker-2",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": null,
+        "restoredFromCheckpoint": null,
+        "actor": "coordinator",
+        "reason": "re-registered"
+      },
+      {
+        "id": 87,
+        "event": "WORKER_RESTARTED",
+        "at": 1795152385342,
+        "workerId": "worker-2",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": null,
+        "restoredFromCheckpoint": null,
+        "actor": "coordinator",
+        "reason": "re-registered"
+      },
+      {
+        "id": 88,
+        "event": "RECOVERING",
+        "at": 1795152385334,
+        "workerId": "worker-2",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": 2,
+        "restoredFromCheckpoint": 44,
+        "actor": "coordinator"
+      },
+      {
+        "id": 89,
+        "event": "RECOVERED",
+        "at": 1795152386442,
+        "workerId": "worker-2",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": 3,
+        "restoredFromCheckpoint": 44,
+        "actor": "coordinator",
+        "durationMs": 1108
+      },
+      {
+        "id": 104,
+        "event": "KILL_REQUESTED",
+        "at": 1795152529472,
+        "workerId": "worker-1",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": null,
+        "restoredFromCheckpoint": null,
+        "actor": "api:demo",
+        "reason": "Kill command accepted; worker death is not yet confirmed"
+      },
+      {
+        "id": 105,
+        "event": "WORKER_DEAD",
+        "at": 1795152532178,
+        "workerId": "worker-1",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": null,
+        "restoredFromCheckpoint": null,
+        "actor": "coordinator",
+        "reason": "re-registered"
+      },
+      {
+        "id": 106,
+        "event": "WORKER_RESTARTED",
+        "at": 1795152532183,
+        "workerId": "worker-1",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": null,
+        "restoredFromCheckpoint": null,
+        "actor": "coordinator",
+        "reason": "re-registered"
+      },
+      {
+        "id": 107,
+        "event": "RECOVERING",
+        "at": 1795152532177,
+        "workerId": "worker-1",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": 3,
+        "restoredFromCheckpoint": 58,
+        "actor": "coordinator"
+      },
+      {
+        "id": 108,
+        "event": "RECOVERED",
+        "at": 1795152533473,
+        "workerId": "worker-1",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": 4,
+        "restoredFromCheckpoint": 58,
+        "actor": "coordinator",
+        "durationMs": 1296
+      }
+    ]
+  },
+  {
+    "at": "2026-11-20T05:29:14.613Z",
+    "workers": [
+      {
+        "workerId": "worker-1",
+        "alive": true,
+        "state": "RUNNING",
+        "partitions": [
+          0,
+          3
+        ],
+        "sourceQueue": {
+          "size": 0,
+          "capacity": 32
+        },
+        "sinkQueue": {
+          "size": 0,
+          "capacity": 32
+        },
+        "backpressured": false,
+        "recordsPerSec": 10.032664814337116,
+        "lastHeartbeatMs": 1795152554265
+      },
+      {
+        "workerId": "worker-2",
+        "alive": true,
+        "state": "RUNNING",
+        "partitions": [
+          1,
+          4
+        ],
+        "sourceQueue": {
+          "size": 0,
+          "capacity": 32
+        },
+        "sinkQueue": {
+          "size": 0,
+          "capacity": 32
+        },
+        "backpressured": false,
+        "recordsPerSec": 10.031156169938495,
+        "lastHeartbeatMs": 1795152554462
+      },
+      {
+        "workerId": "worker-3",
+        "alive": true,
+        "state": "RUNNING",
+        "partitions": [
+          2,
+          5
+        ],
+        "sourceQueue": {
+          "size": 0,
+          "capacity": 32
+        },
+        "sinkQueue": {
+          "size": 0,
+          "capacity": 32
+        },
+        "backpressured": false,
+        "recordsPerSec": 10.6598418616571,
+        "lastHeartbeatMs": 1795152554451
+      }
+    ],
+    "execution": {
+      "id": "exec-20261120-051856-8aa5",
+      "pipelineId": "logistics-demo",
+      "pipelineVersion": 2,
+      "state": "RUNNING",
+      "generation": 4,
+      "restoredFromCheckpoint": 58,
+      "lastCompletedCheckpoint": 60,
+      "createdAt": "2026-11-20T05:18:56.642Z"
+    },
+    "events": [
+      {
+        "id": 38,
+        "event": "KILL_REQUESTED",
+        "at": 1795151959960,
+        "workerId": "worker-1",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": null,
+        "restoredFromCheckpoint": null,
+        "actor": "api:demo",
+        "reason": "Kill command accepted; worker death is not yet confirmed"
+      },
+      {
+        "id": 39,
+        "event": "WORKER_DEAD",
+        "at": 1795151962173,
+        "workerId": "worker-1",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": null,
+        "restoredFromCheckpoint": null,
+        "actor": "coordinator",
+        "reason": "re-registered"
+      },
+      {
+        "id": 40,
+        "event": "WORKER_RESTARTED",
+        "at": 1795151962176,
+        "workerId": "worker-1",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": null,
+        "restoredFromCheckpoint": null,
+        "actor": "coordinator",
+        "reason": "re-registered"
+      },
+      {
+        "id": 41,
+        "event": "RECOVERING",
+        "at": 1795151962173,
+        "workerId": "worker-1",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": 1,
+        "restoredFromCheckpoint": 2,
+        "actor": "coordinator"
+      },
+      {
+        "id": 42,
+        "event": "RECOVERED",
+        "at": 1795151963400,
+        "workerId": "worker-1",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": 2,
+        "restoredFromCheckpoint": 2,
+        "actor": "coordinator",
+        "durationMs": 1227
+      },
+      {
+        "id": 85,
+        "event": "KILL_REQUESTED",
+        "at": 1795152382811,
+        "workerId": "worker-2",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": null,
+        "restoredFromCheckpoint": null,
+        "actor": "api:demo",
+        "reason": "Kill command accepted; worker death is not yet confirmed"
+      },
+      {
+        "id": 86,
+        "event": "WORKER_DEAD",
+        "at": 1795152385334,
+        "workerId": "worker-2",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": null,
+        "restoredFromCheckpoint": null,
+        "actor": "coordinator",
+        "reason": "re-registered"
+      },
+      {
+        "id": 87,
+        "event": "WORKER_RESTARTED",
+        "at": 1795152385342,
+        "workerId": "worker-2",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": null,
+        "restoredFromCheckpoint": null,
+        "actor": "coordinator",
+        "reason": "re-registered"
+      },
+      {
+        "id": 88,
+        "event": "RECOVERING",
+        "at": 1795152385334,
+        "workerId": "worker-2",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": 2,
+        "restoredFromCheckpoint": 44,
+        "actor": "coordinator"
+      },
+      {
+        "id": 89,
+        "event": "RECOVERED",
+        "at": 1795152386442,
+        "workerId": "worker-2",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": 3,
+        "restoredFromCheckpoint": 44,
+        "actor": "coordinator",
+        "durationMs": 1108
+      },
+      {
+        "id": 104,
+        "event": "KILL_REQUESTED",
+        "at": 1795152529472,
+        "workerId": "worker-1",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": null,
+        "restoredFromCheckpoint": null,
+        "actor": "api:demo",
+        "reason": "Kill command accepted; worker death is not yet confirmed"
+      },
+      {
+        "id": 105,
+        "event": "WORKER_DEAD",
+        "at": 1795152532178,
+        "workerId": "worker-1",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": null,
+        "restoredFromCheckpoint": null,
+        "actor": "coordinator",
+        "reason": "re-registered"
+      },
+      {
+        "id": 106,
+        "event": "WORKER_RESTARTED",
+        "at": 1795152532183,
+        "workerId": "worker-1",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": null,
+        "restoredFromCheckpoint": null,
+        "actor": "coordinator",
+        "reason": "re-registered"
+      },
+      {
+        "id": 107,
+        "event": "RECOVERING",
+        "at": 1795152532177,
+        "workerId": "worker-1",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": 3,
+        "restoredFromCheckpoint": 58,
+        "actor": "coordinator"
+      },
+      {
+        "id": 108,
+        "event": "RECOVERED",
+        "at": 1795152533473,
+        "workerId": "worker-1",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": 4,
+        "restoredFromCheckpoint": 58,
+        "actor": "coordinator",
+        "durationMs": 1296
+      }
+    ]
+  },
+  {
+    "at": "2026-11-20T05:29:24.739Z",
+    "workers": [
+      {
+        "workerId": "worker-1",
+        "alive": true,
+        "state": "RUNNING",
+        "partitions": [
+          0,
+          3
+        ],
+        "sourceQueue": {
+          "size": 0,
+          "capacity": 32
+        },
+        "sinkQueue": {
+          "size": 0,
+          "capacity": 32
+        },
+        "backpressured": false,
+        "recordsPerSec": 10.000027997734412,
+        "lastHeartbeatMs": 1795152564269
+      },
+      {
+        "workerId": "worker-2",
+        "alive": true,
+        "state": "RUNNING",
+        "partitions": [
+          1,
+          4
+        ],
+        "sourceQueue": {
+          "size": 0,
+          "capacity": 32
+        },
+        "sinkQueue": {
+          "size": 0,
+          "capacity": 32
+        },
+        "backpressured": false,
+        "recordsPerSec": 9.99529923490221,
+        "lastHeartbeatMs": 1795152564465
+      },
+      {
+        "workerId": "worker-3",
+        "alive": true,
+        "state": "RUNNING",
+        "partitions": [
+          2,
+          5
+        ],
+        "sourceQueue": {
+          "size": 0,
+          "capacity": 32
+        },
+        "sinkQueue": {
+          "size": 0,
+          "capacity": 32
+        },
+        "backpressured": false,
+        "recordsPerSec": 10.000489232597415,
+        "lastHeartbeatMs": 1795152564454
+      }
+    ],
+    "execution": {
+      "id": "exec-20261120-051856-8aa5",
+      "pipelineId": "logistics-demo",
+      "pipelineVersion": 2,
+      "state": "RUNNING",
+      "generation": 4,
+      "restoredFromCheckpoint": 58,
+      "lastCompletedCheckpoint": 61,
+      "createdAt": "2026-11-20T05:18:56.642Z"
+    },
+    "events": [
+      {
+        "id": 38,
+        "event": "KILL_REQUESTED",
+        "at": 1795151959960,
+        "workerId": "worker-1",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": null,
+        "restoredFromCheckpoint": null,
+        "actor": "api:demo",
+        "reason": "Kill command accepted; worker death is not yet confirmed"
+      },
+      {
+        "id": 39,
+        "event": "WORKER_DEAD",
+        "at": 1795151962173,
+        "workerId": "worker-1",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": null,
+        "restoredFromCheckpoint": null,
+        "actor": "coordinator",
+        "reason": "re-registered"
+      },
+      {
+        "id": 40,
+        "event": "WORKER_RESTARTED",
+        "at": 1795151962176,
+        "workerId": "worker-1",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": null,
+        "restoredFromCheckpoint": null,
+        "actor": "coordinator",
+        "reason": "re-registered"
+      },
+      {
+        "id": 41,
+        "event": "RECOVERING",
+        "at": 1795151962173,
+        "workerId": "worker-1",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": 1,
+        "restoredFromCheckpoint": 2,
+        "actor": "coordinator"
+      },
+      {
+        "id": 42,
+        "event": "RECOVERED",
+        "at": 1795151963400,
+        "workerId": "worker-1",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": 2,
+        "restoredFromCheckpoint": 2,
+        "actor": "coordinator",
+        "durationMs": 1227
+      },
+      {
+        "id": 85,
+        "event": "KILL_REQUESTED",
+        "at": 1795152382811,
+        "workerId": "worker-2",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": null,
+        "restoredFromCheckpoint": null,
+        "actor": "api:demo",
+        "reason": "Kill command accepted; worker death is not yet confirmed"
+      },
+      {
+        "id": 86,
+        "event": "WORKER_DEAD",
+        "at": 1795152385334,
+        "workerId": "worker-2",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": null,
+        "restoredFromCheckpoint": null,
+        "actor": "coordinator",
+        "reason": "re-registered"
+      },
+      {
+        "id": 87,
+        "event": "WORKER_RESTARTED",
+        "at": 1795152385342,
+        "workerId": "worker-2",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": null,
+        "restoredFromCheckpoint": null,
+        "actor": "coordinator",
+        "reason": "re-registered"
+      },
+      {
+        "id": 88,
+        "event": "RECOVERING",
+        "at": 1795152385334,
+        "workerId": "worker-2",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": 2,
+        "restoredFromCheckpoint": 44,
+        "actor": "coordinator"
+      },
+      {
+        "id": 89,
+        "event": "RECOVERED",
+        "at": 1795152386442,
+        "workerId": "worker-2",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": 3,
+        "restoredFromCheckpoint": 44,
+        "actor": "coordinator",
+        "durationMs": 1108
+      },
+      {
+        "id": 104,
+        "event": "KILL_REQUESTED",
+        "at": 1795152529472,
+        "workerId": "worker-1",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": null,
+        "restoredFromCheckpoint": null,
+        "actor": "api:demo",
+        "reason": "Kill command accepted; worker death is not yet confirmed"
+      },
+      {
+        "id": 105,
+        "event": "WORKER_DEAD",
+        "at": 1795152532178,
+        "workerId": "worker-1",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": null,
+        "restoredFromCheckpoint": null,
+        "actor": "coordinator",
+        "reason": "re-registered"
+      },
+      {
+        "id": 106,
+        "event": "WORKER_RESTARTED",
+        "at": 1795152532183,
+        "workerId": "worker-1",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": null,
+        "restoredFromCheckpoint": null,
+        "actor": "coordinator",
+        "reason": "re-registered"
+      },
+      {
+        "id": 107,
+        "event": "RECOVERING",
+        "at": 1795152532177,
+        "workerId": "worker-1",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": 3,
+        "restoredFromCheckpoint": 58,
+        "actor": "coordinator"
+      },
+      {
+        "id": 108,
+        "event": "RECOVERED",
+        "at": 1795152533473,
+        "workerId": "worker-1",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": 4,
+        "restoredFromCheckpoint": 58,
+        "actor": "coordinator",
+        "durationMs": 1296
+      }
+    ]
+  },
+  {
+    "at": "2026-11-20T05:29:34.627Z",
+    "workers": [
+      {
+        "workerId": "worker-1",
+        "alive": true,
+        "state": "RUNNING",
+        "partitions": [
+          0,
+          3
+        ],
+        "sourceQueue": {
+          "size": 0,
+          "capacity": 32
+        },
+        "sinkQueue": {
+          "size": 0,
+          "capacity": 32
+        },
+        "backpressured": false,
+        "recordsPerSec": 10.006795782546673,
+        "lastHeartbeatMs": 1795152574273
+      },
+      {
+        "workerId": "worker-2",
+        "alive": true,
+        "state": "RUNNING",
+        "partitions": [
+          1,
+          4
+        ],
+        "sourceQueue": {
+          "size": 0,
+          "capacity": 32
+        },
+        "sinkQueue": {
+          "size": 0,
+          "capacity": 32
+        },
+        "backpressured": false,
+        "recordsPerSec": 10.004682856100219,
+        "lastHeartbeatMs": 1795152574469
+      },
+      {
+        "workerId": "worker-3",
+        "alive": true,
+        "state": "RUNNING",
+        "partitions": [
+          2,
+          5
+        ],
+        "sourceQueue": {
+          "size": 0,
+          "capacity": 32
+        },
+        "sinkQueue": {
+          "size": 0,
+          "capacity": 32
+        },
+        "backpressured": false,
+        "recordsPerSec": 10.632054496736748,
+        "lastHeartbeatMs": 1795152574458
+      }
+    ],
+    "execution": {
+      "id": "exec-20261120-051856-8aa5",
+      "pipelineId": "logistics-demo",
+      "pipelineVersion": 2,
+      "state": "RUNNING",
+      "generation": 4,
+      "restoredFromCheckpoint": 58,
+      "lastCompletedCheckpoint": 62,
+      "createdAt": "2026-11-20T05:18:56.642Z"
+    },
+    "events": [
+      {
+        "id": 38,
+        "event": "KILL_REQUESTED",
+        "at": 1795151959960,
+        "workerId": "worker-1",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": null,
+        "restoredFromCheckpoint": null,
+        "actor": "api:demo",
+        "reason": "Kill command accepted; worker death is not yet confirmed"
+      },
+      {
+        "id": 39,
+        "event": "WORKER_DEAD",
+        "at": 1795151962173,
+        "workerId": "worker-1",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": null,
+        "restoredFromCheckpoint": null,
+        "actor": "coordinator",
+        "reason": "re-registered"
+      },
+      {
+        "id": 40,
+        "event": "WORKER_RESTARTED",
+        "at": 1795151962176,
+        "workerId": "worker-1",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": null,
+        "restoredFromCheckpoint": null,
+        "actor": "coordinator",
+        "reason": "re-registered"
+      },
+      {
+        "id": 41,
+        "event": "RECOVERING",
+        "at": 1795151962173,
+        "workerId": "worker-1",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": 1,
+        "restoredFromCheckpoint": 2,
+        "actor": "coordinator"
+      },
+      {
+        "id": 42,
+        "event": "RECOVERED",
+        "at": 1795151963400,
+        "workerId": "worker-1",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": 2,
+        "restoredFromCheckpoint": 2,
+        "actor": "coordinator",
+        "durationMs": 1227
+      },
+      {
+        "id": 85,
+        "event": "KILL_REQUESTED",
+        "at": 1795152382811,
+        "workerId": "worker-2",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": null,
+        "restoredFromCheckpoint": null,
+        "actor": "api:demo",
+        "reason": "Kill command accepted; worker death is not yet confirmed"
+      },
+      {
+        "id": 86,
+        "event": "WORKER_DEAD",
+        "at": 1795152385334,
+        "workerId": "worker-2",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": null,
+        "restoredFromCheckpoint": null,
+        "actor": "coordinator",
+        "reason": "re-registered"
+      },
+      {
+        "id": 87,
+        "event": "WORKER_RESTARTED",
+        "at": 1795152385342,
+        "workerId": "worker-2",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": null,
+        "restoredFromCheckpoint": null,
+        "actor": "coordinator",
+        "reason": "re-registered"
+      },
+      {
+        "id": 88,
+        "event": "RECOVERING",
+        "at": 1795152385334,
+        "workerId": "worker-2",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": 2,
+        "restoredFromCheckpoint": 44,
+        "actor": "coordinator"
+      },
+      {
+        "id": 89,
+        "event": "RECOVERED",
+        "at": 1795152386442,
+        "workerId": "worker-2",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": 3,
+        "restoredFromCheckpoint": 44,
+        "actor": "coordinator",
+        "durationMs": 1108
+      },
+      {
+        "id": 104,
+        "event": "KILL_REQUESTED",
+        "at": 1795152529472,
+        "workerId": "worker-1",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": null,
+        "restoredFromCheckpoint": null,
+        "actor": "api:demo",
+        "reason": "Kill command accepted; worker death is not yet confirmed"
+      },
+      {
+        "id": 105,
+        "event": "WORKER_DEAD",
+        "at": 1795152532178,
+        "workerId": "worker-1",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": null,
+        "restoredFromCheckpoint": null,
+        "actor": "coordinator",
+        "reason": "re-registered"
+      },
+      {
+        "id": 106,
+        "event": "WORKER_RESTARTED",
+        "at": 1795152532183,
+        "workerId": "worker-1",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": null,
+        "restoredFromCheckpoint": null,
+        "actor": "coordinator",
+        "reason": "re-registered"
+      },
+      {
+        "id": 107,
+        "event": "RECOVERING",
+        "at": 1795152532177,
+        "workerId": "worker-1",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": 3,
+        "restoredFromCheckpoint": 58,
+        "actor": "coordinator"
+      },
+      {
+        "id": 108,
+        "event": "RECOVERED",
+        "at": 1795152533473,
+        "workerId": "worker-1",
+        "executionId": "exec-20261120-051856-8aa5",
+        "generation": 4,
+        "restoredFromCheckpoint": 58,
+        "actor": "coordinator",
+        "durationMs": 1296
+      }
+    ]
+  }
+]
