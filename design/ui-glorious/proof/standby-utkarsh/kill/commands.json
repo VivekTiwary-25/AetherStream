@@ -1,0 +1,34 @@
+[
+  {
+    "startedAt": "2026-11-20T05:25:54.036Z",
+    "finishedAt": "2026-11-20T05:25:56.643Z",
+    "command": "$env:AETHER_URL = 'http://localhost:8089'; .\\scripts\\expo\\worker.cmd status",
+    "exitCode": 0,
+    "stdout": "worker-1: alive=True state=RUNNING partitions=[0,3]\r\nworker-2: alive=True state=RUNNING partitions=[1,4]\r\nworker-3: alive=True state=RUNNING partitions=[2,5]\r\n",
+    "stderr": ""
+  },
+  {
+    "startedAt": "2026-11-20T05:26:19.499Z",
+    "finishedAt": "2026-11-20T05:26:23.402Z",
+    "command": "$env:AETHER_URL = 'http://localhost:8089'; .\\scripts\\expo\\worker.cmd kill 2",
+    "exitCode": 0,
+    "stdout": "Killed worker-2 (engine will recover; watch Settings -> Logs & Recovery)\r\n",
+    "stderr": ""
+  },
+  {
+    "startedAt": "2026-11-20T05:27:40.667Z",
+    "finishedAt": "2026-11-20T05:27:43.250Z",
+    "command": "$env:AETHER_URL = 'http://localhost:8089'; .\\scripts\\expo\\events.cmd late",
+    "exitCode": 0,
+    "stdout": "Sent 20 late events (they appear in Analytics -> Failed Records if the engine classifies them late)\r\n",
+    "stderr": ""
+  },
+  {
+    "startedAt": "2026-11-20T05:28:46.402Z",
+    "finishedAt": "2026-11-20T05:28:50.001Z",
+    "command": "$env:AETHER_URL = 'http://localhost:8089'; .\\scripts\\expo\\worker.cmd kill 1",
+    "exitCode": 0,
+    "stdout": "Killed worker-1 (engine will recover; watch Settings -> Logs & Recovery)\r\n",
+    "stderr": ""
+  }
+]

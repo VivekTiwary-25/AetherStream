@@ -1,0 +1,95 @@
+{
+  "timezone": "Asia/Calcutta",
+  "comparisons": [
+    {
+      "id": 85,
+      "event": "KILL_REQUESTED",
+      "workerId": "worker-2",
+      "epochMs": 1795152382811,
+      "utc": "2026-11-20T05:26:22.811Z",
+      "local": "11/20/2026, 10:56:22 AM",
+      "presentInUi": true
+    },
+    {
+      "id": 86,
+      "event": "WORKER_DEAD",
+      "workerId": "worker-2",
+      "epochMs": 1795152385334,
+      "utc": "2026-11-20T05:26:25.334Z",
+      "local": "11/20/2026, 10:56:25 AM",
+      "presentInUi": true
+    },
+    {
+      "id": 87,
+      "event": "WORKER_RESTARTED",
+      "workerId": "worker-2",
+      "epochMs": 1795152385342,
+      "utc": "2026-11-20T05:26:25.342Z",
+      "local": "11/20/2026, 10:56:25 AM",
+      "presentInUi": true
+    },
+    {
+      "id": 88,
+      "event": "RECOVERING",
+      "workerId": "worker-2",
+      "epochMs": 1795152385334,
+      "utc": "2026-11-20T05:26:25.334Z",
+      "local": "11/20/2026, 10:56:25 AM",
+      "presentInUi": true
+    },
+    {
+      "id": 89,
+      "event": "RECOVERED",
+      "workerId": "worker-2",
+      "epochMs": 1795152386442,
+      "utc": "2026-11-20T05:26:26.442Z",
+      "local": "11/20/2026, 10:56:26 AM",
+      "presentInUi": true
+    },
+    {
+      "id": 104,
+      "event": "KILL_REQUESTED",
+      "workerId": "worker-1",
+      "epochMs": 1795152529472,
+      "utc": "2026-11-20T05:28:49.472Z",
+      "local": "11/20/2026, 10:58:49 AM",
+      "presentInUi": true
+    },
+    {
+      "id": 105,
+      "event": "WORKER_DEAD",
+      "workerId": "worker-1",
+      "epochMs": 1795152532178,
+      "utc": "2026-11-20T05:28:52.178Z",
+      "local": "11/20/2026, 10:58:52 AM",
+      "presentInUi": true
+    },
+    {
+      "id": 106,
+      "event": "WORKER_RESTARTED",
+      "workerId": "worker-1",
+      "epochMs": 1795152532183,
+      "utc": "2026-11-20T05:28:52.183Z",
+      "local": "11/20/2026, 10:58:52 AM",
+      "presentInUi": true
+    },
+    {
+      "id": 107,
+      "event": "RECOVERING",
+      "workerId": "worker-1",
+      "epochMs": 1795152532177,
+      "utc": "2026-11-20T05:28:52.177Z",
+      "local": "11/20/2026, 10:58:52 AM",
+      "presentInUi": true
+    },
+    {
+      "id": 108,
+      "event": "RECOVERED",
+      "workerId": "worker-1",
+      "epochMs": 1795152533473,
+      "utc": "2026-11-20T05:28:53.473Z",
+      "local": "11/20/2026, 10:58:53 AM",
+      "presentInUi": true
+    }
+  ]
+}
