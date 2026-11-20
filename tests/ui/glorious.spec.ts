@@ -12,7 +12,7 @@ test('Home media loads and Live World shows six truck markers', async ({ page })
       workerErrors.push(message.text())
     }
   })
-  await expect(page.locator('[aria-label="Mysuru highway"]').locator('video, img')).toBeVisible()
+  await expect(page.getByLabel('Mysuru highway', { exact: true }).locator('video, img')).toBeVisible()
   await page.getByRole('button', { name: 'Live World', exact: true }).click()
 
   const map = page.getByRole('region', { name: 'Live World map', exact: true })
@@ -71,14 +71,14 @@ test('Logs & Recovery shows three workers covering partitions P0–P5', async ({
   for (let index = 0; index < 3; index++) {
     const worker = workers.nth(index)
     await expect(worker).toBeVisible()
-    const partitions = worker.getByTestId(/^partition-chip-[0-5]$/)
+    const partitions = worker.getByLabel(/ assigned partitions$/).locator('.recovery-chip')
     await expect.poll(() => partitions.count(), {
       message: `Worker card ${index + 1} must show at least one partition`,
     }).toBeGreaterThanOrEqual(1)
     await expect(partitions.first()).toHaveText(/^\s*P[0-5]\s*$/)
   }
   for (let partition = 0; partition < 6; partition++) {
-    const chip = workers.getByTestId(`partition-chip-${partition}`).first()
+    const chip = recovery.getByTestId(`partition-chip-${partition}`).locator('strong')
     await expect(chip).toBeVisible()
     await expect(chip).toHaveText(new RegExp(`^\\s*P${partition}\\s*$`))
   }
