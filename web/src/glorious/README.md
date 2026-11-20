@@ -11,6 +11,9 @@ the integration owner maintains `shell/`, `home/`, `GloriousApp.tsx`, and routin
 - `analytics/`: speed, delivery, alert, throughput, and failed-record views and charts.
 - `recovery/`: worker/recovery history and truck-breakdown controls.
 - `pipelines/`: pipeline prompt/review, visual editor, validation, run results, and mode switch.
+- `pipelines/__tests__/`: mode, panel, and pipeline tests.
+- `analytics/charts/`: line, sparkline, and bar chart components.
+- `data/`: shared poll-outage backoff for fleet, recovery, and pipeline-result requests.
 
 ## Shell API
 
@@ -23,7 +26,7 @@ without resetting geometry. Do not open or update windows during render.
 `shell/sections.ts` defines `SidebarItem` as `{ id, label, icon?, onSelect }`.
 `analytics/menu.ts` contributes Truck Speeds, Deliveries, Alerts, Events
 Processed, and Failed Records. `recovery/menu.ts` contributes Logs & Recovery
-and Truck breakdown. The sidebar's main sections are Home, Live World,
+and Truck Breakdown. The sidebar's main sections are Home, Live World,
 Analytics, Pipelines, and Settings; Analytics and Settings open their own
 submenus. The window IDs use `analytics.<id>` and `settings.<id>`.
 
