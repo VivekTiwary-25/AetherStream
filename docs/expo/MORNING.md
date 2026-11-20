@@ -17,17 +17,17 @@
 15. **FAIL** means a core app/API/current-execution, worker, simulator, recovery, or Pipelines check failed; fix before the slot.
 16. **WARN** means simulator truck-count mismatch or AI bridge unavailable/unhealthy; check the warning, and start/check the bridge if needed.
 17. Run `worker status`; check all three worker IDs, alive/state and partitions. Do not kill a worker during setup.
-18. Open `http://localhost:8088` in one browser tab and `http://localhost:8088/?ui=classic` in another; confirm both load (check).
-19. **Demo — 1 Home:** open `http://localhost:8088/`, point out navigation/status, click **Live World** (check).
-20. **2 Live map:** click **Live World** in the left navigation; show the Mysuru map and live truck markers (check).
-21. **3 Truck details:** hover a marker (or focus/select it with the keyboard); show its details card (check).
-22. **4 Speeds:** click **Analytics** → **Truck Speeds** → a truck row; use **Back** to return (check).
-23. **5 Failed records:** run `events late 10` once; records appear only if the engine classifies them late. Click **Analytics** → **Failed Records** → **Late** (or **All**) → a record (check).
-24. **6 Pipelines:** click **Pipelines**; enter `Alert me when any truck goes over 60 km/h` in **Ask AI**, click **Generate**, review steps → **Open in editor** → review → **Run** (check).
-25. **7 Recovery:** click **Settings** → **Logs & Recovery** (check), then run `worker kill 2` once in the expo terminal; watch the recovery feed.
-26. **Fallback — UI:** if only the new UI fails, try `http://localhost:8088/?ui=classic` (check); this still requires the web app and API to be available.
-27. **Fallback — Pipelines mode:** `web/src/glorious/pipelines/mode.ts` currently sets `'full'`. Claimed effects (check): `'editor'` shows only Open Editor; `'hidden'` removes Pipelines and redirects its routes to Home; `'full'` shows Ask AI and editor. This is a source setting, not a runtime switch.
-28. **Fallback — AI:** run the displayed saved example only when marked **Showing a saved example: AI was unavailable** (check); say it is saved, not AI-generated, and review before running.
-29. **Fallback — worker recovery:** never repeat `worker kill 2`; wait for the live feed and describe only the state shown. If the command errors, check worker status/recovery first; use classic UI’s **Kill worker** (check) once only if the first request did not take effect, then watch Logs & Recovery.
+18. Open `http://localhost:8088` in one browser tab and `http://localhost:8088/?ui=classic` in another; confirm both load (check live).
+19. **Demo — 1 Home:** open `http://localhost:8088/`, point out navigation/status, click **Live World** (check live).
+20. **2 Live map:** click **Live World** in the left navigation; show the Mysuru map and live truck markers (check live).
+21. **3 Truck details:** hover a marker (or focus/select it with the keyboard); show its details card (check live).
+22. **4 Speeds:** click **Analytics** → **Truck Speeds** → a truck row; use **Back** to return (check live).
+23. **5 Failed records:** run `events late 10` once; records appear only if the engine classifies them late. Click **Analytics** → **Failed Records** → **Late** (or **All**) → a record (check live).
+24. **6 Pipelines:** click **Pipelines**; enter `Alert me when any truck goes over 60 km/h` in **Ask AI**, click **Generate**, review steps → **Open in editor** → review → **Run** (check live).
+25. **7 Recovery:** click **Settings** → **Logs & Recovery** (check live), then run `worker kill 2` once in the expo terminal; watch the recovery feed.
+26. **Fallback — UI:** if only the new UI fails, try `http://localhost:8088/?ui=classic` (check live); this still requires the web app and API to be available.
+27. **Fallback — Pipelines mode:** `web/src/glorious/pipelines/mode.ts` currently sets `'full'`. Claimed effects: `'editor'` shows only Open Editor; `'hidden'` removes Pipelines and redirects its routes to Home; `'full'` shows Ask AI and editor. This is a source setting, not a runtime switch.
+28. **Fallback — AI:** run the displayed saved example only when marked **Showing a saved example: AI was unavailable**; say it is saved, not AI-generated, and review before running.
+29. **Fallback — worker recovery:** never repeat `worker kill 2`; wait for the live feed and describe only the state shown. If the command errors, check worker status/recovery first; use classic UI’s **Kill worker** (check live) once only if the first request did not take effect, then watch Logs & Recovery.
 30. **Rollback — images:** GitHub Actions → **cd** → **Run workflow**, branch **main**, input **sha** = saved previous deployed main SHA; ensure images remain in GHCR and freeze is off, then repeat health/version, UI and worker checks.
 31. Image rollback does not restore main source or Compose config; verify the current `SIM_INITIAL_TRUCKS: "6"` setting and live truck count. Do not expect an earlier truck-count setting to return.
