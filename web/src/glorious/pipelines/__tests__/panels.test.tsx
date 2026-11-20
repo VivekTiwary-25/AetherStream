@@ -1,11 +1,14 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen, type RenderResult } from '@testing-library/react'
+import averageCaptureJson from './fixtures/avg-speed-30s.json?raw'
+import partitionCaptureJson from './fixtures/partition-2.json?raw'
 import { WindowManager } from '../../shell/WindowManager'
 import { PipelinesPanel } from '../PipelinesPanel'
 import { EXAMPLES } from '../examples'
 import { ResultsView } from '../ResultsView'
 import { useRunPipeline } from '../useRunPipeline'
 import { EditorPage } from '../EditorPage'
+import type { ResultsPage } from '../api'
 
 class FakeResizeObserver { observe() {} unobserve() {} disconnect() {} }
 
@@ -138,7 +141,73 @@ describe('PipelinesPanel', () => {
 })
 
 describe('EditorPage', () => {
-  afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals(); window.localStorage.clear(); window.sessionStorage.clear(); window.history.replaceState(null, '', '/') })
+  afterEach(() => { cleanup(); vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllGlobals(); window.localStorage.clear(); window.sessionStorage.clear(); window.history.replaceState(null, '', '/') })
+
+  it.each([
+    ['average', averageCaptureJson],
+    ['partition', partitionCaptureJson],
+  ])('validates and runs the editor’s %s example using captured API responses', async (exampleId, captureJson) => {
+    vi.useFakeTimers()
+    vi.stubGlobal('ResizeObserver', FakeResizeObserver)
+    const example = EXAMPLES.find((item) => item.id === exampleId)!
+    // Exact run/validation bodies and first two polls copied from the live proof captures.
+    const { validation, run, polls } = JSON.parse(captureJson) as {
+      validation: { status: number; body: unknown }
+      run: { status: number; body: { runId: string } }
+      polls: { status: number; body: ResultsPage }[]
+    }
+    let pollIndex = 0
+    const fetchMock = vi.fn((url: string, init?: RequestInit) => {
+      if (url.endsWith('/fields')) return respond(200, { fields: [{ name: 'speedKmh', type: 'number' }] })
+      if (url.endsWith('/validate') || url.endsWith('/runs')) {
+        // Both endpoints accept the bare pipeline, preserving node ids and from/to edges.
+        expect(init?.method).toBe('POST')
+        expect(JSON.parse(init!.body as string)).toEqual(example.pipeline)
+        return url.endsWith('/validate') ? respond(validation.status, validation.body) : respond(run.status, run.body)
+      }
+      const request = new URL(url, window.location.origin)
+      expect(request.pathname).toBe(`/api/glorious/pipelines/runs/${run.body.runId}/results`)
+      const after = request.searchParams.get('after')!
+      if (!/^\d+$/.test(after)) return respond(400, { valid: false, errors: [{ message: 'after must be non-negative' }] })
+      expect(init?.signal).toBeInstanceOf(AbortSignal)
+      const page = polls[Math.min(pollIndex++, polls.length - 1)]!
+      return respond(page.status, { ...page.body, results: page.body.results.filter((result) => result.seq > Number(after)) })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    window.history.replaceState(null, '', '/pipelines/editor')
+    await act(async () => { render(<div className="glorious-app"><WindowManager><EditorPage /></WindowManager></div>) })
+    fireEvent.change(screen.getByLabelText('Load example'), { target: { value: exampleId } })
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Validate' })) })
+    expect(screen.getByRole('status').textContent).toContain('This pipeline can run.')
+    await act(async () => { fireEvent.click(screen.getByTestId('pipeline-run')) })
+    expect(screen.getByRole('dialog', { name: `Pipeline results - ${example.pipeline.name}` })).toBeTruthy()
+    expect(screen.getByText('Running')).toBeTruthy()
+    expect(screen.getByText('Events in:').textContent).toBe('Events in: 0')
+    expect(screen.getByText('Buffered results:').textContent).toBe('Buffered results: 0')
+    expect(screen.getByText('Waiting for matching events. No results yet.')).toBeTruthy()
+    for (let index = 1; index < polls.length; index++) {
+      await act(async () => { vi.advanceTimersByTime(1000) })
+    }
+    const lastPage = polls[polls.length - 1]!.body
+    const rows = polls.flatMap((poll) => poll.body.results)
+    expect(screen.getByText('Running')).toBeTruthy()
+    expect(screen.getByText('Events in:').textContent).toBe(`Events in: ${lastPage.eventsIn}`)
+    expect(screen.getByText('Buffered results:').textContent).toBe(`Buffered results: ${rows.length}`)
+    expect(screen.queryByText('Disconnected')).toBeNull()
+    expect(screen.queryByText('The pipeline is not valid')).toBeNull()
+    if (exampleId === 'partition') {
+      expect(screen.getByRole('table').textContent).toContain('truck-002')
+      expect(screen.getByRole('table').textContent).toContain('Partition 2 speeds')
+    } else {
+      // The real average-speed capture contains events but no emitted rows.
+      expect(screen.queryByRole('table')).toBeNull()
+      expect(screen.getByText('Waiting for matching events. No results yet.')).toBeTruthy()
+    }
+    await act(async () => { vi.advanceTimersByTime(1000) })
+    const cursor = rows.length ? Math.max(...rows.map((row) => row.seq)) : 0
+    expect(fetchMock).toHaveBeenLastCalledWith(expect.stringContaining(`/results?after=${cursor}`), expect.anything())
+    expect(screen.getByText('Buffered results:').textContent).toBe(`Buffered results: ${rows.length}`)
+  })
 
   it.each([200, 400])('shows validation errors on the node for HTTP %s', async (status) => {
     vi.stubGlobal('ResizeObserver', FakeResizeObserver)
@@ -333,6 +402,17 @@ describe('pipeline results lifecycle', () => {
     expect(screen.getByText('Buffered results:').textContent).toBe('Buffered results: -')
     expect(screen.getByText('Results unavailable. Waiting to reconnect.')).toBeTruthy()
     expect(screen.queryByRole('table')).toBeNull()
+  })
+
+  it('reports a rejected results cursor without calling the validated pipeline invalid', async () => {
+    vi.useFakeTimers()
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    vi.stubGlobal('fetch', vi.fn(() => respond(400, { valid: false, errors: [{ message: 'after must be non-negative' }] })))
+    await act(async () => { render(<ResultsView runId="validated-run" />) })
+    expect(screen.getByText('Disconnected')).toBeTruthy()
+    expect(screen.getByRole('alert').textContent).toBe('Could not fetch pipeline results: after must be non-negative')
+    expect(screen.queryByText('The pipeline is not valid')).toBeNull()
+    expect(screen.getByText('Events in:').textContent).toBe('Events in: -')
   })
 
   it.each(['STOPPED', 'FAILED'] as const)('renders terminal state %s and stops polling', async (state) => {

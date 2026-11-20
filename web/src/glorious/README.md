@@ -72,6 +72,12 @@ partition data is unavailable, not an empty assignment.
 The pipeline editor preserves drafts in tab-local session storage across refresh
 and Back. Edits invalidate in-flight validation; results polling errors display
 Disconnected until a successful update, and reopening results selects the new run.
+Validate and Run both POST the bare `{name, nodes, edges}` pipeline, not a
+`{pipeline}` wrapper. The run response's `runId` keys the results view; polling
+starts at `after=0` and advances to the highest received sequence. HTTP 400
+results-request errors show their server detail without calling a previously
+validated pipeline invalid. Running with events but no emitted rows is not a
+disconnection.
 
 Fleet, recovery history/execution/checkpoint, and pipeline-results requests never
 overlap within a poller. Failed polls wait 5, 10, then at most 15 seconds, emit one
