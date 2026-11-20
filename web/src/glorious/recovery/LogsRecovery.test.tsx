@@ -102,6 +102,17 @@ describe('fake audit', () => {
     rerender(view(worker))
     expect(screen.getByText(/its end has not been recorded yet \(connection unavailable\)/)).toBeTruthy()
   })
+  it('closes an unended planned rebalance banner when execution leaves RECOVERING', () => {
+    feed.current = {
+      ...baseFeed,
+      execution: run,
+      history: [{ ...recovering, reason: 'rebalance' }],
+    }
+    render(view(worker))
+    expect(screen.getByText(/Planned rebalance started .*execution has left RECOVERING, but no completion event was recorded/)).toBeTruthy()
+    expect(screen.queryByText(/Processing paused for .* \(in progress\)/)).toBeNull()
+  })
+
 
   it('shows partitions the server reports beyond the configured six', () => {
     render(view({ ...worker, partitions: [7] }))

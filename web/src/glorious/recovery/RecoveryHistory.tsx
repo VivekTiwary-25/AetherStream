@@ -1,6 +1,11 @@
 import { eventLabel, recoveryDuration, seconds, type RecoveryEntry } from './model'
 
-export function RecoveryHistory({ entries, loaded, unavailable = false }: { entries: RecoveryEntry[]; loaded: boolean; unavailable?: boolean }) {
+export function RecoveryHistory({ entries, loaded, unavailable = false, currentOwners = {} }: {
+  entries: RecoveryEntry[]
+  loaded: boolean
+  unavailable?: boolean
+  currentOwners?: Record<number, string>
+}) {
   return <section aria-labelledby="recovery-activity-title">
     <h2 id="recovery-activity-title">Activity & failure history</h2>
     <p className="recovery-muted">Newest event time first (ID breaks ties) · The last 200 events kept by the server, including failures triggered from the terminal.</p>
@@ -27,7 +32,8 @@ export function RecoveryHistory({ entries, loaded, unavailable = false }: { entr
             : 'Pause length unknown (timing was not fully recorded).'}</p>}
           {entry.event === 'CHECKPOINT_COMPLETED' && entry.checkpointId != null && <p>Checkpoint #{entry.checkpointId}
             {entry.durationMs != null ? ` · ${entry.durationMs} ms` : ''}</p>}
-          {!!entry.partitionChanges?.length && <ul className="recovery-changes">{entry.partitionChanges.map((change) =>
+          {!!entry.partitionChanges?.length && <ul className="recovery-changes">{entry.partitionChanges.filter((change) =>
+            currentOwners[change.partition] === change.newOwner).map((change) =>
             <li key={change.partition}>P{change.partition}: {change.oldOwner ?? 'Unassigned'} → {change.newOwner ?? 'Unassigned'}</li>)}</ul>}
         </li>
       })}</ol>}

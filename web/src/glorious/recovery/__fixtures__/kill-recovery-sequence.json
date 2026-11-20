@@ -1,0 +1,62 @@
+{
+  "source": "design/ui-glorious/proof/standby-utkarsh/kill/09-after-3s.json, 09-after-6s.json, 09-after-12s.json",
+  "executionId": "exec-20261120-051856-8aa5",
+  "snapshots": [
+    {
+      "name": "09-after-3s",
+      "at": 1795152532498,
+      "executionState": "RECOVERING",
+      "generation": 4,
+      "workers": [
+        { "workerId": "worker-1", "alive": true, "state": "IDLE", "partitions": [0, 3], "recordsPerSec": 0, "lastHeartbeatMs": 1795152532294 },
+        { "workerId": "worker-2", "alive": true, "state": "RUNNING", "partitions": [1, 4], "recordsPerSec": 10.000074956594876, "lastHeartbeatMs": 1795152532468 },
+        { "workerId": "worker-3", "alive": true, "state": "RUNNING", "partitions": [2, 5], "recordsPerSec": 10.005183064842086, "lastHeartbeatMs": 1795152532462 }
+      ],
+      "history": [
+        { "id": 86, "event": "WORKER_DEAD", "at": 1795152385334, "workerId": "worker-2", "executionId": "exec-20261120-051856-8aa5", "generation": null },
+        { "id": 87, "event": "WORKER_RESTARTED", "at": 1795152385342, "workerId": "worker-2", "executionId": "exec-20261120-051856-8aa5", "generation": null },
+        { "id": 89, "event": "RECOVERED", "at": 1795152386442, "workerId": "worker-2", "executionId": "exec-20261120-051856-8aa5", "generation": 3 },
+        { "id": 105, "event": "WORKER_DEAD", "at": 1795152532178, "workerId": "worker-1", "executionId": "exec-20261120-051856-8aa5", "generation": null },
+        { "id": 106, "event": "WORKER_RESTARTED", "at": 1795152532183, "workerId": "worker-1", "executionId": "exec-20261120-051856-8aa5", "generation": null }
+      ]
+    },
+    {
+      "name": "09-after-6s",
+      "at": 1795152535480,
+      "executionState": "RUNNING",
+      "generation": 4,
+      "workers": [
+        { "workerId": "worker-1", "alive": true, "state": "RUNNING", "partitions": [0, 3], "recordsPerSec": 9.273537678028706, "lastHeartbeatMs": 1795152535272 },
+        { "workerId": "worker-2", "alive": true, "state": "RUNNING", "partitions": [1, 4], "recordsPerSec": 8.879191325568703, "lastHeartbeatMs": 1795152535470 },
+        { "workerId": "worker-3", "alive": true, "state": "RUNNING", "partitions": [2, 5], "recordsPerSec": 8.647619551863054, "lastHeartbeatMs": 1795152535463 }
+      ],
+      "history": [
+        { "id": 86, "event": "WORKER_DEAD", "at": 1795152385334, "workerId": "worker-2", "executionId": "exec-20261120-051856-8aa5", "generation": null },
+        { "id": 87, "event": "WORKER_RESTARTED", "at": 1795152385342, "workerId": "worker-2", "executionId": "exec-20261120-051856-8aa5", "generation": null },
+        { "id": 89, "event": "RECOVERED", "at": 1795152386442, "workerId": "worker-2", "executionId": "exec-20261120-051856-8aa5", "generation": 3 },
+        { "id": 105, "event": "WORKER_DEAD", "at": 1795152532178, "workerId": "worker-1", "executionId": "exec-20261120-051856-8aa5", "generation": null },
+        { "id": 106, "event": "WORKER_RESTARTED", "at": 1795152532183, "workerId": "worker-1", "executionId": "exec-20261120-051856-8aa5", "generation": null },
+        { "id": 108, "event": "RECOVERED", "at": 1795152533473, "workerId": "worker-1", "executionId": "exec-20261120-051856-8aa5", "generation": 4 }
+      ]
+    },
+    {
+      "name": "09-after-12s",
+      "at": 1795152541480,
+      "executionState": "RUNNING",
+      "generation": 4,
+      "workers": [
+        { "workerId": "worker-1", "alive": true, "state": "RUNNING", "partitions": [0, 3], "recordsPerSec": 10.08359283251549, "lastHeartbeatMs": 1795152541273 },
+        { "workerId": "worker-2", "alive": true, "state": "RUNNING", "partitions": [1, 4], "recordsPerSec": 9.997108841340776, "lastHeartbeatMs": 1795152541469 },
+        { "workerId": "worker-3", "alive": true, "state": "RUNNING", "partitions": [2, 5], "recordsPerSec": 10.860460726678443, "lastHeartbeatMs": 1795152541463 }
+      ],
+      "history": [
+        { "id": 86, "event": "WORKER_DEAD", "at": 1795152385334, "workerId": "worker-2", "executionId": "exec-20261120-051856-8aa5", "generation": null },
+        { "id": 87, "event": "WORKER_RESTARTED", "at": 1795152385342, "workerId": "worker-2", "executionId": "exec-20261120-051856-8aa5", "generation": null },
+        { "id": 89, "event": "RECOVERED", "at": 1795152386442, "workerId": "worker-2", "executionId": "exec-20261120-051856-8aa5", "generation": 3 },
+        { "id": 105, "event": "WORKER_DEAD", "at": 1795152532178, "workerId": "worker-1", "executionId": "exec-20261120-051856-8aa5", "generation": null },
+        { "id": 106, "event": "WORKER_RESTARTED", "at": 1795152532183, "workerId": "worker-1", "executionId": "exec-20261120-051856-8aa5", "generation": null },
+        { "id": 108, "event": "RECOVERED", "at": 1795152533473, "workerId": "worker-1", "executionId": "exec-20261120-051856-8aa5", "generation": 4 }
+      ]
+    }
+  ]
+}

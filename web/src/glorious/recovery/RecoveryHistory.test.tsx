@@ -18,7 +18,7 @@ describe('persistent activity rendering', () => {
       { ...base, id: 3, event: 'RECOVERED', at: base.at + 1_600, reason: null,
         partitionChanges: [{ partition: 1, oldOwner: 'worker-2', newOwner: 'worker-1' }] },
     ])
-    render(<RecoveryHistory entries={history} loaded />)
+    render(<RecoveryHistory entries={history} loaded currentOwners={{ 1: 'worker-1' }} />)
     const rows = within(screen.getAllByRole('list')[0]).getAllByRole('listitem')
     expect(within(rows[0]).getByText('Recovery finished')).toBeTruthy()
     expect(within(rows[0]).getByText('Restored from checkpoint #42 · generation 3')).toBeTruthy()
@@ -27,6 +27,13 @@ describe('persistent activity rendering', () => {
     expect(screen.getAllByText('Actor: coordinator')).toHaveLength(3)
     expect(screen.getByText('Worker died')).toBeTruthy()
   })
+  it('does not claim a recorded partition change when live worker ownership disagrees', () => {
+    const change = { ...base, event: 'REBALANCED', partitionChanges: [{ partition: 1, oldOwner: 'worker-2', newOwner: 'worker-1' }] }
+    render(<RecoveryHistory entries={[change]} loaded currentOwners={{ 1: 'worker-2' }} />)
+    expect(screen.getByText('Rebalance reported')).toBeTruthy()
+    expect(screen.queryByText('P1: worker-2 → worker-1')).toBeNull()
+  })
+
 
   it('orders conflicting IDs by event time, with descending IDs only breaking time ties', () => {
     const history = mergeHistory([], [

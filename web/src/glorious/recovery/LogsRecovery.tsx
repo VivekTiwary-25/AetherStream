@@ -25,6 +25,8 @@ export function LogsRecovery() {
   const partitionIds = [...new Set([...CONFIGURED_PARTITIONS, ...workers.flatMap((worker) => Array.isArray(worker.partitions) ? worker.partitions : []),
     ...currentHistory.flatMap((entry) => entry.partitionChanges?.map((change) => change.partition) ?? [])])].sort((a, b) => a - b)
   const latestRecovery = currentHistory.find((entry) => entry.event === 'RECOVERING' || entry.event === 'RECOVERED')
+  const currentOwners = Object.fromEntries(workers.flatMap((worker) => worker.alive && Array.isArray(worker.partitions)
+    ? worker.partitions.map((partition) => [partition, worker.workerId] as const) : []))
   return <div className="recovery-panel" data-testid="logs-recovery">
     <div className="recovery-intro">
       <p>How the engine’s workers (the processes that share the work) are doing, which worker owns each partition (slice of the stream), and the checkpoints (saved progress) it recovers from after a failure.</p>
@@ -34,11 +36,14 @@ export function LogsRecovery() {
     {feed.executionError && <p role="alert">Current run unavailable: {feed.executionError}</p>}
     {latestRecovery?.event === 'RECOVERING' && (feed.status === 'connected' && feed.execution?.state === 'RECOVERING'
       ? <p className="recovery-pause">Processing paused for {seconds(now - latestRecovery.at)} s during recovery (in progress).</p>
-      // Without a live RECOVERING run state, a ticking counter would be a guess: show only the recorded start.
-      : <p className="recovery-pause">Recovery started {new Date(latestRecovery.at).toLocaleString()}; its end has not been recorded yet{feed.status !== 'connected' ? ' (connection unavailable)' : ''}.</p>)}
+      : feed.status === 'connected' && latestRecovery.reason === 'rebalance'
+        ? <p className="recovery-pause">Planned rebalance started {new Date(latestRecovery.at).toLocaleString()}; execution has left RECOVERING, but no completion event was recorded.</p>
+        : latestRecovery.reason === 'rebalance'
+          ? <p className="recovery-pause">Planned rebalance started {new Date(latestRecovery.at).toLocaleString()}; its end is not recorded (connection unavailable).</p>
+          : <p className="recovery-pause">Recovery started {new Date(latestRecovery.at).toLocaleString()}; its end has not been recorded yet{feed.status !== 'connected' ? ' (connection unavailable)' : ''}.</p>)}
     <section aria-labelledby="recovery-workers-title">
       <h2 id="recovery-workers-title">Workers</h2>
-      <p className="recovery-muted">A confirmed death stays marked Dead for 3 seconds from the event time, even if the worker is already alive again; only that worker then shows Rejoined after recovery.</p>
+      <p className="recovery-muted">A confirmed death stays marked Dead for 3 seconds from the event time; only that worker shows Rejoined after its restart and recovery.</p>
       <div className="recovery-workers">{workerIds.length ? workerIds.map((workerId, workerIndex) => {
         const worker = workers.find((candidate) => candidate.workerId === workerId)
         const state = deriveWorkerState(worker, workerId, feed.history, feed.execution, now)
@@ -65,9 +70,10 @@ export function LogsRecovery() {
         const owners = workers.filter((worker) => worker.alive && worker.partitions?.includes(partition))
         const ownershipUnknown = workers.some((worker) => worker.alive && !Array.isArray(worker.partitions))
         const change = recentPartitionChange(partition, feed.history, feed.execution?.id, now)
+        const changeIsCurrent = change && currentOwners[partition] === change.newOwner
         return <div className="recovery-partition" data-testid={`partition-chip-${partition}`} key={partition}>
           <strong>P{partition}</strong><span className="recovery-partition-owners">{owners.length ? owners.map((owner) => <span className={`recovery-owner recovery-owner--${workerIds.indexOf(owner.workerId) % 3}`} key={owner.workerId}>{owner.workerId}</span>) : ownershipUnknown ? 'Unavailable' : 'Unassigned'}</span>
-          {change && <small>{change.oldOwner ?? 'Unassigned'} → {change.newOwner ?? 'Unassigned'}</small>}
+          {changeIsCurrent && <small>{change.oldOwner ?? 'Unassigned'} → {change.newOwner ?? 'Unassigned'}</small>}
         </div>
       })}</div>
     </section>
@@ -86,7 +92,7 @@ export function LogsRecovery() {
         </table></div>}
       {feed.execution?.restoredFromCheckpoint != null && <p>Current run restarted from checkpoint #{feed.execution.restoredFromCheckpoint} · generation {feed.execution.generation}</p>}
     </section>
-    <RecoveryHistory entries={feed.history} loaded={feed.historyLoaded} unavailable={!!feed.historyError} />
+    <RecoveryHistory entries={feed.history} loaded={feed.historyLoaded} unavailable={!!feed.historyError} currentOwners={currentOwners} />
   </div>
 }
 

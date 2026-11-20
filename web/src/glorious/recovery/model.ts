@@ -42,7 +42,7 @@ export function deriveWorkerState(
   worker: WorkerInfo | undefined,
   workerId: string,
   history: RecoveryEntry[],
-  execution: Pick<ExecutionInfo, 'id' | 'state'> | null,
+  execution: (Pick<ExecutionInfo, 'id' | 'state'> & Partial<Pick<ExecutionInfo, 'generation'>>) | null,
   now: number,
 ): WorkerDisplayState {
   // History is newest first. Only explicit lifecycle facts identify a failed worker;
@@ -50,27 +50,29 @@ export function deriveWorkerState(
   const entries = history.filter((entry) => entry.executionId === execution?.id)
   const lossIndex = entries.findIndex((entry) => entry.workerId === workerId &&
     (entry.event === 'WORKER_DEAD' || entry.event === 'WORKER_RESTARTED'))
-  let loss = entries[lossIndex]
-  if (loss?.event === 'WORKER_RESTARTED') {
-    // Re-registration emits DEAD then RESTARTED for the same failure. Keep the
-    // confirmed death's clock; a restart must not replace or extend that hold.
-    const previous = entries.find((entry, index) => index > lossIndex &&
-      (entry.event === 'RECOVERED' || (entry.workerId === workerId &&
-        (entry.event === 'WORKER_DEAD' || entry.event === 'WORKER_RESTARTED'))))
-    if (previous?.event === 'WORKER_DEAD') loss = previous
-  }
-  const lossAt = loss?.event === 'WORKER_DEAD' ? loss.at : loss?.observedAt ?? loss?.at
+  const loss = entries[lossIndex]
+  const death = loss?.event === 'WORKER_DEAD' ? loss
+    : loss?.event === 'WORKER_RESTARTED' ? entries.slice(lossIndex + 1).find((entry, index, older) =>
+      entry.workerId === workerId && entry.event === 'WORKER_DEAD' && entry.at <= loss.at &&
+      !older.slice(0, index).some((candidate) => candidate.workerId === workerId &&
+        candidate.event === 'RECOVERED' && candidate.at >= entry.at && candidate.at < loss.at))
+      : undefined
+  const restartedThisCycle = loss?.event === 'WORKER_RESTARTED' && !!death
+  const lossAt = death?.at ?? (loss?.event === 'WORKER_RESTARTED' ? loss.observedAt ?? loss.at : undefined)
   const deadUntil = lossAt == null ? 0 : lossAt + DEAD_HOLD_MS
   if (worker && !worker.alive) return 'dead'
   if (loss && now < deadUntil) return 'dead'
-  // A restart is not a death: once its hold ends, a worker missing from /api/workers is just unavailable.
-  if (!worker) return loss?.event === 'WORKER_DEAD' ? 'dead' : 'unavailable'
-  // A pre-death RUNNING sample must not erase an authoritative death event.
-  if (loss?.event === 'WORKER_DEAD' && (!Number.isFinite(worker.lastHeartbeatMs) || worker.lastHeartbeatMs <= loss.at)) return 'dead'
+  // A restart or completion after a confirmed death is newer evidence than an older heartbeat.
+  const newerRecoveryFact = death && entries.some((entry) => entry.workerId === workerId &&
+    (entry.event === 'WORKER_RESTARTED' || entry.event === 'RECOVERED') && entry.at > death.at)
+  if (!worker) return death ? 'dead' : 'unavailable'
+  if (death && (!Number.isFinite(worker.lastHeartbeatMs) || worker.lastHeartbeatMs <= death.at) &&
+    !(worker.alive && worker.state === 'RUNNING' && newerRecoveryFact)) return 'dead'
   if (worker.state === 'RESTORING' || execution?.state === 'RECOVERING') return 'recovering'
-  const recovered = loss && entries.find((entry) => entry.event === 'RECOVERED' && entry.at >= loss.at)
-  const joinedAt = recovered?.at ?? (loss?.event === 'WORKER_RESTARTED' ? loss.at : null)
-  if (loss && joinedAt !== null && now < Math.max(joinedAt, deadUntil) + REJOINED_HOLD_MS) return 'rejoined'
+  const recovered = restartedThisCycle && entries.find((entry) => entry.event === 'RECOVERED' &&
+    entry.workerId === workerId && entry.at >= loss.at && entry.at >= death.at &&
+    (execution?.generation == null || entry.generation === execution.generation))
+  if (recovered && now < Math.max(recovered.at, deadUntil) + REJOINED_HOLD_MS) return 'rejoined'
   return worker.state === 'RUNNING' ? 'running' : 'idle'
 }
 
@@ -97,7 +99,7 @@ export const eventLabel = (event: string) => ({
   WORKER_RESTARTED: 'Worker restarted',
   RECOVERING: 'Recovery started',
   RECOVERED: 'Recovery finished',
-  REBALANCED: 'Partitions reassigned',
+  REBALANCED: 'Rebalance reported',
   CHECKPOINT_COMPLETED: 'Checkpoint saved',
 }[event] ?? event)
 
