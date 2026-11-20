@@ -2,6 +2,12 @@
 
 Fresh boss session: read swarm/BOSS.md, then design/ui-glorious/BOSS_PROMPT.md (the mission), then this file. Continue from "Next".
 
+## 12:40 DEMO READY (since 12:33)
+- Host vimlesh-pc at ui-glorious commit fb333a3; public link lives on the demo-link branch (never write it into public files). Kill + recovery verified live there: checkpoint #37, 1803 ms.
+- RULE (Vivek): nothing is refreshed onto vimlesh-pc without Vivek's OK. Keep merging fixes into ui-glorious; tell Vivek only about fixes worth a refresh. Only current candidate: survivor "Rejoined" / endless rebalance banner fix (t261120-1122-fae5, utkarsh sol).
+- Merged after fb333a3 (NOT on demo host): fleet poll timeout + abort-listener leak fix, evaluator stall fix (control-api), AI 429 busy message, build fix (a11y fixture broke tsc -b), recovery spec, docs. Always run `npm run build` after web merges.
+- README rewrite t261120-1231-34d8 was auto-failed-over to vimlesh-pc/codex-luna (docs only); asked Vivek whether to move it.
+
 ## 12:07 boss state
 - vimlesh-pc = DEMO HOST (works; tunnel blocked by college net -> localhost:8089 / LAN, see docs/expo/STANDBY.md). Its swarm is down; queue NOTHING there; watch for auto-failover moving tasks there and ask Vivek before moving (Vivek: "don't reroute without my permission").
 - utkarsh-pc: NO Docker work any more (disk filled 24->7 GB). Standby stack to be stopped BY HAND by Utkarsh (compose down, keep volumes; builder prune). Never queue destructive/docker tasks that could fail over to vimlesh-pc.
