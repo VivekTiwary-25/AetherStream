@@ -1,0 +1,5 @@
+# Fresh-eyes pre-freeze review of the new UI (demo-breaking bugs only)
+
+Files: web/src/glorious/** (fix inside the owning folder; smallest change + a test each). Do NOT read or describe swarm/. Do NOT start Docker (live demo on this PC). Before finishing: in web/ npm ci (if needed), npm run lint, npm test -- --maxWorkers=2, npm run build, npm run check:no-mock must pass.
+
+Read  and walk the 7-step demo path in BOSS_PROMPT.md section 2 through the code. Look ONLY for bugs that would visibly break or embarrass a 20-minute live demo with a running stack: crashes on null/undefined live data (e.g. a truck missing speedKmh, an empty partitions list, a worker with no lastHeartbeatMs), WebSocket reconnect leaving stale or duplicated state, timers/subscriptions leaking after windows close, windows opening off-screen at 1366x768 or 1440x900, route edge cases (/live refresh, /pipelines/editor refresh, back button), StatusPill stuck on a wrong state after recovery, anything that shows fake or stale data as live. Fix each with a test. Report a table: bug -> file:line -> fixed. If you find nothing serious, say so plainly.

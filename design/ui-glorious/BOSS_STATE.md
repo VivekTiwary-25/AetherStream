@@ -46,6 +46,12 @@ Fresh boss session: read swarm/BOSS.md, then design/ui-glorious/BOSS_PROMPT.md (
 - ONLY thing to protect: the boss session's tokens (ran out briefly tonight). Keep context lean, delegate, warn Vivek early if low.
 - GOTCHA: pushing swarm .py code while long tasks run stalls dispatch on that PC until they finish (_first_runnable waits for restart). Config JSON pushes are safe.
 
+## 06:00 PIPELINES CHECKPOINT: DECISION = KEEP 'full' (Ask AI + editor), PIPELINES_MODE unchanged
+- Valid: real Ask AI generation via vivek-pc bridge (vachana, haiku): 4/4 valid real pipelines (3 rehearsal + 'stuck/stopped' visitor prompt), 5-10 s; 20-prompt eval t261120-0526-cbd6 still running.
+- Runnable: executor proven against a REAL in-JVM Kafka broker (PipelineRunsKafkaIntegrationTest, 3/3 example pipelines exact). NOT yet run on a live stack (utkarsh disk full).
+- Safety net: honest saved-example fallback (also offline), manual editor, one-line switch web/src/glorious/pipelines/mode.ts -> 'editor' or 'hidden' if the live run fails when a stack exists.
+- Recovery history fixed + proven vs real Coordinator (41cf merged): worker-2 attribution + restore checkpoint.
+
 ## 05:25 BLOCKER
 - utkarsh-pc DISK FULL again (OSError 28): Docker image build consumed the ~4.6 GB. Stack t261120-0409-2aa3 FAILED, pipelines-live t261120-0514-4f1f FAILED (worktree add), kill test 1e14 running but will fail (no stack). Asked Vivek 05:25: (1) Utkarsh frees >=15 GB (Downloads 6.6 GB, Docker Desktop Troubleshoot > Clean/Purge data, old images) then `swarm fix`; or (2) Vivek OKs a ui-glorious stack on vivek-pc next to the live demo (compose -p aether-preview, NO host ports except web 8089, memory risk) -> needs his explicit OK (touches live-demo machine).
 - Merged 05:15-05:23: AI robustness e92b (re-verified real generation 10 s), final docs 65c1, pipelines polish eb78, glorious README 9581, FINAL_REPORT.md skeleton 2690.
