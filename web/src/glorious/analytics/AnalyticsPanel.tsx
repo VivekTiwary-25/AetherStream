@@ -1,11 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useAetherMessages } from '../../api/ws'
 import type { Alert, DeadLetter, Flow, SimulatorTruck, WebSocketMessage, WindowResult } from '../../api/types'
 import { useDashboard } from '../../app/state/store'
 import { useWindows } from '../shell/windows'
 import { Icon } from '../shell/Icon'
 import { Bars, ChartRow, LineChart } from './charts/Charts'
-import { groupTruckWindows, mapFailedRecords, windowLengthLabel } from './data'
+import { groupTruckWindows, mapFailedRecords, uniqueWindows, validTruckReadings, windowLengthLabel } from './data'
 import './analytics.css'
 
 export type AnalyticsId = 'truck-speeds' | 'deliveries' | 'alerts' | 'events-processed' | 'failed-records'
@@ -21,29 +21,42 @@ export function AnalyticsPanel({ id }: { id: AnalyticsId }) {
   const [selectedTruck, setSelectedTruck] = useState<string | null>(null)
   const [selectedFailure, setSelectedFailure] = useState<DeadLetter | null>(null)
   const [failureKind, setFailureKind] = useState<'ALL' | DeadLetter['kind']>('ALL')
-  const [snapshotTrucks, setSnapshotTrucks] = useState<SimulatorTruck[]>([])
+  const lastTruckAt = useRef(0)
+  const [trucksFresh, setTrucksFresh] = useState(false)
 
-  useAetherMessages((message: WebSocketMessage) => {
+  const liveStatus = useAetherMessages((message: WebSocketMessage) => {
     if (message.type === 'snapshot' && message.data && typeof message.data === 'object') {
       const snapshot = message.data as { simulator?: { trucks?: SimulatorTruck[] } }
-      if (Array.isArray(snapshot.simulator?.trucks)) setSnapshotTrucks(snapshot.simulator.trucks)
+      setTrucks(Array.isArray(snapshot.simulator?.trucks) ? validTruckReadings(snapshot.simulator.trucks) : [])
+      lastTruckAt.current = Date.now()
+      setTrucksFresh(true)
     }
     if (message.type === 'trucks' && message.data && typeof message.data === 'object' && 'trucks' in message.data) {
       const data = message.data as { trucks: SimulatorTruck[] }
       if (!Array.isArray(data.trucks)) return
-      setTrucks(data.trucks)
+      const readings = validTruckReadings(data.trucks)
+      setTrucks(readings)
       const at = Date.now()
-      setSpeedSamples((samples) => [...samples, ...data.trucks.filter((truck) => Number.isFinite(truck.speedKmh)).map((truck) => ({ truckId: truck.truckId, speed: truck.speedKmh, at }))].slice(-600))
+      lastTruckAt.current = at
+      setTrucksFresh(true)
+      setSpeedSamples((samples) => [...samples, ...readings.filter((truck) => Number.isFinite(truck.speedKmh)).map((truck) => ({ truckId: truck.truckId, speed: truck.speedKmh, at }))].slice(-600))
     }
     if (message.type === 'flow' && message.data && typeof message.data === 'object') {
       setFlowSamples((samples) => [...samples, { ...(message.data as Flow), at: Date.now() }].slice(-300))
     }
   })
 
-  const currentTrucks = trucks.length ? trucks : snapshotTrucks
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      if (Date.now() - lastTruckAt.current > 4500) setTrucksFresh(false)
+    }, 1000)
+    return () => window.clearInterval(timer)
+  }, [])
+
+  const currentTrucks = trucks
 
   const speedWindows = windows.filter((window) => window?.sinkId === 'speedSink')
-  const deliveryWindows = windows.filter((window) => window?.sinkId === 'delSink')
+  const deliveryWindows = uniqueWindows(windows.filter((window) => window?.sinkId === 'delSink'))
   const truckRows = groupTruckWindows(speedWindows)
   const speedByTruck = new Map(truckRows.map((row) => [row.truckId, row.latest]))
   const truckIds = [...new Set([...currentTrucks.map((truck) => truck.truckId), ...speedByTruck.keys()])].sort((a, b) => a.localeCompare(b))
@@ -85,15 +98,15 @@ export function AnalyticsPanel({ id }: { id: AnalyticsId }) {
         const current = currentTrucks.find((truck) => truck.truckId === truckId)
         const latest = speedByTruck.get(truckId)
         return <li key={truckId}><button className="an-row" type="button" data-testid={`truck-row-${truckId}`} onClick={() => showTruck(truckId)}>
-          <strong>{truckId}</strong><span>{current ? `${current.speedKmh.toFixed(1)} km/h now` : 'Live speed unavailable'}</span>
-          <span>{latest ? `${typeof latest.values.avgSpeedKmh === 'number' ? `${latest.values.avgSpeedKmh.toFixed(1)} km/h ${windowLengthLabel(latest)}` : 'No average'} · ${latest.eventCount} readings` : 'No completed speed window'}</span>
+          <strong>{truckId}</strong><span>{current && trucksFresh && liveStatus === 'connected' && Number.isFinite(current.speedKmh) ? `${current.speedKmh.toFixed(1)} km/h now` : 'Live speed unavailable'}</span>
+          <span>{latest ? `${typeof latest.values?.avgSpeedKmh === 'number' && Number.isFinite(latest.values.avgSpeedKmh) ? `${latest.values.avgSpeedKmh.toFixed(1)} km/h ${windowLengthLabel(latest)}` : 'No average'} · ${latest.eventCount} readings` : 'No completed speed window'}</span>
         </button></li>
       })}</ul></> : <EmptyState socketStatus={socketStatus} execution={execution?.state} message="No live trucks or completed speed windows yet." />}
     </section>}
     {id === 'deliveries' && <section>
       <p className="an-caption">Per-truck counts use each truck's latest completed delSink window; the trend sums by simulation window end.</p>
       {latestDeliveryByTruck.size > 0 && <TableHead columns={['Truck', 'Latest window', 'Window end']} />}
-      <div className="an-list">{latestDeliveryByTruck.size ? [...latestDeliveryByTruck].sort(([a], [b]) => a.localeCompare(b)).map(([truckId, row]) => <div className="an-row" key={truckId}><strong>{truckId}</strong><span>{row.values.deliveries ?? 0} deliveries</span><span>{simClock(row.windowEnd)} sim time</span></div>) : <EmptyState socketStatus={socketStatus} execution={execution?.state} message="No delivery windows yet." />}</div>
+      <div className="an-list">{latestDeliveryByTruck.size ? [...latestDeliveryByTruck].sort(([a], [b]) => a.localeCompare(b)).map(([truckId, row]) => <div className="an-row" key={truckId}><strong>{truckId}</strong><span>{row.values?.deliveries ?? 0} deliveries</span><span>{simClock(row.windowEnd)} sim time</span></div>) : <EmptyState socketStatus={socketStatus} execution={execution?.state} message="No delivery windows yet." />}</div>
       <Bars values={deliveryEntries.map(([, count]) => count)} label="Total deliveries per completed window" unit="deliveries" />
     </section>}
     {id === 'alerts' && <section className="an-cols-alerts">
@@ -115,7 +128,7 @@ export function AnalyticsPanel({ id }: { id: AnalyticsId }) {
     {id === 'failed-records' && <section>
       <p className="an-caption">Event timestamps are simulation time; partition and offset identify the consumed record.</p>
       <div className="an-tabs" aria-label="Failed record kind">{(['ALL', 'REJECTED', 'LATE'] as const).map((kind) => <button type="button" key={kind} aria-pressed={failureKind === kind} onClick={() => setFailureKind(kind)}>{kind === 'ALL' ? 'All' : kind}</button>)}</div>
-      {failedRows.length ? <div className="an-list">{failedRows.map((row) => <button className="an-row an-row--failure" type="button" key={`${row.partition}:${row.offset}:${row.eventId}`} onClick={() => showFailure(deadLetters.find((item) => item.eventId === row.eventId)!)}>
+      {failedRows.length ? <div className="an-list">{failedRows.map((row) => <button className="an-row an-row--failure" type="button" key={`${row.partition}:${row.offset}:${row.eventId}`} onClick={() => showFailure(row)}>
         <KindChip kind={row.kind} /><strong className="an-truncate" title={row.eventId}>{row.eventId}</strong><span className="an-reason">{row.reason}</span><span className="an-meta">{simClock(row.eventTime)} · partition {row.partition}, offset {row.offset}</span>
       </button>)}</div> : <EmptyState socketStatus={socketStatus} execution={execution?.state} message="No failed records yet." />}
     </section>}
@@ -133,7 +146,7 @@ function TruckDetail({ truckId, windows, liveSamples }: { truckId: string; windo
   const duration = history[0] ? windowLengthLabel(history[0]).replace(' avg', '') : 'completed windows'
   return <div data-testid="truck-speed-chart">
     <p className="an-caption">Window averages ({duration}) with live speed samples collected since this window opened.</p>
-    <LineChart values={history.map((row) => row.values.avgSpeedKmh).filter((value): value is number => typeof value === 'number' && Number.isFinite(value))} label="Completed speed-window averages" unit="km/h" />
+    <LineChart values={history.map((row) => row.values?.avgSpeedKmh).filter((value): value is number => typeof value === 'number' && Number.isFinite(value))} label="Completed speed-window averages" unit="km/h" />
     <LineChart values={samples.map((sample) => sample.speed)} label={`Live samples since ${samples[0] ? clock(samples[0].at) : 'window opened'}`} unit="km/h" times={samples[0] ? [clock(samples[0].at), clock(samples.at(-1)!.at)] : undefined} />
   </div>
 }

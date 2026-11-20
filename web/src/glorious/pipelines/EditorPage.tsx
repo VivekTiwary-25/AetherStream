@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type DragEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from 'react'
 import { addEdge, Background, Controls, ReactFlow, useEdgesState, useNodesState, type Connection, type Edge, type ReactFlowInstance } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import { ClayButton } from '../shell/ClayButton'
@@ -7,7 +7,7 @@ import { describeError, getFields, validatePipeline, type ErrorView, type Valida
 import { ErrorList } from './ErrorList'
 import { EXAMPLES } from './examples'
 import { flowToPipeline, nextNodeId, pipelineToFlow, type StepNode } from './graph'
-import { CONTRACT_FIELDS, defaultParams, DISPLAY_NAMES, isNodeKind, MAX_NODES, NODE_KINDS, readHandoff, type FieldInfo, type NodeKind, type Pipeline, type PipelineNode } from './model'
+import { CONTRACT_FIELDS, defaultParams, DISPLAY_NAMES, isNodeKind, MAX_NODES, NODE_KINDS, readEditorDraft, readHandoff, storeEditorDraft, type FieldInfo, type NodeKind, type Pipeline, type PipelineNode } from './model'
 import { StepInspector } from './StepInspector'
 import { StepNodeView } from './StepNodeView'
 import { useRunPipeline } from './useRunPipeline'
@@ -17,6 +17,8 @@ const nodeTypes = { step: StepNodeView }
 const DRAG_TYPE = 'application/x-glorious-step'
 
 function initialPipeline(): { pipeline: Pipeline; note: string } {
+  const draft = readEditorDraft()
+  if (draft) return { pipeline: draft, note: 'Restored this tab’s pipeline draft.' }
   const from = new URLSearchParams(window.location.search).get('from')
   if (from === 'ai') {
     const handed = readHandoff()
@@ -41,6 +43,7 @@ export function EditorPage() {
   const [validation, setValidation] = useState<ValidationResult | null>(null)
   const [validating, setValidating] = useState(false)
   const [error, setError] = useState<ErrorView | null>(null)
+  const validationRequest = useRef(0)
   const runner = useRunPipeline()
   const { clearError } = runner
 
@@ -56,9 +59,17 @@ export function EditorPage() {
   }, [])
 
   const pipeline = useMemo(() => flowToPipeline(name, nodes, edges), [name, nodes, edges])
+  useEffect(() => { storeEditorDraft(pipeline) }, [pipeline])
+  useEffect(() => () => { validationRequest.current++ }, [])
   const selected = nodes.find((node) => node.id === selectedId)
 
-  const invalidate = useCallback(() => { setValidation(null); setError(null); clearError() }, [clearError])
+  const invalidate = useCallback(() => {
+    validationRequest.current++
+    setValidating(false)
+    setValidation(null)
+    setError(null)
+    clearError()
+  }, [clearError])
 
   // Errors to show on nodes: from the last Validate, or from a 400 on Run.
   const shownErrors = validation && !validation.valid ? validation.errors : runner.error?.errors ?? []
@@ -124,10 +135,19 @@ export function EditorPage() {
   }
 
   const validate = async () => {
+    const request = ++validationRequest.current
     setValidating(true)
+    setValidation(null)
     setError(null)
     clearError()
-    try { setValidation(await validatePipeline(pipeline)) } catch (caught) { setValidation(null); setError(describeError(caught)) } finally { setValidating(false) }
+    try {
+      const result = await validatePipeline(pipeline)
+      if (request === validationRequest.current) setValidation(result)
+    } catch (caught) {
+      if (request === validationRequest.current) { setValidation(null); setError(describeError(caught)) }
+    } finally {
+      if (request === validationRequest.current) setValidating(false)
+    }
   }
   const run = async () => { setValidation(null); setError(null); await runner.run(pipeline) }
 

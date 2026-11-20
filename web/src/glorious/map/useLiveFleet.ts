@@ -8,25 +8,30 @@ const emptyFleet: Fleet = { trucks: [], timeScale: 0, running: false, fresh: fal
 
 function fleetTrucks(trucks: LiveTruck[]): LiveTruck[] {
   // Only the configured six-truck fleet has geographic routes. Surge trucks remain in analytics.
-  return trucks.filter((truck) => truck && typeof truck.truckId === 'string')
+  return trucks.filter((truck) => truck && typeof truck.truckId === 'string'
+    && typeof truck.status === 'string' && Number.isFinite(truck.speedKmh))
     .sort((a, b) => a.truckId.localeCompare(b.truckId)).slice(0, 6)
 }
 
 export function useLiveFleet(): Fleet {
   const [fleet, setFleet] = useState<Fleet>(emptyFleet)
   const lastTelemetry = useRef(0)
-  const lastSocketTelemetry = useRef(0)
+  const socketRevision = useRef(0)
+  const snapshotRevision = useRef(0)
   useAetherMessages((message) => {
     const now = Date.now()
     if (message.type === 'snapshot') {
       const simulator = (message.data as { simulator?: SimulatorState } | null)?.simulator
       if (!simulator || !Array.isArray(simulator.trucks)) return
-      lastTelemetry.current = lastSocketTelemetry.current = now
+      lastTelemetry.current = now
+      socketRevision.current++
+      snapshotRevision.current++
       setFleet({ trucks: fleetTrucks(simulator.trucks), timeScale: simulator.timeScale, running: simulator.running, fresh: true, error: null })
     } else if (message.type === 'trucks') {
       const data = message.data as { trucks?: LiveTruck[] } | null
       if (!Array.isArray(data?.trucks)) return
-      lastTelemetry.current = lastSocketTelemetry.current = now
+      lastTelemetry.current = now
+      socketRevision.current++
       setFleet((previous) => ({ ...previous, trucks: fleetTrucks(data.trucks!), fresh: true, error: null }))
     }
   })
@@ -40,7 +45,8 @@ export function useLiveFleet(): Fleet {
     const refresh = async () => {
       if (busy) return
       busy = true
-      const started = Date.now()
+      const startedAtRevision = socketRevision.current
+      const startedAtSnapshotRevision = snapshotRevision.current
       try {
         const response = await fetch('/api/simulator/state', { signal: controller.signal })
         if (!response.ok) throw new Error(`Fleet unavailable (HTTP ${response.status})`)
@@ -49,9 +55,9 @@ export function useLiveFleet(): Fleet {
         if (!active) return
         lastTelemetry.current = Date.now()
         setFleet((previous) => ({
-          trucks: lastSocketTelemetry.current > started ? previous.trucks : fleetTrucks(simulator.trucks),
-          timeScale: simulator.timeScale,
-          running: simulator.running,
+          trucks: socketRevision.current !== startedAtRevision ? previous.trucks : fleetTrucks(simulator.trucks),
+          timeScale: snapshotRevision.current !== startedAtSnapshotRevision ? previous.timeScale : simulator.timeScale,
+          running: snapshotRevision.current !== startedAtSnapshotRevision ? previous.running : simulator.running,
           fresh: true,
           error: null,
         }))

@@ -1,4 +1,20 @@
-import type { DeadLetter, WindowResult } from '../../api/types'
+import type { DeadLetter, SimulatorTruck, WindowResult } from '../../api/types'
+
+export function validTruckReadings(trucks: SimulatorTruck[]): SimulatorTruck[] {
+  return trucks.filter((truck) => truck && typeof truck.truckId === 'string')
+}
+
+/** REST hydration and live frames can contain the same persisted result. Keep the newest copy. */
+export function uniqueWindows(windows: WindowResult[]): WindowResult[] {
+  const seen = new Set<string>()
+  return windows.filter((window) => {
+    if (!window) return false
+    const identity = JSON.stringify([window.sinkId, window.key, window.windowStart])
+    if (seen.has(identity)) return false
+    seen.add(identity)
+    return true
+  })
+}
 
 export interface TruckWindow {
   truckId: string
@@ -8,7 +24,7 @@ export interface TruckWindow {
 
 export function groupTruckWindows(windows: WindowResult[]): TruckWindow[] {
   const grouped = new Map<string, WindowResult[]>()
-  for (const window of windows) {
+  for (const window of uniqueWindows(windows)) {
     if (window?.sinkId !== 'speedSink' || !window.key || !Number.isFinite(window.windowStart) || !Number.isFinite(window.windowEnd)) continue
     const rows = grouped.get(window.key) ?? []
     rows.push(window)
@@ -34,7 +50,14 @@ export interface FailedRecordRow {
 }
 
 export function mapFailedRecords(records: DeadLetter[]): FailedRecordRow[] {
-  return records.filter((record) => record != null).map(({ eventId, kind, reason, partition, offset, eventTime }) => ({ eventId, kind, reason, partition, offset, eventTime }))
+  const seen = new Set<string>()
+  return records.filter((record) => {
+    if (!record) return false
+    const identity = JSON.stringify([record.eventId, record.kind])
+    if (seen.has(identity)) return false
+    seen.add(identity)
+    return true
+  }).map(({ eventId, kind, reason, partition, offset, eventTime }) => ({ eventId, kind, reason, partition, offset, eventTime }))
     .sort((a, b) => b.eventTime - a.eventTime)
 }
 

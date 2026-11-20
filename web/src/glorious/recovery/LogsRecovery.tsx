@@ -41,7 +41,8 @@ export function LogsRecovery() {
             <div className="recovery-worker-heading"><h3>{workerId}</h3><span className={`recovery-status recovery-status--${state}`}>{labels[state]}</span></div>
             <p><strong>{number(worker?.recordsPerSec)}</strong> records/s</p>
             <div className="recovery-chips" aria-label={`${workerId} assigned partitions`}>
-              {worker?.partitions.length ? worker.partitions.map((partition) => <span className="recovery-chip" key={partition}>P{partition}</span>) : <span>No assigned partitions</span>}
+              {worker && !Array.isArray(worker.partitions) ? <span>Partition data unavailable</span>
+                : worker?.partitions.length ? worker.partitions.map((partition) => <span className="recovery-chip" key={partition}>P{partition}</span>) : <span>No assigned partitions</span>}
             </div>
             <WorkerQueue label="Source queue" queue={worker?.sourceQueue} />
             <WorkerQueue label="Sink queue" queue={worker?.sinkQueue} />
@@ -55,10 +56,11 @@ export function LogsRecovery() {
     <section aria-labelledby="recovery-partitions-title">
       <h2 id="recovery-partitions-title">Partition ownership</h2>
       <div className="recovery-partitions">{[0, 1, 2, 3, 4, 5].map((partition) => {
-        const owners = workers.filter((worker) => worker.alive && worker.partitions.includes(partition))
+        const owners = workers.filter((worker) => worker.alive && worker.partitions?.includes(partition))
+        const ownershipUnknown = workers.some((worker) => worker.alive && !Array.isArray(worker.partitions))
         const change = recentPartitionChange(partition, feed.history, feed.execution?.id, now)
         return <div className="recovery-partition" data-testid={`partition-chip-${partition}`} key={partition}>
-          <strong>P{partition}</strong><span>{owners.length ? owners.map((owner) => owner.workerId).join(', ') : 'Unassigned'}</span>
+          <strong>P{partition}</strong><span>{owners.length ? owners.map((owner) => owner.workerId).join(', ') : ownershipUnknown ? 'Unavailable' : 'Unassigned'}</span>
           {change && <small>{change.oldOwner ?? 'Unassigned'} → {change.newOwner ?? 'Unassigned'}</small>}
         </div>
       })}</div>

@@ -54,7 +54,7 @@ export function deriveWorkerState(
   if (loss && now < (loss.observedAt ?? loss.at) + DEAD_HOLD_MS) return 'dead'
   if (!worker) return loss ? 'dead' : 'unavailable'
   // A pre-death RUNNING sample must not erase an authoritative death event.
-  if (loss?.event === 'WORKER_DEAD' && worker.lastHeartbeatMs <= loss.at) return 'dead'
+  if (loss?.event === 'WORKER_DEAD' && (!Number.isFinite(worker.lastHeartbeatMs) || worker.lastHeartbeatMs <= loss.at)) return 'dead'
   if (worker.state === 'RESTORING' || execution?.state === 'RECOVERING') return 'recovering'
   const recovered = loss && entries.find((entry) => entry.event === 'RECOVERED' && entry.at >= loss.at)
   const joinedAt = recovered?.at ?? (loss?.event === 'WORKER_RESTARTED' ? loss.at : null)
