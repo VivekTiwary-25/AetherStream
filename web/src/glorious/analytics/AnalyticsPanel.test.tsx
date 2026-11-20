@@ -1,7 +1,7 @@
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { DeadLetter, WebSocketMessage, WindowResult } from '../../api/types'
-import { DashboardContext, initialDashboardState } from '../../app/state/store'
+import { DashboardContext, dashboardReducer, initialDashboardState } from '../../app/state/store'
 import { AnalyticsPanel } from './AnalyticsPanel'
 import { LiveWorld } from '../map/LiveWorld'
 const hooks = vi.hoisted(() => ({ listener: null as ((message: WebSocketMessage) => void) | null, status: 'connected' as 'connected' | 'disconnected' }))
@@ -225,6 +225,62 @@ describe('analytics live-data states and snapshot seeding', () => {
     expect(screen.getByText('Past watermark')).toBeTruthy()
     expect(screen.getByText('11')).toBeTruthy()
     expect(screen.queryByText('Invalid speed')).toBeNull()
+  })
+
+  it('shows an entire late batch behind newer simulation events, including overlapping REST rows', () => {
+    // REST and WS payloads expose these six fields, not written_at. WS batches are
+    // written_at ASC, even when their simulation event times precede existing rows.
+    const rejected: DeadLetter[] = Array.from({ length: 40 }, (_, index) => ({
+      eventId: `p${index % 4}-o${200 + index}`, kind: 'REJECTED', reason: 'invalid JSON',
+      partition: index % 4, offset: 200 + index, eventTime: 180_000 + index * 1000,
+    }))
+    const late: DeadLetter[] = Array.from({ length: 20 }, (_, index) => ({
+      eventId: `late-truck-${index + 1}`, kind: 'LATE',
+      reason: 'window [0,60000) already closed (watermark 175000)',
+      partition: index % 4, offset: 300 + index, eventTime: 10_000 + index * 1000,
+    }))
+    let state = dashboardReducer({
+      ...initialDashboardState, socketStatus: 'connected', execution: { state: 'RUNNING' } as never,
+    }, { type: 'hydrate', data: { deadLetters: [...rejected].reverse() } })
+    const panel = renderPanel('failed-records', state)
+    expect(screen.queryByTitle('late-truck-1')).toBeNull()
+
+    state = dashboardReducer(state, { type: 'message', message: {
+      type: 'deadLetters', ts: 1_795_171_200_000, data: late,
+    } })
+    // A delayed hydration response/replay may contain the same persisted records.
+    state = dashboardReducer(state, { type: 'hydrate', data: { deadLetters: [...late].reverse() } })
+    panel.rerender(<DashboardContext.Provider value={state}><AnalyticsPanel id="failed-records" /></DashboardContext.Provider>)
+
+    const rows = screen.getAllByRole('button', { name: /^(LATE|REJECTED) / })
+    expect(rows.map((row) => row.querySelector('strong')?.textContent)).toEqual([
+      ...[...rejected].reverse().map((record) => record.eventId),
+      ...[...late].reverse().map((record) => record.eventId),
+    ])
+    for (const record of late) {
+      const row = screen.getByTitle(record.eventId).closest('button')!
+      expect(within(row).getByText(record.reason)).toBeTruthy()
+      expect(within(row).getByText(new RegExp(`partition ${record.partition}, offset ${record.offset}$`))).toBeTruthy()
+    }
+    fireEvent.click(screen.getByRole('button', { name: 'Late' }))
+    expect(screen.getAllByRole('button', { name: /^LATE / })).toHaveLength(20)
+    expect(screen.queryByRole('button', { name: /^REJECTED / })).toBeNull()
+    fireEvent.click(screen.getByTitle('late-truck-20').closest('button')!)
+    expect(screen.getByText(late[19]!.reason)).toBeTruthy()
+    expect(screen.getByText('319')).toBeTruthy()
+    expect(screen.getByText('3')).toBeTruthy()
+  })
+
+  it('reports an empty late filter without implying the loaded rejected records are absent', () => {
+    renderPanel('failed-records', {
+      ...initialDashboardState, socketStatus: 'connected', execution: { state: 'RUNNING' } as never,
+      deadLetters: [{ eventId: 'p2-o19', kind: 'REJECTED', reason: 'invalid JSON', partition: 2, offset: 19, eventTime: 1000 }],
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Late' }))
+    expect(screen.getByText('No late records yet.')).toBeTruthy()
+    expect(screen.queryByText('No failed records yet.')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'All' }))
+    expect(screen.getByRole('button', { name: /REJECTED p2-o19/ })).toBeTruthy()
   })
   it('confirms map breakdowns and cancels with Escape without sending a request', () => {
     vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} })
