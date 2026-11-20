@@ -103,3 +103,41 @@ describe('map-backed navigation', () => {
     expect(screen.queryByText('0 ev/s')).toBeNull()
   })
 })
+
+describe('Home chunk prefetch', () => {
+  it('warms Live World at idle without leaving Home and cancels the scheduled work on unmount', async () => {
+    const idle = vi.fn<(callback: IdleRequestCallback) => number>(() => 7)
+    const cancel = vi.fn()
+    vi.stubGlobal('requestIdleCallback', idle)
+    vi.stubGlobal('cancelIdleCallback', cancel)
+
+    const { unmount } = render(<GloriousApp />)
+    expect(idle).toHaveBeenCalledTimes(1)
+    await act(async () => {
+      idle.mock.calls[0][0]({ didTimeout: false, timeRemaining: () => 50 })
+    })
+    expect(window.location.pathname).toBe('/')
+    expect(screen.getByRole('button', { name: 'Live World' })).toBeTruthy()
+
+    unmount()
+    expect(cancel).toHaveBeenCalledWith(7)
+  })
+
+  it('does not schedule speculative loading on reduced-data connections', () => {
+    const idle = vi.fn()
+    vi.stubGlobal('requestIdleCallback', idle)
+    vi.stubGlobal('navigator', { connection: { saveData: true } })
+
+    render(<GloriousApp />)
+    expect(idle).not.toHaveBeenCalled()
+  })
+
+  it('does not prefetch from other screens', () => {
+    const idle = vi.fn()
+    vi.stubGlobal('requestIdleCallback', idle)
+    window.history.replaceState(null, '', '/pipelines')
+
+    render(<GloriousApp />)
+    expect(idle).not.toHaveBeenCalled()
+  })
+})
