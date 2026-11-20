@@ -41,8 +41,8 @@ Comparisons use >, >=, <, <=, ==, !=; string fields allow == and != only. Numeri
 Graph rules: pipeline name and output name are 1-60 characters; 1-12 nodes with unique nonempty ids; edges reference existing nodes, each node has at most one input, graph is acyclic, at least one output exists, and every path terminates at an output. Field availability must respect upstream pickFields/windowAverage projections.
 
 Examples:
-Request: alert when speed exceeds 60 km/h.
-{"name":"Speed over 60 km/h","nodes":[{"id":"filter","type":"filter","params":{"field":"speedKmh","op":">","value":60}},{"id":"alert","type":"thresholdAlert","params":{"field":"speedKmh","op":">","value":60,"message":"Speed above 60 km/h"}},{"id":"out","type":"output","params":{"name":"Speed alerts"}}],"edges":[{"from":"filter","to":"alert"},{"from":"alert","to":"out"}]}
+Request: alert when speed exceeds 45 km/h.
+{"name":"Speed over 45 km/h","nodes":[{"id":"filter","type":"filter","params":{"field":"speedKmh","op":">","value":45}},{"id":"alert","type":"thresholdAlert","params":{"field":"speedKmh","op":">","value":45,"message":"Speed above 45 km/h"}},{"id":"out","type":"output","params":{"name":"Speed alerts"}}],"edges":[{"from":"filter","to":"alert"},{"from":"alert","to":"out"}]}
 Request: average speed per truck over 30 seconds.
 {"name":"30-second speed average","nodes":[{"id":"avg","type":"windowAverage","params":{"field":"speedKmh","windowSec":30,"groupBy":"truckId"}},{"id":"out","type":"output","params":{"name":"Speed averages"}}],"edges":[{"from":"avg","to":"out"}]}
 Request: show speed on partition 2.

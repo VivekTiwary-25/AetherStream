@@ -44,17 +44,17 @@ export const isNodeKind = (value: unknown): value is NodeKind => typeof value ==
 
 export function defaultParams(kind: NodeKind): PipelineNode['params'] {
   switch (kind) {
-    case 'filter': return { field: 'speedKmh', op: '>', value: 60 }
+    case 'filter': return { field: 'speedKmh', op: '>', value: 45 }
     case 'pickFields': return { fields: ['truckId', 'speedKmh'] }
     case 'windowAverage': return { field: 'speedKmh', windowSec: 30, groupBy: 'truckId' }
-    case 'thresholdAlert': return { field: 'speedKmh', op: '>', value: 60, message: 'Truck over 60 km/h' }
+    case 'thresholdAlert': return { field: 'speedKmh', op: '>', value: 45, message: 'Truck over 45 km/h' }
     case 'output': return { name: 'Results' }
   }
 }
 
 const formatValue = (value: unknown) => typeof value === 'string' ? `"${value}"` : String(value)
 
-/** Plain-words description of one node, e.g. "Filter: speedKmh > 60". */
+/** Plain-words description of one node, e.g. "Filter: speedKmh > 45". */
 export function describeNode(node: { type: string; params: Record<string, unknown> | object }): string {
   const p = node.params as Record<string, unknown>
   if (!isNodeKind(node.type)) return `Unknown step (${node.type})`
