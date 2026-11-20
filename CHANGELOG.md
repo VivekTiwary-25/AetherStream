@@ -4,10 +4,15 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
-- Fixed production Live World basemap loading by bundling MapLibre's worker through Vite, serving `.mjs` as JavaScript in nginx, and checking worker-load console errors in the UI smoke test.
-- Added the new default Glorious UI: Home and live status, the Live World map and truck details, analytics for speeds and failed records, AI-assisted pipeline review/run and editor results, and Logs & Recovery history. The classic UI remains available at `?ui=classic`.
-- Fixed live pipeline result cursors across runs, consumer stop/close races, and failure reporting during stop/shutdown.
-- Fixed chained window finalization and grouped threshold cooldown identity after field projection; reviewed recovery audit history attribution, timestamps, retention, and replay deduplication.
+### Added
+
+- Added the Glorious UI as the default, with Home and live status, the Live World map and truck details, analytics for speeds and failed records, AI-assisted pipeline review and execution, editor results, and Logs & Recovery history. The classic UI remains available at `?ui=classic`.
+
+### Fixed
+
+- Fixed production Live World basemap loading by bundling MapLibre's worker through Vite and serving `.mjs` as JavaScript in nginx.
+- Fixed live pipeline result cursors across runs, consumer stop/close races, and failure reporting during stop and shutdown.
+- Fixed chained window finalization, grouped threshold cooldown identity after field projection, and recovery audit history attribution, timestamps, retention, and replay deduplication.
 
 ## [1.0.0] - 2026-11-19
 
