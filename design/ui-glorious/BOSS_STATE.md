@@ -46,6 +46,12 @@ Fresh boss session: read swarm/BOSS.md, then design/ui-glorious/BOSS_PROMPT.md (
 - ONLY thing to protect: the boss session's tokens (ran out briefly tonight). Keep context lean, delegate, warn Vivek early if low.
 - GOTCHA: pushing swarm .py code while long tasks run stalls dispatch on that PC until they finish (_first_runnable waits for restart). Config JSON pushes are safe.
 
+## 06:08
+- FULL CHECK PASS on vivek-pc (check-all.ps1, no Docker): web lint/test/build/no-mock, java-test (JDK21), ai-bridge. Docker ITs + Playwright suites not run (need a stack).
+- Merged 05:56-06:08: build #4 on preview (Failed Records polished, live), microcopy cb85, report refresh d48d, merge-safety 4532 (+ boss 71ca527: classic local default demo.spec only, CI CLASSIC_ALL_SPECS=1), check-all PS5.1 fix 4dda, recovery fix 41cf, offline-expo 0360.
+- Running: AI eval cbd6 (vivek luna, ~45 min, may time out), mobile final bundle 577f (vimlesh sol, HELD), API-down backoff ee08 (upendra sol), docs label sync 62a3 (upendra luna).
+- Still BLOCKED: utkarsh disk full -> live kill test + live pipeline run. Waiting for Vivek option 1/2.
+
 ## 06:00 PIPELINES CHECKPOINT: DECISION = KEEP 'full' (Ask AI + editor), PIPELINES_MODE unchanged
 - Valid: real Ask AI generation via vivek-pc bridge (vachana, haiku): 4/4 valid real pipelines (3 rehearsal + 'stuck/stopped' visitor prompt), 5-10 s; 20-prompt eval t261120-0526-cbd6 still running.
 - Runnable: executor proven against a REAL in-JVM Kafka broker (PipelineRunsKafkaIntegrationTest, 3/3 example pipelines exact). NOT yet run on a live stack (utkarsh disk full).

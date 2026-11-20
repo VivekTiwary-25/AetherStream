@@ -1,0 +1,5 @@
+# Refresh FINAL_REPORT.md + DONE-CHECKLIST.md with the 06:00 evidence (docs only)
+
+Files: design/ui-glorious/FINAL_REPORT.md, design/ui-glorious/DONE-CHECKLIST.md. Do NOT read or describe swarm/. No builds.
+
+Add, strictly and briefly: the 06:00 Pipelines checkpoint decision from BOSS_STATE.md (keep full; why; one-line switch), RecoveryHistoryCoordinatorTest (real Coordinator + embedded Postgres, no Docker: worker-2 attribution and restore checkpoint now verified offline), the live preview check of build #4 at ~05:57 (Live World 6 live trucks; Failed Records polished window with live REJECTED rows, partition/offset; StatusPill Running ~40 ev/s), the no-internet behaviour section in docs/expo/DEMO-NEW-UI.md, the 11 pre-freeze bug fixes. Keep statuses strict (VERIFIED-LIVE only for what was seen with live data). Keep both files short.
