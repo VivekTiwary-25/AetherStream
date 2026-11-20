@@ -3,8 +3,7 @@
 ## What changes
 
 - Merge only after Vivek reviews the expo-night final report and chooses to proceed.
-- The branch changes web, control-api, coordinator/engine, and simulator config.
-- CD builds and publishes four SHA-tagged images: web, control-api, engine, simulator.
+- The branch changes web, control-api, coordinator/engine, and simulator config (check).
   The engine image serves coordinator and worker-1, worker-2, worker-3.
   These seven app containers are recreated for the new SHA; expect a service pause.
 - Simulator initial trucks change from 8 to 6 (`SIM_INITIAL_TRUCKS=6`).
@@ -56,8 +55,8 @@
 
 | Check | Loads web UI? | Change |
 |---|---|---|
-| `cd`: `smoke-deploy.sh`, `demo-ready.sh`, `expo-check.sh`, `expo-proofs.sh` | No; API/readiness and stack checks only | None |
-| `ci-e2e`: `demo-e2e.sh`, `expo-check.sh`, `expo-proofs.sh`, `demo-ready.sh`; `ci-coldstart` | No; API checks only | None |
+| `cd`: `smoke-deploy.sh`, `demo-ready.sh` | No; API/readiness and stack checks only | None |
+| `ci-e2e`: `demo-e2e.sh`, `expo-proofs.sh`, `expo-check.sh`, `doc-commands-check.sh`, `expo-reset.sh`, `demo-ready.sh`; `ci-coldstart` | No; API checks only | None |
 | `ci-compose`: `smoke.sh` | Yes; checks only that `/` returns HTML, no classic-only content | None |
 | `ci-terraform` | Yes; checks only that `/` returns a nonempty HTML document | None |
 | `ci-k8s` | Yes; checks only that `/` responds | None |
@@ -67,7 +66,7 @@
 
 ## Start Ask AI after deploy (PowerShell, vivek-pc repo root)
 
-Requires Python 3.10+ and Claude Code installed and logged in to this profile.
+Requires Python 3.10+ and Claude Code installed and logged in to this profile (check).
 ```powershell
 $env:CLAUDE_CONFIG_DIR = "$env:USERPROFILE\.swarm\profiles\vachana-claude\claude"
 powershell -ExecutionPolicy Bypass -File scripts/ai-bridge/start.ps1
