@@ -1,4 +1,12 @@
 # New UI expo demo — 20 minutes
+## 2-minute version
+
+1. **Click:** **Live World**. **Say:** “Six configured trucks are shown on the live map, with live telemetry.”
+2. **Click:** **Analytics** → **Truck Speeds**. **Say:** “See current speed, completed-window averages, and recent history.”
+3. **Click:** **Analytics** → **Failed Records**. **Say:** “The live engine shows records it classified as late or rejected, with the reason and source position.”
+4. **Click:** **Pipelines**; in **Ask AI**, enter `Alert me when any truck goes over 45 km/h`, then click **Generate**, **Open in editor**, and **Run**. **Say:** “The validated pipeline reads the live stream and reports its results here.”
+5. **Click:** **Settings** → **Logs & Recovery**; run `worker kill 2` once in the expo terminal. **Say:** “The worker is Dead for about 2–3 seconds, recovers from a checkpoint with the same partitions, and the failure remains in Recovery History.”
+
 Runbook for 21 Nov: [Expo morning runbook](MORNING.md).
 
 Vivek drives; keep the browser on the new UI at `http://localhost:8088`. Use only the live stream and controls below. The geographic truck paths are display mappings; telemetry and assignments are live.
