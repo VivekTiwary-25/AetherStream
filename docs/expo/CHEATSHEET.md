@@ -9,6 +9,7 @@ Click only these labels. No **MOCK DATA** badge. Do not push to `main`. Do not r
 - Grafana: <http://localhost:13000> — dashboards **AetherStream engine** and **AetherStream Demo** (<http://localhost:13000/d/aetherstream-demo/aetherstream-demo>); anonymous, read-only. Prometheus, if asked: <http://localhost:19090>
 - Actions: <https://github.com/VivekTiwary-25/AetherStream/actions> — if slow, do not wait; show [run 44440449358](https://github.com/VivekTiwary-25/AetherStream/actions/runs/44440449358)
 ## New UI (`ui-glorious`)
+- Standby preview host: [switching and health checks](STANDBY.md).
 
 From the repository root, add the commands to this session's PATH:
 
