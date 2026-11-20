@@ -23,4 +23,5 @@ Tests use a fake Python CLI; they never call Claude Code.
 ## Limits
 
 Only one generation runs at a time. Request bodies are limited to 4 KB and prompts to 500 characters.
+Accepted request bodies are read before returning `429 {"error":"busy"}` for overlapping generations, so clients still uploading receive the response rather than a socket reset. Responses explicitly close the connection.
 The bridge binds to localhost by default; widen it with `AI_BIND` only if Docker cannot reach it.
