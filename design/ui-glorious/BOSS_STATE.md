@@ -46,6 +46,14 @@ Fresh boss session: read swarm/BOSS.md, then design/ui-glorious/BOSS_PROMPT.md (
 - ONLY thing to protect: the boss session's tokens (ran out briefly tonight). Keep context lean, delegate, warn Vivek early if low.
 - GOTCHA: pushing swarm .py code while long tasks run stalls dispatch on that PC until they finish (_first_runnable waits for restart). Config JSON pushes are safe.
 
+## 06:22
+- AI eval (boss-run): 14/15 valid real AI pipelines, median 5.8 s (proof/ai-eval). Worker eval cbd6 timed out (closed).
+- Preview e2e on vivek-pc :8089 (build #4): smoke1 (6 markers) PASS, smoke2 (Truck Speeds drilldown) PASS LIVE; demo-path + logs smoke failed on test issues (moving-marker hover, missing partition-chip testid) -> fix t261120-0620-f32b (vivek sol). Generate showed 'Request failed (403)' (preview blocks POST) -> map to 'AI service unavailable'. Committed RESULTS.md + pngs only (51fe00c); 60 MB traces NOT committed.
+- Merged: API-down backoff ee08 (5->10->15 s, recover <=15 s), microcopy cb85, docs label sync 62a3, check-all fix 4dda.
+- vimlesh-pc DOWN again since ~06:07 (Vivek told 06:13 to call Vimlesh). Its tasks auto-moved: d18c recovery polish + 844a dist #5 -> upendra luna; 577f mobile bundle -> requeued t261120-0621-ffc7 vivek sol (HELD).
+- Closed failed utkarsh tasks 2aa3 (stack) + 4f1f (pipelines live): requeue from design/ui-glorious/tasks/t-stack-up.md, t-killtest.md, t-pipelines-live.md when utkarsh has >=15 GB.
+- Running: 22d2 spec copy (upendra sol), 133f check-all #2 (vivek luna), d18c + 844a (upendra luna).
+
 ## 06:08
 - FULL CHECK PASS on vivek-pc (check-all.ps1, no Docker): web lint/test/build/no-mock, java-test (JDK21), ai-bridge. Docker ITs + Playwright suites not run (need a stack).
 - Merged 05:56-06:08: build #4 on preview (Failed Records polished, live), microcopy cb85, report refresh d48d, merge-safety 4532 (+ boss 71ca527: classic local default demo.spec only, CI CLASSIC_ALL_SPECS=1), check-all PS5.1 fix 4dda, recovery fix 41cf, offline-expo 0360.
