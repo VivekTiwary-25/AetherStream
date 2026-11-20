@@ -42,7 +42,7 @@ export function LogsRecovery() {
             <p><strong>{number(worker?.recordsPerSec)}</strong> records/s</p>
             <div className="recovery-chips" aria-label={`${workerId} assigned partitions`}>
               {worker && !Array.isArray(worker.partitions) ? <span>Partition data unavailable</span>
-                : worker?.partitions.length ? worker.partitions.map((partition) => <span className="recovery-chip" key={partition}>P{partition}</span>) : <span>No assigned partitions</span>}
+                : worker?.partitions.length ? worker.partitions.map((partition) => <span className="recovery-chip" data-testid={`partition-chip-${partition}`} key={partition}>P{partition}</span>) : <span>No assigned partitions</span>}
             </div>
             <WorkerQueue label="Source queue" queue={worker?.sourceQueue} />
             <WorkerQueue label="Sink queue" queue={worker?.sinkQueue} />

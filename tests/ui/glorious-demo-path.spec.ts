@@ -31,9 +31,9 @@ test('new-UI demo path records six non-destructive walkthrough steps', async ({ 
   await expect(trucks).toHaveCount(6, { timeout: 20_000 })
   await screenshot(page, 'step-2-live-world')
 
-  // 3. Hover reveals genuine speed, partition, and worker assignment.
-  await trucks.first().hover()
-  const truckCard = map.getByLabel(/details$/)
+  // 3. Focus opens the moving marker's card without waiting for pointer stability.
+  await trucks.first().focus()
+  const truckCard = map.getByLabel(/^Truck T-\d+ details$/)
   await expect(truckCard).toBeVisible()
   await expect(truckCard.locator('dd').first()).toHaveText(/\d+(?:\.\d+)? km\/h/)
   await expect(truckCard.locator('dd').nth(2)).toHaveText(/Partition \d+ · Worker W\d+/)
@@ -53,6 +53,8 @@ test('new-UI demo path records six non-destructive walkthrough steps', async ({ 
   await screenshot(page, 'step-4-truck-speed-chart')
   await analytics.getByRole('button', { name: 'Back', exact: true }).first().click()
   await expect(speedList).toBeVisible()
+  await analytics.getByRole('button', { name: 'Close Truck Speeds', exact: true }).click()
+  await expect(analytics).toHaveCount(0)
 
   // 5. Failed records must show rows or the explicit honest empty state.
   await page.getByRole('button', { name: 'Back to main navigation' }).click()
@@ -63,6 +65,8 @@ test('new-UI demo path records six non-destructive walkthrough steps', async ({ 
   const emptyState = failedRecords.getByText('No failed records yet.', { exact: true })
   await expect.poll(async () => (await rows.count()) > 0 || await emptyState.isVisible()).toBe(true)
   await screenshot(page, 'step-5-failed-records')
+  await failedRecords.getByRole('button', { name: 'Close Failed Records', exact: true }).click()
+  await expect(failedRecords).toHaveCount(0)
 
   // 6. Use the first saved prompt, run its generated/saved pipeline, and open the editor tab.
   await page.getByRole('button', { name: 'Back to main navigation' }).click()

@@ -108,8 +108,8 @@ describe('results polling reducer', () => {
 describe('error rendering', () => {
   afterEach(() => { cleanup(); vi.restoreAllMocks() })
 
-  it('shows validation errors from a 400 with their node ids', () => {
-    const view = describeError(new ApiError(400, { valid: false, errors: [{ nodeId: 'n2', message: 'Unknown field "speed"' }, { message: 'At least one output is required' }] }))
+  it.each(['pipeline', 'ai'] as const)('shows validation errors from a %s 400 with their node ids', (service) => {
+    const view = describeError(new ApiError(400, { valid: false, errors: [{ nodeId: 'n2', message: 'Unknown field "speed"' }, { message: 'At least one output is required' }] }), service)
     expect(view.message).toBe('The pipeline is not valid')
     render(<ErrorList error={view} />)
     expect(screen.getByRole('alert').textContent).toContain('n2: Unknown field "speed"')

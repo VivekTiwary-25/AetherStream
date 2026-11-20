@@ -78,7 +78,7 @@ test('Logs & Recovery shows three workers covering partitions P0–P5', async ({
     await expect(partitions.first()).toHaveText(/^\s*P[0-5]\s*$/)
   }
   for (let partition = 0; partition < 6; partition++) {
-    const chip = workers.getByTestId(`partition-chip-${partition}`).first()
+    const chip = workers.getByTestId(`partition-chip-${partition}`)
     await expect(chip).toBeVisible()
     await expect(chip).toHaveText(new RegExp(`^\\s*P${partition}\\s*$`))
   }

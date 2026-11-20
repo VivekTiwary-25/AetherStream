@@ -29,8 +29,9 @@ function view(current: WorkerInfo) {
 describe('worker partition availability', () => {
   it('keeps partial worker data visible without claiming unknown ownership is unassigned', () => {
     const { rerender } = render(view({ ...worker, partitions: undefined } as unknown as WorkerInfo))
+    const ownership = within(screen.getByRole('region', { name: 'Partition ownership' }))
     expect(screen.getByText('Partition data unavailable')).toBeTruthy()
-    expect(within(screen.getByTestId('partition-chip-0')).getByText('Unavailable')).toBeTruthy()
+    expect(within(ownership.getByTestId('partition-chip-0')).getByText('Unavailable')).toBeTruthy()
     expect(screen.getByText('Last heartbeat: Unavailable')).toBeTruthy()
 
     rerender(view({ ...worker, partitions: null } as unknown as WorkerInfo))
@@ -38,9 +39,9 @@ describe('worker partition availability', () => {
 
     rerender(view(worker))
     expect(screen.getByText('No assigned partitions')).toBeTruthy()
-    expect(within(screen.getByTestId('partition-chip-0')).getByText('Unassigned')).toBeTruthy()
+    expect(within(ownership.getByTestId('partition-chip-0')).getByText('Unassigned')).toBeTruthy()
 
     rerender(view({ ...worker, partitions: [0] }))
-    expect(within(screen.getByTestId('partition-chip-0')).getByText('worker-2')).toBeTruthy()
+    expect(within(ownership.getByTestId('partition-chip-0')).getByText('worker-2')).toBeTruthy()
   })
 })
