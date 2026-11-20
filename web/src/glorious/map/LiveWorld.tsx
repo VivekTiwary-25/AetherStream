@@ -322,7 +322,7 @@ export function LiveWorld() {
     <div className="gl-live-world__search">
       <GlassSurface strong>
         <label className="gl-sr-only" htmlFor="gl-map-search">Search trucks and Mysuru landmarks</label>
-        <input id="gl-map-search" type="search" placeholder="Search trucks or landmarks" value={query} onChange={(event) => setQuery(event.target.value)} autoComplete="off" aria-controls="gl-map-results" />
+        <input id="gl-map-search" type="search" placeholder="Search trucks or landmarks" value={query} onChange={(event) => setQuery(event.target.value)} autoComplete="off" aria-controls={normalizedQuery ? 'gl-map-results' : undefined} />
         {normalizedQuery && <ul id="gl-map-results" className="gl-live-world__results">
           {foundTrucks.map((truck) => <li key={truck.truckId}><button onClick={() => {
             const motion = motions.current.get(truck.truckId)
