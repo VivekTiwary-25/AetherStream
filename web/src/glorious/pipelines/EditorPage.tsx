@@ -22,7 +22,7 @@ function initialPipeline(): { pipeline: Pipeline; note: string } {
   const from = new URLSearchParams(window.location.search).get('from')
   if (from === 'ai') {
     const handed = readHandoff()
-    if (handed) return { pipeline: handed, note: 'Loaded the pipeline from Ask AI.' }
+    if (handed) return { pipeline: handed, note: 'Loaded the pipeline handed over from Pipelines.' }
     return { pipeline: { name: 'Untitled pipeline', nodes: [], edges: [] }, note: 'No pipeline was handed over from Ask AI. Start from a step or load an example.' }
   }
   return { pipeline: { name: 'Untitled pipeline', nodes: [], edges: [] }, note: '' }
@@ -39,7 +39,7 @@ export function EditorPage() {
   const [canvasKey, setCanvasKey] = useState(0)
   const [note, setNote] = useState(start.note)
   const [fields, setFields] = useState<FieldInfo[]>(CONTRACT_FIELDS)
-  const [fieldsNote, setFieldsNote] = useState('')
+  const [fieldsNote, setFieldsNote] = useState('Loading field list; showing shared contract fields, not live metadata.')
   const [validation, setValidation] = useState<ValidationResult | null>(null)
   const [validating, setValidating] = useState(false)
   const [error, setError] = useState<ErrorView | null>(null)
@@ -51,7 +51,13 @@ export function EditorPage() {
     let cancelled = false
     getFields().then((result) => {
       const valid = Array.isArray(result.fields) ? result.fields.filter((field) => typeof field?.name === 'string' && (field.type === 'number' || field.type === 'string')) : []
-      if (!cancelled && valid.length) setFields(valid)
+      if (cancelled) return
+      if (valid.length) {
+        setFields(valid)
+        setFieldsNote('')
+      } else {
+        setFieldsNote('The pipeline service returned no usable fields; showing shared contract fields, not live metadata.')
+      }
     }).catch((caught: unknown) => {
       if (!cancelled) setFieldsNote(`${describeError(caught).message}: field list comes from the shared contract until it is back.`)
     })
@@ -71,8 +77,8 @@ export function EditorPage() {
     clearError()
   }, [clearError])
 
-  // Errors to show on nodes: from the last Validate, or from a 400 on Run.
-  const shownErrors = validation && !validation.valid ? validation.errors : runner.error?.errors ?? []
+  // Validation and run errors may arrive as either a response body or an HTTP 400.
+  const shownErrors = validation && !validation.valid ? validation.errors : error?.errors ?? runner.error?.errors ?? []
   const errorsByNode = new Map<string, string[]>()
   for (const item of shownErrors) if (item.nodeId) errorsByNode.set(item.nodeId, [...(errorsByNode.get(item.nodeId) ?? []), item.message])
   const displayNodes = nodes.map((node) => {
