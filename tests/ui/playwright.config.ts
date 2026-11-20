@@ -2,7 +2,9 @@ import { defineConfig, devices } from '@playwright/test'
 
 export default defineConfig({
   testDir: '.',
-  testMatch: ['demo.spec.ts', 'features.spec.ts'],
+  // Local default stays demo.spec.ts only: features.spec.ts changes simulator state (Rush hour,
+  // savepoint) and must not run by accident against the live demo. CI opts in with CLASSIC_ALL_SPECS=1.
+  testMatch: process.env.CLASSIC_ALL_SPECS === '1' ? ['demo.spec.ts', 'features.spec.ts'] : 'demo.spec.ts',
   fullyParallel: false,
   workers: 1,
   retries: 0,

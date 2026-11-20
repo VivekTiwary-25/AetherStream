@@ -54,6 +54,7 @@ jobs:
         working-directory: tests/ui
         env:
           EXPECT_SHA: ${{ github.sha }}
+          CLASSIC_ALL_SPECS: '1'
         run: npm test
       - name: Dump Compose status and logs
         if: always()
