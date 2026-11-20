@@ -1,7 +1,7 @@
 import type { Pipeline } from './model'
 
-// The three rehearsal prompts (BOSS_PROMPT Track D). The pipelines are hand-written starting
-// templates for the editor's "Load example" menu; they are pipeline definitions, not data.
+// Hand-written pipeline definitions for the editor and exact-match Ask AI offline fallback.
+// These are saved workflows, not generated pipelines or result data.
 export interface PipelineExample { id: string; prompt: string; pipeline: Pipeline }
 
 export const EXAMPLES: PipelineExample[] = [
