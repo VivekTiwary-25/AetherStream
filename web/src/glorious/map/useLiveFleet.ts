@@ -70,7 +70,7 @@ export function useLiveFleet(): Fleet {
       const signal = typeof AbortSignal.any === 'function'
         ? AbortSignal.any([controller.signal, requestController.signal])
         : requestController.signal
-      
+
       try {
         const response = await fetch('/api/simulator/state', { signal })
         if (!response.ok) throw new Error(`Fleet unavailable (HTTP ${response.status})`)
@@ -96,6 +96,9 @@ export function useLiveFleet(): Fleet {
         delay = backoff.failure(error)
         setFleet((previous) => snapshotRevision.current !== startedAtSnapshotRevision ? previous : { ...previous, controlsFresh: false, error: error instanceof Error ? error.message : 'Fleet unavailable' })
       } finally {
+        // The shared controller lives for the whole mount; drop this poll's listener
+        // or every 3 s poll leaks one closure (and its AbortController) for hours.
+        controller.signal.removeEventListener('abort', abortParent)
         if (requestTimeout !== undefined) window.clearTimeout(requestTimeout)
         requestTimeout = undefined
         if (active) polling = window.setTimeout(() => { void refresh() }, delay)

@@ -81,8 +81,13 @@ Invoke-Check 'web-test' $web 600 'npm test -- --maxWorkers=2'
 Invoke-Check 'web-build' $web 600 'npm run build'
 Invoke-Check 'web-no-mock' $web 120 'npm run check:no-mock'
 
+# java.exe on PATH lives in <home>in; the javac check below rejects JRE-only shims.
+$javaOnPath = Get-Command java -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+$javaOnPathHome = if ($javaOnPath) { Split-Path (Split-Path $javaOnPath.Source -Parent) -Parent } else { $null }
 $javaSearches = @(
+    @{ Name = 'JAVA_HOME_21'; Path = $env:JAVA_HOME_21; Filter = $null }
     @{ Name = 'JAVA_HOME'; Path = $env:JAVA_HOME; Filter = $null }
+    @{ Name = 'java on PATH'; Path = $javaOnPathHome; Filter = $null }
     @{ Name = 'JAVA_HOME_21_X64'; Path = $env:JAVA_HOME_21_X64; Filter = $null }
     @{ Name = 'JDK21_HOME'; Path = $env:JDK21_HOME; Filter = $null }
     @{ Path = (Join-Path $env:ProgramFiles 'Eclipse Adoptium'); Filter = 'jdk-21*' }
