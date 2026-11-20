@@ -94,4 +94,12 @@ describe('map-backed navigation', () => {
     expect(window.location.pathname).toBe('/pipelines')
     expect(screen.getByRole('dialog', { name: 'Pipeline results' })).toBeTruthy()
   })
+
+  it('shows unavailable engine data instead of inventing a zero rate when disconnected', async () => {
+    render(<GloriousApp />)
+
+    expect(await screen.findByText('Disconnected')).toBeTruthy()
+    expect(screen.getByLabelText('Event rate unavailable')).toBeTruthy()
+    expect(screen.queryByText('0 ev/s')).toBeNull()
+  })
 })
