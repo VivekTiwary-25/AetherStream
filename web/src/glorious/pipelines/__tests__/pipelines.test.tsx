@@ -125,7 +125,7 @@ describe('error rendering', () => {
   })
 
   it('explains a busy AI and other server errors honestly', () => {
-    expect(describeError(new ApiError(429, { error: 'busy' }), 'ai').message).toMatch(/busy/)
+    expect(describeError(new ApiError(429, { error: 'busy' }), 'ai').message).toMatch(/still finishing the previous request/)
     expect(describeError(new ApiError(429, {})).message).toBe('The pipeline service is busy. Try again in a moment.')
     expect(describeError(new ApiError(500, { error: 'disk full' })).message).toBe('Request failed (500): disk full')
   })
