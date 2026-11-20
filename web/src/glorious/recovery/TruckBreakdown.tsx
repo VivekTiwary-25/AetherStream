@@ -82,8 +82,8 @@ export function TruckBreakdown() {
     }
   }
   return <form className="recovery-panel recovery-breakdown" onSubmit={submit}>
-    <p>Stop a real simulator truck. It resumes automatically after ~15 sim-minutes.</p>
-    <p className="recovery-muted">This changes the simulator, not worker health or engine recovery.</p>
+    <p>Stop one of the simulated trucks. It starts moving again by itself after about 15 simulated minutes.</p>
+    <p className="recovery-muted">This only affects the truck, not the engine’s workers or recovery.</p>
     {status !== 'connected' && <p role="status">{status === 'connecting' ? 'Connecting' : 'Disconnected'} · truck statuses may be stale.</p>}
     {loadError && <p role="alert">Truck list unavailable: {loadError}</p>}
     {!trucks.length && <p>{loaded ? 'No trucks reported by the simulator.' : loadError ? 'Truck list could not be loaded.' : 'Loading trucks…'}</p>}

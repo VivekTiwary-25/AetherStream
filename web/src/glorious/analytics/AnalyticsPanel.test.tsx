@@ -28,7 +28,7 @@ describe('analytics live-data states and snapshot seeding', () => {
   it('distinguishes disconnected empty states from an active execution with no data', () => {
     for (const id of ['deliveries', 'alerts', 'failed-records'] as const) {
       const { unmount } = renderPanel(id, { ...initialDashboardState, socketStatus: 'connected', execution: { state: 'RUNNING' } as never })
-      expect(screen.getByText(/No (delivery windows|alerts|failed records) yet\./)).toBeTruthy()
+      expect(screen.getByText(/No (deliveries counted|alerts|failed records) yet\./)).toBeTruthy()
       unmount()
     }
     const disconnected = renderPanel('deliveries', { ...initialDashboardState, socketStatus: 'disconnected', execution: { state: 'RUNNING' } as never })
@@ -38,7 +38,7 @@ describe('analytics live-data states and snapshot seeding', () => {
     expect(screen.getByText('No data yet — start the demo pipeline.')).toBeTruthy()
     stopped.unmount()
     const { unmount } = renderPanel('deliveries', { ...initialDashboardState, socketStatus: 'connected', execution: { state: 'RUNNING' } as never })
-    expect(screen.getByText('No delivery windows yet.')).toBeTruthy()
+    expect(screen.getByText('No deliveries counted yet.')).toBeTruthy()
     unmount()
   })
 
@@ -92,7 +92,7 @@ describe('analytics live-data states and snapshot seeding', () => {
     const state = { ...initialDashboardState, windows: [speed, delivery, { ...speed }, { ...delivery }] }
     const panel = renderPanel('truck-speeds', state)
     fireEvent.click(screen.getByTestId('truck-row-truck-001'))
-    expect(screen.getByRole('img', { name: 'Completed speed-window averages, 1 samples in km/h' })).toBeTruthy()
+    expect(screen.getByRole('img', { name: 'Average speed per completed window, 1 samples in km/h' })).toBeTruthy()
     panel.unmount()
     renderPanel('deliveries', state)
     // One deduplicated row for truck-001 (REST + live copies of the same window), showing 2 deliveries.

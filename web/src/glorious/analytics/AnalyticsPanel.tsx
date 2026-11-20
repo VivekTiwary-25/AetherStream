@@ -93,29 +93,29 @@ export function AnalyticsPanel({ id }: { id: AnalyticsId }) {
 
   const content = selectedTruck ? <TruckDetail truckId={selectedTruck} windows={speedWindows} liveSamples={speedSamples} /> : selectedFailure ? <FailureDetail record={selectedFailure} /> : <>
     {id === 'truck-speeds' && <section data-testid="analytics-truck-speeds">
-      <p className="an-caption">Current speed from live simulator readings · completed averages and reading counts use simulation windows.</p>
-      {truckIds.length ? <><TableHead columns={['Truck', 'Now', 'Window avg · readings']} /><ul className="an-list" aria-label="Truck speeds">{truckIds.map((truckId) => {
+      <p className="an-caption">“Now” is each truck’s latest live speed. Averages cover the last completed time window (a fixed slice of simulated time).</p>
+      {truckIds.length ? <><TableHead columns={['Truck', 'Now', 'Recent average · readings']} /><ul className="an-list" aria-label="Truck speeds">{truckIds.map((truckId) => {
         const current = currentTrucks.find((truck) => truck.truckId === truckId)
         const latest = speedByTruck.get(truckId)
         return <li key={truckId}><button className="an-row" type="button" data-testid={`truck-row-${truckId}`} onClick={() => showTruck(truckId)}>
           <strong>{truckId}</strong><span>{current && trucksFresh && liveStatus === 'connected' && Number.isFinite(current.speedKmh) ? `${current.speedKmh.toFixed(1)} km/h now` : 'Live speed unavailable'}</span>
-          <span>{latest ? `${typeof latest.values?.avgSpeedKmh === 'number' && Number.isFinite(latest.values.avgSpeedKmh) ? `${latest.values.avgSpeedKmh.toFixed(1)} km/h ${windowLengthLabel(latest)}` : 'No average'} · ${latest.eventCount} readings` : 'No completed speed window'}</span>
+          <span>{latest ? `${typeof latest.values?.avgSpeedKmh === 'number' && Number.isFinite(latest.values.avgSpeedKmh) ? `${latest.values.avgSpeedKmh.toFixed(1)} km/h ${windowLengthLabel(latest)}` : 'No average'} · ${latest.eventCount} readings` : 'No average yet'}</span>
         </button></li>
-      })}</ul></> : <EmptyState socketStatus={socketStatus} execution={execution?.state} message="No live trucks or completed speed windows yet." />}
+      })}</ul></> : <EmptyState socketStatus={socketStatus} execution={execution?.state} message="No truck speeds yet." />}
     </section>}
     {id === 'deliveries' && <section>
-      <p className="an-caption">Per-truck counts use each truck's latest completed delSink window; the trend sums by simulation window end.</p>
-      {latestDeliveryByTruck.size > 0 && <TableHead columns={['Truck', 'Latest window', 'Window end']} />}
-      <div className="an-list">{latestDeliveryByTruck.size ? [...latestDeliveryByTruck].sort(([a], [b]) => a.localeCompare(b)).map(([truckId, row]) => <div className="an-row" key={truckId}><strong>{truckId}</strong><span>{row.values?.deliveries ?? 0} deliveries</span><span>{simClock(row.windowEnd)} sim time</span></div>) : <EmptyState socketStatus={socketStatus} execution={execution?.state} message="No delivery windows yet." />}</div>
+      <p className="an-caption">Deliveries per truck in its latest completed time window. The chart adds up the whole fleet for each window.</p>
+      {latestDeliveryByTruck.size > 0 && <TableHead columns={['Truck', 'Latest window', 'Window ended']} />}
+      <div className="an-list">{latestDeliveryByTruck.size ? [...latestDeliveryByTruck].sort(([a], [b]) => a.localeCompare(b)).map(([truckId, row]) => <div className="an-row" key={truckId}><strong>{truckId}</strong><span>{row.values?.deliveries ?? 0} deliveries</span><span>{simClock(row.windowEnd)} sim time</span></div>) : <EmptyState socketStatus={socketStatus} execution={execution?.state} message="No deliveries counted yet." />}</div>
       <Bars values={deliveryEntries.map(([, count]) => count)} label="Total deliveries per completed window" unit="deliveries" />
     </section>}
     {id === 'alerts' && <section className="an-cols-alerts">
-      <p className="an-caption">Alert event times are simulation time.</p>
+      <p className="an-caption">Times are simulated time (the demo’s clock), not your local time.</p>
       <Bars values={alertEntries.map(([, count]) => count)} label="Alerts per simulation minute" unit="alerts/min" />
       {sortedAlerts.length ? <><TableHead columns={['Truck', 'Alert', 'Sim time']} /><div className="an-list">{sortedAlerts.map((alert) => <AlertRow key={alert.alertId} alert={alert} />)}</div></> : <EmptyState socketStatus={socketStatus} execution={execution?.state} message="No alerts yet." />}
     </section>}
     {id === 'events-processed' && <section className="an-cols-2">
-      <p className="an-caption">Rates are live flow messages. Per-partition values are estimates divided evenly across owned partitions.</p>
+      <p className="an-caption">Live engine throughput. The stream is split into partitions (slices handled by one worker each); per-partition rates are estimates, splitting each worker’s rate evenly across its partitions.</p>
       <LineChart values={flowSamples.map((sample) => sample.eventsPerSec)} label="Events processed" unit="events/s" times={flowTimes(flowSamples)} />
       <ChartRow>
         <LineChart values={flowSamples.map((sample) => sample.rejectedPerSec)} label="Rejected" unit="records/s" />
@@ -123,11 +123,11 @@ export function AnalyticsPanel({ id }: { id: AnalyticsId }) {
       </ChartRow>
       {flowSamples.length > 0 && <TableHead columns={['Partition', 'Estimated rate']} />}
       {flowSamples.length > 0 && <div className="an-list">{Object.keys(flowSamples.at(-1)!.byPartition).sort((a, b) => Number(a) - Number(b)).map((partition) => <div className="an-row" key={partition}><strong>Partition {partition}</strong><span>Estimated {flowSamples.at(-1)!.byPartition[partition]!.toFixed(2)} events/s</span></div>)}</div>}
-      {!flowSamples.length && <EmptyState socketStatus={socketStatus} execution={execution?.state} message="Waiting for live flow samples." />}
+      {!flowSamples.length && <EmptyState socketStatus={socketStatus} execution={execution?.state} message="Waiting for live throughput data." />}
     </section>}
     {id === 'failed-records' && <section>
-      <p className="an-caption">Event timestamps are simulation time; partition and offset identify the consumed record.</p>
-      <div className="an-tabs" aria-label="Failed record kind">{(['ALL', 'REJECTED', 'LATE'] as const).map((kind) => <button type="button" key={kind} aria-pressed={failureKind === kind} onClick={() => setFailureKind(kind)}>{kind === 'ALL' ? 'All' : kind}</button>)}</div>
+      <p className="an-caption">Records the engine set aside: rejected (invalid data) or late (arrived after their time window closed). Times are simulated time; partition and offset show exactly where each record was read.</p>
+      <div className="an-tabs" aria-label="Failed record kind">{(['ALL', 'REJECTED', 'LATE'] as const).map((kind) => <button type="button" key={kind} aria-pressed={failureKind === kind} onClick={() => setFailureKind(kind)}>{kind === 'ALL' ? 'All' : kind === 'REJECTED' ? 'Rejected' : 'Late'}</button>)}</div>
       {failedRows.length ? <div className="an-list">{failedRows.map((row) => <button className="an-row an-row--failure" type="button" key={`${row.partition}:${row.offset}:${row.eventId}`} onClick={() => showFailure(row)}>
         <KindChip kind={row.kind} /><strong className="an-truncate" title={row.eventId}>{row.eventId}</strong><span className="an-reason">{row.reason}</span><span className="an-meta">{simClock(row.eventTime)} · partition {row.partition}, offset {row.offset}</span>
       </button>)}</div> : <EmptyState socketStatus={socketStatus} execution={execution?.state} message="No failed records yet." />}
@@ -145,9 +145,9 @@ function TruckDetail({ truckId, windows, liveSamples }: { truckId: string; windo
   const samples = liveSamples.filter((sample) => sample.truckId === truckId)
   const duration = history[0] ? windowLengthLabel(history[0]).replace(' avg', '') : 'completed windows'
   return <div data-testid="truck-speed-chart">
-    <p className="an-caption">Window averages ({duration}) with live speed samples collected since this window opened.</p>
-    <LineChart values={history.map((row) => row.values?.avgSpeedKmh).filter((value): value is number => typeof value === 'number' && Number.isFinite(value))} label="Completed speed-window averages" unit="km/h" />
-    <LineChart values={samples.map((sample) => sample.speed)} label={`Live samples since ${samples[0] ? clock(samples[0].at) : 'window opened'}`} unit="km/h" times={samples[0] ? [clock(samples[0].at), clock(samples.at(-1)!.at)] : undefined} />
+    <p className="an-caption">Averages for each completed time window ({duration}), plus live speed readings since you opened this panel.</p>
+    <LineChart values={history.map((row) => row.values?.avgSpeedKmh).filter((value): value is number => typeof value === 'number' && Number.isFinite(value))} label="Average speed per completed window" unit="km/h" />
+    <LineChart values={samples.map((sample) => sample.speed)} label={`Live readings since ${samples[0] ? clock(samples[0].at) : 'panel opened'}`} unit="km/h" times={samples[0] ? [clock(samples[0].at), clock(samples.at(-1)!.at)] : undefined} />
   </div>
 }
 

@@ -80,13 +80,13 @@ export function recentPartitionChange(partition: number, history: RecoveryEntry[
 }
 
 export const eventLabel = (event: string) => ({
-  KILL_REQUESTED: 'Kill requested (not confirmed dead)',
-  WORKER_DEAD: 'Worker dead',
+  KILL_REQUESTED: 'Kill requested (not yet confirmed)',
+  WORKER_DEAD: 'Worker died',
   WORKER_RESTARTED: 'Worker restarted',
   RECOVERING: 'Recovery started',
   RECOVERED: 'Recovery finished',
-  REBALANCED: 'Partition assignment changed',
-  CHECKPOINT_COMPLETED: 'Checkpoint completed',
+  REBALANCED: 'Partitions reassigned',
+  CHECKPOINT_COMPLETED: 'Checkpoint saved',
 }[event] ?? event)
 
 export const seconds = (ms: number) => (Math.max(0, ms) / 1_000).toFixed(1)

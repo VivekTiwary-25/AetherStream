@@ -73,7 +73,7 @@ describe('map-backed navigation', () => {
     expect(window.location.pathname).toBe('/live')
     expect(screen.getByRole('dialog', { name: 'Truck Speeds' })).toBe(speeds)
     expect(screen.getByRole('dialog', { name: 'Logs & Recovery' })).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Truck breakdown' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Truck Breakdown' })).toBeTruthy()
   })
 
   it.each([

@@ -282,7 +282,7 @@ export function LiveWorld() {
         body: JSON.stringify({ name: 'breakdown', truckId: truck.truckId }), signal: controller.signal,
       })
       if (!response.ok) throw new Error(`Breakdown request failed (${response.status}).`)
-      if (selectedRef.current === truck.truckId) setNotice('Breakdown requested. Waiting for simulator telemetry.')
+      if (selectedRef.current === truck.truckId) setNotice('Breakdown requested. Waiting for the truck to report it.')
     } catch (error) {
       if (!controller.signal.aborted && selectedRef.current === truck.truckId) setActionError(error instanceof Error ? error.message : 'Breakdown request failed.')
     } finally {
@@ -310,7 +310,7 @@ export function LiveWorld() {
     if (event.key === 'Escape') { event.preventDefault(); closeCard(); setQuery('') }
   }}>
     <div ref={container} className="gl-live-world__map" />
-    <header className="gl-live-world__heading"><h1>Live World</h1><p>Real-time fleet across Mysuru</p></header>
+    <header className="gl-live-world__heading"><h1>Live World</h1><p>Simulated delivery fleet across Mysuru, updated live</p></header>
     <div className="gl-live-world__search">
       <GlassSurface strong>
         <label className="gl-sr-only" htmlFor="gl-map-search">Search trucks and Mysuru landmarks</label>
@@ -387,10 +387,10 @@ export function LiveWorld() {
             </dl>
           </div>
         </div>
-        <p className="gl-live-world__mapping">Geographic path is a display mapping; telemetry is real.</p>
+        <p className="gl-live-world__mapping">The road path is drawn for display; speed and status are real simulator data.</p>
         {contextMenu && <div role="menu" aria-label={`${truckLabel(active.truckId)} actions`} className="gl-live-world__actions">
           <button ref={breakdownButton} role="menuitem" disabled={active.status.toUpperCase() === 'STOPPED' || pending !== null} onClick={() => setConfirmingBreakdown(true)}>{pending === active.truckId ? 'Requesting…' : 'Simulate breakdown'}</button>
-          <p>Resumes automatically.</p>
+          <p>Resumes by itself after about 15 simulated minutes.</p>
         </div>}
         {actionError && <p role="alert" className="gl-live-world__error">{actionError}</p>}
         {confirmingBreakdown && active && <div className="gl-breakdown-confirm-backdrop">
@@ -402,6 +402,6 @@ export function LiveWorld() {
         {notice && <p role="status">{notice}</p>}
       </GlassSurface>
     </div>}
-    {(mapError || fleet.error || !fleet.fresh || !fleet.running) && <div className="gl-live-world__notice" role="status"><GlassSurface>{mapError ?? fleet.error ?? (!fleet.fresh ? 'Telemetry unavailable · positions frozen' : 'Simulator paused · positions frozen')}</GlassSurface></div>}
+    {(mapError || fleet.error || !fleet.fresh || !fleet.running) && <div className="gl-live-world__notice" role="status"><GlassSurface>{mapError ?? fleet.error ?? (!fleet.fresh ? 'No live updates · trucks shown at last known position' : 'Simulator paused · trucks shown at last known position')}</GlassSurface></div>}
   </section>
 }
