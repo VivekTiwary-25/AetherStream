@@ -82,3 +82,13 @@ describe('history hydration and recovery timing', () => {
     expect(recentPartitionChange(1, history, execution.id, 26_000)).toBeUndefined()
   })
 })
+
+describe('fake audit: missing workers', () => {
+  it('does not keep a restarted worker marked dead forever when it is absent from /api/workers', () => {
+    const restarted = [entry('WORKER_RESTARTED', 10_000)]
+    const missing = (history: RecoveryEntry[], now: number) => deriveWorkerState(undefined, 'worker-2', history, execution, now)
+    expect(missing(restarted, 10_000 + DEAD_HOLD_MS - 1)).toBe('dead')
+    expect(missing(restarted, 10_000 + DEAD_HOLD_MS + 1)).toBe('unavailable')
+    expect(missing([entry('WORKER_DEAD', 10_000)], 60_000)).toBe('dead')
+  })
+})
