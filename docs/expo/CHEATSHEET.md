@@ -1,4 +1,5 @@
 # Expo cheat sheet (one A4)
+Visitor questions and short answers: [VISITOR-QA.md](VISITOR-QA.md).
 
 Click only these labels. No **MOCK DATA** badge. Do not push to `main`. Do not run `docker compose down -v`.
 
