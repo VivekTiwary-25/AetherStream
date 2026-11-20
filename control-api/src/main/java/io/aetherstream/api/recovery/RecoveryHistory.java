@@ -62,8 +62,16 @@ public class RecoveryHistory {
         }
         // The pause boundary comes from the coordinator, even if recovery completes between polls.
         long at = number(detail, "atMs") == null ? fact.at() : detail.path("atMs").asLong();
-        Map<String, Object> entry = base(event, at, text(detail, "workerId"), text(detail, "executionId"),
-                number(detail, "generation"), "CHECKPOINT_COMPLETED".equals(event) ? null : number(detail, "checkpointId"));
+        String executionId = text(detail, "executionId");
+        String workerId = text(detail, "workerId");
+        if (workerId == null && ("RECOVERING".equals(event) || "RECOVERED".equals(event))
+                && !"rebalance".equals(text(detail, "reason"))) {
+            workerId = recoveryWorker(fact.orgId(), executionId, "RECOVERED".equals(event));
+        }
+        Long restored = number(detail, "restoredFromCheckpoint");
+        if (restored == null) restored = number(detail, "checkpointId");
+        Map<String, Object> entry = base(event, at, workerId, executionId,
+                number(detail, "generation"), "CHECKPOINT_COMPLETED".equals(event) ? null : restored);
         entry.put("actor", fact.actor());
         if (text(detail, "reason") != null) entry.put("reason", text(detail, "reason"));
         Long duration = number(detail, "recoveryDurationMs");
@@ -73,6 +81,34 @@ public class RecoveryHistory {
         if ("CHECKPOINT_COMPLETED".equals(event)) entry.put("checkpointId", number(detail, "checkpointId"));
         if (!changes.isEmpty()) entry.put("partitionChanges", changes);
         append(fact.orgId(), entry);
+    }
+
+    /** Execution recovery audits omit workerId; use preceding facts in this org/execution only. */
+    private String recoveryWorker(String orgId, String executionId, boolean completing) {
+        String observed = null;
+        String requested = null;
+        var previous = entries.descendingIterator();
+        while (previous.hasNext()) {
+            Recorded recorded = previous.next();
+            Map<String, Object> entry = recorded.entry();
+            if (!orgId.equals(recorded.orgId()) || !java.util.Objects.equals(executionId, entry.get("executionId"))) continue;
+            String event = (String) entry.get("event");
+            // Never carry a worker from a completed recovery into a later interval.
+            if ("RECOVERED".equals(event)) break;
+            String workerId = (String) entry.get("workerId");
+            // Completion belongs to the worker identified at the pause boundary, not a later restart.
+            if ("RECOVERING".equals(event)) {
+                if (completing) return workerId;
+                break;
+            }
+            if (workerId == null) continue;
+            if (observed == null && ("WORKER_DEAD".equals(event) || "WORKER_RESTARTED".equals(event))) {
+                observed = workerId;
+            }
+            if (requested == null && "KILL_REQUESTED".equals(event)) requested = workerId;
+        }
+        // A request can identify the target, but still never produces a death/restart event.
+        return observed == null ? requested : observed;
     }
 
     private Map<String, Object> base(String event, long at, String workerId, String executionId,

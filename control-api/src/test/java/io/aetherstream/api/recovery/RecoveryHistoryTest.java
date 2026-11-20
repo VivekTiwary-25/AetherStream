@@ -29,7 +29,7 @@ class RecoveryHistoryTest {
         List<RecoveryHistory.AuditFact> batch = List.of(
                 fact(1, "worker.dead", "{\"workerId\":\"worker-2\",\"reason\":\"re-registered\",\"atMs\":100}"),
                 fact(2, "worker.restarted", "{\"workerId\":\"worker-2\",\"atMs\":100}"),
-                fact(3, "execution.recoveryStarted", "{\"generation\":1,\"atMs\":100}"),
+                fact(3, "execution.recoveryStarted", "{\"generation\":1,\"checkpointId\":7,\"atMs\":100}"),
                 fact(4, "execution.recovered", "{\"generation\":2,\"checkpointId\":7,\"atMs\":450,\"recoveryDurationMs\":350}"));
         batch.forEach(history::observe);
         batch.forEach(history::observe);
@@ -37,7 +37,8 @@ class RecoveryHistoryTest {
         assertThat(entries).extracting(entry -> entry.get("event")).containsExactly(
                 "KILL_REQUESTED", "WORKER_DEAD", "WORKER_RESTARTED", "RECOVERING", "RECOVERED");
         assertThat(entries.get(2)).containsEntry("workerId", "worker-2").doesNotContainKey("durationMs");
-        assertThat(entries.get(4)).containsEntry("durationMs", 350L).containsEntry("generation", 2L)
+        assertThat(entries.get(3)).containsEntry("workerId", "worker-2").containsEntry("restoredFromCheckpoint", 7L);
+        assertThat(entries.get(4)).containsEntry("workerId", "worker-2").containsEntry("durationMs", 350L).containsEntry("generation", 2L)
                 .containsEntry("restoredFromCheckpoint", 7L).containsEntry("at", 450L);
     }
 
@@ -56,6 +57,32 @@ class RecoveryHistoryTest {
     @Test void observedRestartDurationIsIncludedOnlyWhenReported() throws Exception {
         history.observe(fact(1, "worker.restarted", "{\"workerId\":\"worker-2\",\"durationMs\":800}"));
         assertThat(history.history("alpha").getFirst()).containsEntry("durationMs", 800L);
+    }
+
+    @Test void recoveryTargetIsScopedAndDoesNotLeakAcrossRecoveryIntervals() throws Exception {
+        history.killRequested("alpha", "exec-1", "worker-2", "api:alpha", 10);
+        history.killRequested("other", "exec-1", "worker-8", "api:other", 11);
+        history.killRequested("alpha", "exec-other", "worker-9", "api:alpha", 12);
+        history.observe(fact(1, "execution.recoveryStarted", "{\"restoredFromCheckpoint\":7}"));
+        assertThat(history.history("alpha").getLast()).containsEntry("workerId", "worker-2")
+                .containsEntry("restoredFromCheckpoint", 7L);
+        // An unrelated restart during recovery cannot change its original target.
+        history.observe(fact(2, "worker.restarted", "{\"workerId\":\"worker-3\"}"));
+        history.observe(fact(3, "execution.recovered", "{\"checkpointId\":7}"));
+        assertThat(history.history("alpha").getLast()).containsEntry("workerId", "worker-2");
+        history.observe(fact(4, "execution.recoveryStarted", "{\"checkpointId\":8}"));
+        assertThat(history.history("alpha").getLast()).containsEntry("workerId", null);
+    }
+
+    @Test void workerFactsOverrideKillTargetsAndPlannedRebalancesHaveNoFailedWorker() throws Exception {
+        history.observe(fact(1, "worker.dead", "{\"workerId\":\"worker-2\"}"));
+        history.killRequested("alpha", "exec-1", "worker-3", "api:alpha", 10);
+        history.observe(fact(2, "execution.recoveryStarted", "{\"checkpointId\":7}"));
+        assertThat(history.history("alpha").getLast()).containsEntry("workerId", "worker-2");
+        history.observe(fact(3, "execution.recovered", "{\"checkpointId\":7}"));
+        history.killRequested("alpha", "exec-1", "worker-3", "api:alpha", 20);
+        history.observe(fact(4, "execution.recoveryStarted", "{\"checkpointId\":8,\"reason\":\"rebalance\"}"));
+        assertThat(history.history("alpha").getLast()).containsEntry("workerId", null);
     }
 
     @Test void retainsLast200AcrossReadersAndNotifiesEachNewEntryOnce() throws Exception {
