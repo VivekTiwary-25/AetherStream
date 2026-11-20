@@ -4,30 +4,17 @@
 
 [CI/CD workflow definitions and run evidence](docs/report/ci-cd-evidence.md)
 
-AetherStream is a fault-tolerant distributed stream processor, a mini Apache Flink, with a game-like truck city UI. Simulated trucks drive a delivery city and emit position and delivery events onto a six-partition Kafka topic; three workers compute event-time windows and alerts, upsert results to Postgres, and take aligned checkpoints in MinIO so a killed worker can be restored from the last completed checkpoint and fenced off the sink. The city is the visible source of the stream; the panels are where you read what the engine wrote.
+AetherStream is a fault-tolerant distributed stream processor—a mini Apache Flink—with a live Mysuru truck map. Six configured trucks produce position and delivery events for a six-partition Kafka topic; three workers process event-time windows and alerts, store results in Postgres, and checkpoint state to MinIO. If a worker fails, the coordinator restores its work from the latest completed checkpoint and replays Kafka from saved offsets. The map shows the live fleet; analytics and recovery views expose what the engine is doing.
 
-![Aether City dashboard: trucks on the grid, the stream engine, and checkpoint status](docs/ux/screenshots/desktop-01-app-viewport-60s.png)
+## The UI
 
-## Features
+The default `ui-glorious` UI has **Home** with a live status pill, **Live World** with a real Mysuru map and live trucks, **Analytics**, **Pipelines**, and **Settings**. Hover or focus a truck on the map to see its card, including its partition and worker assignment. **Analytics** contains **Truck Speeds**, **Deliveries**, **Alerts**, **Events Processed**, and **Failed Records**. In **Pipelines**, enter a prompt in **Ask AI**, generate and review a validated pipeline, open it in the editor, click **Run**, and inspect **Pipeline results**. If AI is offline, the UI labels saved examples as such. **Settings** contains **Logs & Recovery** and **Truck Breakdown**. The classic UI remains available at `?ui=classic`.
 
-- Truck city (PixiJS): simulated trucks on a 2 km grid, with a live events/s stream into the engine (`web/src/city/`, mounted in `web/src/app/shell/AppShell.tsx`).
-- Pipeline editor: draw source, filter, map, key-by, window, rule, and sink nodes; validate in plain English; load `logistics-demo`, `speeding-alerts`, `fleet-activity`, or `broken-for-demo`; run.
-- Live panels: speed windows, deliveries per minute, alerts, workers, and dead letters.
-- Chaos controls: send late events, duplicates, or malformed records; slow the sink; kill a worker (real halt, then recovery).
-- Reference comparison: one-process replay of the checkpointed Kafka range, matched to Postgres (`POST /api/compare`).
-- Checkpoint and recovery timeline, including recovering-from-checkpoint and recovered text.
-- Operations: take a savepoint, restore from it, or rescale (pause at the next checkpoint and reassign; not live migration).
-- City scenarios: Rush hour, Breakdown, Surge, and Reset.
-- Presenter tour (eight steps) and intro splash.
-- Status as text and colour: running, backpressured, checkpointing, recovering, stopped, and failed.
-- Three Compose workers, each a source thread, operator thread, and sink thread, with two bounded queues of capacity 1000; a full queue blocks the stage above it.
-- Aligned barrier checkpoints in MinIO; restore uses only the latest completed checkpoint; a generation fence stops a stale worker from committing.
-- Event-time tumbling windows, late events as dead letters, and per-key/window dedup of `eventId` (operator code in `:compiler`, run by the engine).
-- Demo pipeline stuck-truck rule (`logistics-demo`): average speed under 1 for 10 one-minute windows.
+Run `npm run check:no-mock` from `web/` to scan the production build for mock-only markers.
 
 ## Architecture
 
-The browser never talks to Kafka, the workers, or MinIO. nginx serves the UI and proxies `/api` and `/ws` to the control API. The control API validates a pipeline and asks the coordinator to run it. The simulator writes truck events to Kafka topic `truck-events` (6 partitions, keyed by truck). Three workers consume assigned partitions, run the shared operators, and upsert window results, alerts, and dead letters to Postgres. The coordinator is not on the record path: it assigns partitions, triggers aligned barrier checkpoints, and on worker death restores every partition from the latest completed checkpoint in MinIO, then replays Kafka from the saved offsets. The same operator code runs in a single-process reference executor, which is what "Compare with reference" checks. Apache Flink is the design reference, not the runtime.
+The browser never talks to Kafka, the workers, or MinIO. nginx serves the UI and proxies `/api` and `/ws` to the Spring Boot control API. The API validates a pipeline and asks the coordinator to run it. The simulator writes truck events to the six-partition Kafka topic `truck-events`, keyed by truck. Three workers consume assigned partitions, run the shared operators, and upsert window results, alerts, and failed records to Postgres. The coordinator is not on the record path: it assigns partitions, triggers aligned barrier checkpoints, and on worker death restores the affected work from the latest completed checkpoint in MinIO, then replays Kafka from saved offsets. The same operator code runs in a single-process reference executor for comparison with Postgres.
 
 ```mermaid
 flowchart LR
@@ -38,10 +25,56 @@ flowchart LR
   Workers --> MinIO[(MinIO checkpoints)]
   API[Control API] --> Coordinator
   API --> Postgres
-  Web[Web UI and truck city] -->|/api and /ws| API
+  Web[Web UI and truck map] -->|/api and /ws| API
 ```
 
 See [docs/architecture.md](docs/architecture.md).
+
+## Tech stack and why
+
+| Technology | What it is | Why we use it |
+| --- | --- | --- |
+| Kafka | Six-partition `truck-events` topic | Durable, replayable stream input |
+| Java workers + coordinator | Distributed runtime | Processes partitions and coordinates checkpoints and recovery |
+| Postgres | Metadata and result store | Persists executions, checkpoints, and pipeline outputs |
+| MinIO | S3-compatible checkpoint storage | Stores worker snapshots and checkpoint manifests |
+| Spring Boot control API | REST and WebSocket service | Connects the UI to pipeline validation, execution, and results |
+| nginx | Web server and reverse proxy | Serves the UI and proxies `/api` and `/ws` |
+| React + Vite + MapLibre | Web UI and map renderer | Builds the interactive UI and real Mysuru map |
+| Ask AI (Claude via local bridge on port 18090) | Optional local Claude Code integration | Generates pipeline drafts; labelled saved examples remain available offline |
+| Docker Compose | Local multi-service runtime | Starts the app and its infrastructure together |
+| GitHub Actions + GHCR | CI workflows and container registry | Tests and builds in Actions; publishes SHA-tagged images from `main` |
+| Prometheus + Grafana | Optional Compose monitoring profile | Scrapes service metrics and displays the AetherStream engine dashboard |
+| Kubernetes (kind) + Terraform in CI | Deployment definitions and CI validation | Checks Kubernetes manifests in kind and validates/applies Terraform in CI |
+| Testcontainers + Playwright | Integration and browser test tools | Exercises services with containers and the UI in a browser |
+
+## How the demo works
+
+1. **Home:** show the navigation and live status pill.
+2. **Live World:** open the real Mysuru map and observe live truck markers.
+3. **Truck card:** hover or focus a marker to see telemetry and partition/worker assignment.
+4. **Truck Breakdown:** confirm a breakdown and observe the resulting stuck-truck alert.
+5. **Truck Speeds:** open **Analytics** → **Truck Speeds**.
+6. **Failed Records:** run `events late 10` once, then open **Analytics** → **Failed Records**. Records appear only if the engine classifies them as late.
+7. **Ask AI:** enter `Alert me when any truck goes over 45 km/h`, click **Generate**, review, **Open in editor**, then click **Run** and inspect **Pipeline results**. If AI is offline, use only the clearly labelled saved example.
+8. **Recovery:** run `worker kill 2` once and observe **Dead**, restoration from a completed checkpoint, then **Rejoined**. The worker keeps its own partitions; recovery does not reassign them.
+
+See the [full new-UI expo script](docs/expo/DEMO-NEW-UI.md) for the detailed run of show and conditions.
+
+## Verified live vs offline
+
+Statuses below follow [design/ui-glorious/DONE-CHECKLIST.md](design/ui-glorious/DONE-CHECKLIST.md); they are scoped evidence, not a claim that every UI path is verified.
+
+| Status in checklist | Evidence area |
+| --- | --- |
+| **VERIFIED-LIVE** | Live World map and truck card; Truck Speeds; Failed Records; selected navigation and drill-down smoke checks |
+| **VERIFIED-OFFLINE** | Recovery history attribution and checkpoint restore test; API-down polling; recovery visual polish |
+| **PARTIAL - fix in progress** | Ask AI/pipeline run results and worker recovery display; one sample pipeline produced real results, and the survivor “Rejoined” label is unreliable |
+| **UNVERIFIED** | Home video playback/loop; full seven-step demo end to end; app-wide absence of fake data |
+| **VERIFIED — BRIDGE EVALUATION** | Ask AI prompt evaluation against the local bridge; this does not verify app Run/results |
+
+The worker restart is about 2 seconds, before the 4-second heartbeat timeout, so it keeps its own partitions; there is no reassignment. With the six truck keys, partition 1 receives no events and P4 gets two. These are the observed demo setup details, not a guarantee for other keys or configurations.
+
 
 ## Quick start
 
@@ -73,6 +106,26 @@ Application services should be healthy. `kafka-init` and `minio-init` should be 
 | Grafana (`monitoring` profile) | 13000 |
 
 Workers 1–3 publish no host port. Default Compose credentials are for local development only.
+
+### Full UI stack on Windows
+
+From the repository root, start the separate preview stack:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/preview/preview-up.ps1
+```
+
+The script prepares its preview checkout, builds and starts the full Compose stack under a separate project on port `8089`, and starts a Cloudflare quick tunnel. Its generated tunnel URL is saved in `C:\aether-preview\.preview\url.txt`; do not publish that URL. Some networks block the tunnel. In that case, open [http://localhost:8089](http://localhost:8089).
+
+### Ask AI bridge
+
+On the same PC, start the local bridge from the repository root:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/ai-bridge/start.ps1
+```
+
+The PC needs Python 3.10+, Claude Code installed, and a logged-in Claude Code session. The bridge listens on `127.0.0.1:18090`. Without a working bridge or login, Ask AI shows its honest offline state and labelled saved examples; do not describe those examples as AI-generated.
 
 ## Tests
 
@@ -142,6 +195,10 @@ npm test
 | `simulator/` | Truck-city event generator |
 | `tests/` | Testcontainers integration and fault tests, plus Playwright UI tests |
 | `web/` | React, TypeScript, and Vite UI, plus the dev mock server |
+| `web/src/glorious/` | Current `ui-glorious` interface |
+| `scripts/expo/` | Expo terminal commands for worker status, worker kill, and late events |
+| `scripts/ai-bridge/` | Local Ask AI bridge launcher and implementation |
+| `scripts/preview/` | Windows preview stack scripts |
 
 ## Team
 
@@ -154,6 +211,7 @@ Collaborative Development and DevOps (CDD) course project, faculty expo 21 Novem
 - [UX](docs/ux/README.md) — notes and screenshots under [docs/ux/](docs/ux/)
 
 The new default UI (`ui-glorious`) has a [20-minute expo demo](docs/expo/DEMO-NEW-UI.md) and [New UI cheat sheet](docs/expo/CHEATSHEET.md#new-ui-ui-glorious); the classic UI remains available at `?ui=classic`.
+
 
 ## License
 
