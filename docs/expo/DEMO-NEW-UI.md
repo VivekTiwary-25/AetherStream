@@ -1,4 +1,5 @@
 # New UI expo demo — 20 minutes
+Runbook for 21 Nov: [Expo morning runbook](MORNING.md).
 
 Vivek drives; keep the browser on the new UI at `http://localhost:8088`. Use only the live stream and controls below. The geographic truck paths are display mappings; telemetry and assignments are live.
 
