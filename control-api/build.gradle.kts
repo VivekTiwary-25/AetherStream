@@ -13,4 +13,6 @@ dependencies {
     implementation(libs.kafka.clients)
     runtimeOnly(libs.postgres)
     testImplementation("org.springframework.boot:spring-boot-starter-test")
+    // Native KRaft testkit keeps the in-JVM broker on the application's Kafka version.
+    testImplementation("org.apache.kafka:kafka-test-common-runtime:${libs.versions.kafka.get()}")
 }
