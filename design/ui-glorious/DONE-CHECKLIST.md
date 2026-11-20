@@ -1,20 +1,22 @@
 # Definition-of-done evidence checklist
 
-Status is strict: VERIFIED-LIVE requires proof showing the behavior with real data. VERIFIED-OFFLINE-ONLY means static/source evidence or non-live UI proof exists, but no real-data proof. UNVERIFIED means no adequate evidence in the listed artifacts.
+`VERIFIED-LIVE` means observed with live data. `VERIFIED-OFFLINE` means test/static evidence only. `BLOCKED` means the requested live check could not run; reason is listed. `UNVERIFIED` means no adequate evidence.
 
-| Requirement | Evidence file(s) or test name | Status |
+| Requirement | Evidence | Status |
 |---|---|---|
-| Demo path 1 — Home looping video and glass pill | `design/ui-glorious/GAPS.md` §2.1, §3 Home; `home-loop.mp4`; no playback proof | UNVERIFIED |
-| Demo path 2 — Live World navigation and map | `design/ui-glorious/proof/map-prod.png` (Disconnected; Fleet unavailable HTTP 404); `proof/map-polish.png` (Disconnected; Fleet unavailable HTTP 500); `GAPS.md` §2.2 | VERIFIED-OFFLINE-ONLY |
-| Demo path 3 — Truck hover card with real data | `design/ui-glorious/GAPS.md` §2.3; map proof screenshots show no trucks/card and disconnected data | VERIFIED-OFFLINE-ONLY |
-| Demo path 4 — Truck speed history graph | `design/ui-glorious/GAPS.md` §2.4; no live proof | VERIFIED-OFFLINE-ONLY |
-| Demo path 5 — Failed Records late/rejected messages and reasons | `design/ui-glorious/GAPS.md` §2.5; no live proof | VERIFIED-OFFLINE-ONLY |
-| Demo path 6 — Ask AI → review → editor → Run → results | `design/ui-glorious/GAPS.md` §2.6; AI/API execution and stream delivery unverified | VERIFIED-OFFLINE-ONLY |
-| Demo path 7 — `worker kill 2` and recovery shown in Logs & Recovery | `design/ui-glorious/GAPS.md` §2.7; no terminal/recovery sequence proof | VERIFIED-OFFLINE-ONLY |
-| Smoke test 1 — Home → Live World, map visible with 6 truck markers | BOSS_PROMPT §5.1; no smoke-test result; map proof screenshots show no fleet | UNVERIFIED |
-| Smoke test 2 — Truck Speeds row opens chart in same window | BOSS_PROMPT §5.2; no smoke-test result | UNVERIFIED |
-| Smoke test 3 — Logs & Recovery lists 3 workers with partitions | BOSS_PROMPT §5.3; no smoke-test result | UNVERIFIED |
-| Definition of done — All 7 demo steps end-to-end on preview with real data | BOSS_PROMPT §7.1; `GAPS.md` §§2, 99; only map screenshots in `proof/`, both disconnected | UNVERIFIED |
-| Definition of done — Terminal kill visible; accurate recovery details and persistent history | BOSS_PROMPT §7.2; `GAPS.md` §§2.7, 3 Track C, 87–88; no live kill proof | UNVERIFIED |
-| Definition of done — Classic UI works at `?ui=classic`; existing tests pass | BOSS_PROMPT §7.3; `GAPS.md` §§1, 99 notes compatibility and tests unverified | UNVERIFIED |
-| Definition of done — Nothing visible is fake; nothing committed to main | BOSS_PROMPT §7.4; `GAPS.md` §99 covers source review only, not full UI or branch/commit state | UNVERIFIED |
+| Demo 1 — Home looping video and glass pill | `BOSS_STATE.md` preview saw Home; no playback/loop proof | UNVERIFIED |
+| Demo 2 — Live World navigation and map | `BOSS_STATE.md`: six real moving trucks on live preview | VERIFIED-LIVE |
+| Demo 3 — Truck hover card with real telemetry | `BOSS_STATE.md`: live hover card with real partition/worker | VERIFIED-LIVE |
+| Demo 4 — Truck Speeds history graph | `BOSS_STATE.md`: chart seen with live data; `GAP7.md` confirms completed-window label uses timestamps (static review) | VERIFIED-LIVE |
+| Demo 5 — Failed Records with reasons | `BOSS_STATE.md`: live rows seen | VERIFIED-LIVE |
+| Demo 6 — Ask AI → review → editor → Run → results | Ask AI generation 4/4 via live bridge (`BOSS_STATE.md`); live pipeline run blocked because stack never came up; Kafka integration test passed 3 examples offline | BLOCKED — live run unverified |
+| Demo 7 — `worker kill 2` and recovery history | `proof/kill/REPORT.md`: no healthy preview/RUNNING execution during readiness window; disk full on utkarsh-pc, stack unavailable; no kill attempted | BLOCKED |
+| Smoke 1 — Home → Live World, map with 6 trucks | `BOSS_STATE.md`: live preview | VERIFIED-LIVE |
+| Smoke 2 — Truck Speeds row opens chart in same window | Chart seen live (`BOSS_STATE.md`); same-window interaction not recorded | UNVERIFIED |
+| Smoke 3 — Logs & Recovery lists 3 workers with partitions | Live worker cards seen (`BOSS_STATE.md`); exact three-worker/partition check not recorded | UNVERIFIED |
+| All 7 demo steps end-to-end with real data | Live pipeline run and worker kill/recovery remain unverified/blocked | BLOCKED |
+| Terminal kill, accurate recovery details, persistent history | `proof/kill/REPORT.md`: not tested; preview unavailable | BLOCKED |
+| Classic UI at `?ui=classic` and tests | `CLASSIC-CHECK.md`: routes rendered; 154 tests passed, 3 skipped; production build passed | VERIFIED-OFFLINE |
+| Nothing visible is fake; nothing committed to main | No complete live/source and branch-state proof | UNVERIFIED |
+
+Other evidence: `OFFLINE-CHECK.md` is static asset/request review; `GAP7.md` is source inspection. `proof/polish/` and `proof/pipelines-polish/` are visual polish evidence, not live-backend proof. Three `PipelineRunsKafkaIntegrationTest` cases passed against real in-JVM Kafka; this is offline integration evidence, not a live preview run. Mobile is a held stretch, not merged or approved for demo.
