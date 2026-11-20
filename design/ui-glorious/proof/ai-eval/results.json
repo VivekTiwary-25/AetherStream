@@ -1,0 +1,176 @@
+[
+ {
+  "prompt": "Alert me when any truck goes over 60 km/h",
+  "source": "ai",
+  "validatedBy": "local",
+  "ms": 5953,
+  "name": "Speeding over 60 km/h",
+  "types": [
+   "filter",
+   "thresholdAlert",
+   "output"
+  ]
+ },
+ {
+  "prompt": "Average speed per truck over the last 30 seconds",
+  "source": "ai",
+  "validatedBy": "local",
+  "ms": 5656,
+  "name": "Average speed per truck (30s)",
+  "types": [
+   "windowAverage",
+   "output"
+  ]
+ },
+ {
+  "prompt": "Show only trucks on partition 2 with their speed",
+  "source": "ai",
+  "validatedBy": "local",
+  "ms": 5437,
+  "name": "Partition 2 truck speeds",
+  "types": [
+   "filter",
+   "pickFields",
+   "output"
+  ]
+ },
+ {
+  "prompt": "which trucks are slow, under 10 km/h?",
+  "source": "ai",
+  "validatedBy": "local",
+  "ms": 5593,
+  "name": "Trucks under 10 km/h",
+  "types": [
+   "filter",
+   "pickFields",
+   "output"
+  ]
+ },
+ {
+  "prompt": "list stopped trucks",
+  "source": "ai",
+  "validatedBy": "local",
+  "ms": 5719,
+  "name": "Stopped trucks",
+  "types": [
+   "filter",
+   "pickFields",
+   "output"
+  ]
+ },
+ {
+  "prompt": "average speed per route every minute",
+  "source": "ai",
+  "validatedBy": "local",
+  "ms": 5609,
+  "name": "Average speed per route every minute",
+  "types": [
+   "windowAverage",
+   "output"
+  ]
+ },
+ {
+  "prompt": "show truck-003 only",
+  "source": "ai",
+  "validatedBy": "local",
+  "ms": 5266,
+  "name": "truck-003 only",
+  "types": [
+   "filter",
+   "output"
+  ]
+ },
+ {
+  "prompt": "warn me if a truck is heading north fast",
+  "source": "ai",
+  "validatedBy": "local",
+  "ms": 9500,
+  "name": "Fast northbound alert (315-360 deg only)",
+  "types": [
+   "filter",
+   "filter",
+   "thresholdAlert",
+   "output"
+  ]
+ },
+ {
+  "prompt": "how many deliveries did each truck make",
+  "source": "ai",
+  "validatedBy": "local",
+  "ms": 6469,
+  "name": "UNLOADING events per truck (no count)",
+  "types": [
+   "filter",
+   "pickFields",
+   "output"
+  ]
+ },
+ {
+  "prompt": "what is the weather in Mysuru",
+  "source": "example",
+  "validatedBy": "example",
+  "ms": 4297,
+  "name": "Average speed per truck",
+  "types": [
+   "windowAverage",
+   "output"
+  ]
+ },
+ {
+  "prompt": "fuel level alert below 20 percent",
+  "source": "ai",
+  "validatedBy": "local",
+  "ms": 6984,
+  "name": "Fuel alert unsupported: no fuel field",
+  "types": [
+   "output"
+  ]
+ },
+ {
+  "prompt": "show me something interesting",
+  "source": "ai",
+  "validatedBy": "local",
+  "ms": 7750,
+  "name": "Route speed averages with alert",
+  "types": [
+   "windowAverage",
+   "thresholdAlert",
+   "output"
+  ]
+ },
+ {
+  "prompt": "trucks jo 50 se tez chal rahe hai unka alert do",
+  "source": "ai",
+  "validatedBy": "local",
+  "ms": 6109,
+  "name": "Speed over 50 km/h",
+  "types": [
+   "filter",
+   "thresholdAlert",
+   "output"
+  ]
+ },
+ {
+  "prompt": "avrage sped of al truks evry 15 sec",
+  "source": "ai",
+  "validatedBy": "local",
+  "ms": 5781,
+  "name": "15-second average speed, all trucks",
+  "types": [
+   "windowAverage",
+   "output"
+  ]
+ },
+ {
+  "prompt": "For each partition, compute the average speed over 20 second windows and raise an alert when that average goes above 45 km/h, then output it",
+  "source": "ai",
+  "validatedBy": "local",
+  "ms": 5844,
+  "name": "Partition speed avg alert",
+  "types": [
+   "windowAverage",
+   "thresholdAlert",
+   "output"
+  ]
+ }
+]
