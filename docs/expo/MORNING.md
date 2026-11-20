@@ -24,7 +24,7 @@
 22. **4 Speeds:** click **Analytics** → **Truck Speeds** → a truck row; use **Back** to return (check live).
 23. **5 Failed records:** run `events late 10` once; records appear only if the engine classifies them late. Click **Analytics** → **Failed Records** → **Late** (or **All**) → a record (check live).
 24. **6 Pipelines:** click **Pipelines**; enter `Alert me when any truck goes over 60 km/h` in **Ask AI**, click **Generate**, review steps → **Open in editor** → review → **Run** (check live).
-25. **7 Recovery:** click **Settings** → **Logs & Recovery** (check live), then run `worker kill 2` once in the expo terminal; watch the recovery feed.
+25. **7 Recovery:** click **Settings** → **Logs & Recovery** (check live), then run `worker kill 2` once in the expo terminal; expect the worker to be marked **Dead** briefly, execution to recover from a checkpoint, then the same worker to return with its own partitions. Partitions are not reassigned to survivors; all workers are **Running** again by about 6 seconds, and the failure stays in Recovery History.
 26. **Fallback — UI:** if only the new UI fails, try `http://localhost:8088/?ui=classic` (check live); this still requires the web app and API to be available.
 27. **Fallback — Pipelines mode:** `web/src/glorious/pipelines/mode.ts` currently sets `'full'`. Claimed effects: `'editor'` shows only Open Editor; `'hidden'` removes Pipelines and redirects its routes to Home; `'full'` shows Ask AI and editor. This is a source setting, not a runtime switch.
 28. **Fallback — AI:** run the displayed saved example only when marked **Showing a saved example: AI was unavailable**; say it is saved, not AI-generated, and review before running.
