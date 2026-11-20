@@ -3,6 +3,7 @@ import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { WindowManager } from '../../shell/WindowManager'
 import { PipelinesPanel } from '../PipelinesPanel'
 import { EXAMPLES } from '../examples'
+import { EditorPage } from '../EditorPage'
 
 class FakeResizeObserver { observe() {} unobserve() {} disconnect() {} }
 
@@ -55,7 +56,6 @@ describe('EditorPage', () => {
       : respond(200, { valid: false, errors: [{ nodeId: 'n2', message: 'value must be a number' }] })))
     window.localStorage.setItem('glorious.pipelines.fromAi', JSON.stringify(EXAMPLES[0]!.pipeline))
     window.history.replaceState(null, '', '/pipelines/editor?from=ai')
-    const { EditorPage } = await import('../EditorPage')
     await act(async () => { render(<WindowManager><EditorPage /></WindowManager>) })
     expect((screen.getByLabelText('Pipeline name') as HTMLInputElement).value).toBe('Speeding alert')
     expect(screen.getByText(/Pipeline service unavailable: field list comes from the shared contract/)).toBeTruthy()

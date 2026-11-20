@@ -1,0 +1,125 @@
+{
+  "desktop": {
+    "home": {
+      "identical": true,
+      "baselineSha256": "238fbb6ef700fe3084109c18ace3736b7013dab59a20ec47fba0653e44da5cb8",
+      "combinedSha256": "238fbb6ef700fe3084109c18ace3736b7013dab59a20ec47fba0653e44da5cb8"
+    },
+    "live": {
+      "identical": true,
+      "baselineSha256": "ce51d516820a98dffeb415b17986051e2871dbd87d66db27bdde611801b87d23",
+      "combinedSha256": "ce51d516820a98dffeb415b17986051e2871dbd87d66db27bdde611801b87d23"
+    },
+    "analytics": {
+      "identical": true,
+      "baselineSha256": "44ae9f87abb7f6cff7c354fa7c279ef2bef4a8edce2d61068089e4ce6a6424dc",
+      "combinedSha256": "44ae9f87abb7f6cff7c354fa7c279ef2bef4a8edce2d61068089e4ce6a6424dc"
+    },
+    "pipelines": {
+      "identical": true,
+      "baselineSha256": "0e1922f27467e4312dcd44e3102d9aabfcf9b027f5d53c7ecab043a240038be2",
+      "combinedSha256": "0e1922f27467e4312dcd44e3102d9aabfcf9b027f5d53c7ecab043a240038be2"
+    }
+  },
+  "phone": {
+    "home": {
+      "viewportWidth": 390,
+      "documentWidth": 390,
+      "navigation": {
+        "x": 5,
+        "y": 775,
+        "width": 380,
+        "height": 62,
+        "top": 775,
+        "right": 385,
+        "bottom": 837,
+        "left": 5
+      }
+    },
+    "live": {
+      "viewportWidth": 390,
+      "documentWidth": 390,
+      "navigation": {
+        "x": 5,
+        "y": 775,
+        "width": 380,
+        "height": 62,
+        "top": 775,
+        "right": 385,
+        "bottom": 837,
+        "left": 5
+      }
+    },
+    "analytics": {
+      "viewportWidth": 390,
+      "documentWidth": 390,
+      "navigation": {
+        "x": 5,
+        "y": 775,
+        "width": 380,
+        "height": 62,
+        "top": 775,
+        "right": 385,
+        "bottom": 837,
+        "left": 5
+      },
+      "dialog": {
+        "x": 0,
+        "y": 64,
+        "width": 390,
+        "height": 696,
+        "top": 64,
+        "right": 390,
+        "bottom": 760,
+        "left": 0
+      }
+    },
+    "pipelines": {
+      "viewportWidth": 390,
+      "documentWidth": 390,
+      "navigation": {
+        "x": 5,
+        "y": 775,
+        "width": 380,
+        "height": 62,
+        "top": 775,
+        "right": 385,
+        "bottom": 837,
+        "left": 5
+      }
+    },
+    "editor": {
+      "viewportWidth": 390,
+      "documentWidth": 390
+    },
+    "search": {
+      "viewportWidth": 390,
+      "documentWidth": 390,
+      "navigation": {
+        "x": 5,
+        "y": 775,
+        "width": 380,
+        "height": 62,
+        "top": 775,
+        "right": 385,
+        "bottom": 837,
+        "left": 5
+      }
+    },
+    "settings": {
+      "viewportWidth": 390,
+      "documentWidth": 390,
+      "navigation": {
+        "x": 5,
+        "y": 775,
+        "width": 380,
+        "height": 62,
+        "top": 775,
+        "right": 385,
+        "bottom": 837,
+        "left": 5
+      }
+    }
+  },
+  "environment": "Production previews; no API service or mocked responses; reduced motion for deterministic Home media."
+}

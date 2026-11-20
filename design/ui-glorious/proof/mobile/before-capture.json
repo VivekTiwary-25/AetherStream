@@ -1,0 +1,29 @@
+[
+  {
+    "surface": "map",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "path": "design/ui-glorious/proof/mobile/map-1440x900-before.png",
+    "url": "http://localhost:4173/live?ui=glorious"
+  },
+  {
+    "surface": "pipelines",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "path": "design/ui-glorious/proof/mobile/pipelines-1440x900-before.png",
+    "url": "http://localhost:4173/pipelines?ui=glorious"
+  },
+  {
+    "surface": "editor",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "path": "design/ui-glorious/proof/mobile/editor-1440x900-before.png",
+    "url": "http://localhost:4173/pipelines/editor"
+  }
+]
