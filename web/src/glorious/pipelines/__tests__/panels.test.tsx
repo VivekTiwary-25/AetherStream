@@ -44,8 +44,10 @@ describe('PipelinesPanel', () => {
     expect(screen.queryByTestId('pipeline-results')).toBeNull()
   })
 
-  it('says the AI service is unavailable on 502', async () => {
-    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(new Response('<html>Bad gateway</html>', { status: 502 }))))
+  it.each([0, 301, 401, 403, 404, 408, 422, 500, 502, 503, 504])('says the AI service is unavailable on HTTP/network failure %s', async (status) => {
+    vi.stubGlobal('fetch', vi.fn(() => status === 0
+      ? Promise.reject(new TypeError('Failed to fetch'))
+      : Promise.resolve(new Response('<html>Unavailable</html>', { status }))))
     render(<WindowManager><PipelinesPanel /></WindowManager>)
     fireEvent.change(screen.getByTestId('ai-prompt'), { target: { value: 'x' } })
     await act(async () => { fireEvent.click(screen.getByTestId('ai-generate')) })

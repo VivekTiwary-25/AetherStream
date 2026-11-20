@@ -59,6 +59,7 @@ export function describeError(error: unknown, service: 'pipeline' | 'ai' = 'pipe
     const errors = Array.isArray(body?.errors) ? body.errors.filter((item): item is ValidationError => !!item && typeof item.message === 'string') : []
     return { message: errors.length ? 'The pipeline is not valid' : bodyField(error.body, 'error') ?? bodyField(error.body, 'message') ?? 'The request was rejected (400)', errors }
   }
+  if (service === 'ai') return { message: unavailable, errors: [] }
   const detail = bodyField(error.body, 'error') ?? bodyField(error.body, 'message')
   return { message: detail ? `${error.message}: ${detail}` : error.message, errors: [] }
 }

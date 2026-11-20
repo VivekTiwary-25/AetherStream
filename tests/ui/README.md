@@ -81,3 +81,12 @@ The isolated config uses fresh contexts, no storage state, reduced motion, and n
 
 Run `npx playwright test -c playwright.glorious.config.ts glorious-demo-path.spec.ts` against the disposable preview (`GLORIOUS_URL`, default `http://localhost:8089`).
 The spec records video with motion enabled and saves six named screenshots under `test-results/demo-path/`; it does not use storage state or destructive actions.
+The walkthrough focuses moving truck markers to open their detail cards and closes analytics dialogs before continuing, so floating windows cannot intercept pipeline controls.
+It requires a write-enabled AI/pipeline backend to complete Generate and Run; an unavailable AI service remains a failure, not a fabricated successful recording.
+Worker partition-chip checks are scoped to `worker-card-<id>`; the separate partition-ownership summary also exposes partition chip IDs.
+
+Discover the new-UI tests without contacting a server:
+
+```bash
+npx playwright test -c playwright.glorious.config.ts --list
+```
