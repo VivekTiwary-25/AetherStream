@@ -5,6 +5,7 @@ import tempfile
 import time
 import threading
 import unittest
+from http.client import HTTPConnection
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 from unittest.mock import patch
@@ -179,7 +180,36 @@ class BridgeTests(unittest.TestCase):
         with self.assertRaises(HTTPError) as caught:
             urlopen(request, timeout=2)
         self.assertEqual(caught.exception.code, 429)
+        self.assertEqual(caught.exception.headers["Connection"], "close")
         self.assertEqual(json.loads(caught.exception.read()), {"error": "busy"})
+
+    def test_busy_request_drains_split_body_before_429(self):
+        server = ThreadingHTTPServer(("127.0.0.1", 0), ai_bridge.Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        self.addCleanup(thread.join, 2)
+        self.addCleanup(server.server_close)
+        self.addCleanup(server.shutdown)
+        self.assertTrue(ai_bridge.BUSY.acquire(blocking=False))
+        self.addCleanup(ai_bridge.BUSY.release)
+        connection = HTTPConnection("127.0.0.1", server.server_port, timeout=2)
+        self.addCleanup(connection.close)
+        body = b'{"prompt":"hello"}'
+        connection.putrequest("POST", "/generate")
+        connection.putheader("Content-Type", "application/json")
+        connection.putheader("Content-Length", str(len(body)))
+        connection.endheaders(body[:1])
+        sock = connection.sock
+        sock.settimeout(0.25)
+        with self.assertRaises(TimeoutError, msg="busy response must wait for the remaining request body"):
+            sock.recv(1)
+        sock.settimeout(2)
+        connection.send(body[1:])
+        with connection.getresponse() as response:
+            self.assertEqual(response.status, 429)
+            self.assertEqual(response.getheader("Connection"), "close")
+            self.assertEqual(json.loads(response.read()), {"error": "busy"})
+        self.assertFalse(self.calls.exists(), "busy requests must not invoke the CLI")
 
 
 if __name__ == "__main__":

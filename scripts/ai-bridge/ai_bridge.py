@@ -307,6 +307,8 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
+        self.send_header("Connection", "close")
+        self.close_connection = True
         self.end_headers()
         self.wfile.write(body)
 
@@ -319,17 +321,19 @@ class Handler(BaseHTTPRequestHandler):
         if self.path != "/generate":
             return self.respond(404, {"error": "not found"})
         started = time.monotonic()
+        length = int(self.headers.get("Content-Length", "0"))
+        if length < 0 or length > 4096:
+            return self.respond(413, {"error": "request body must be at most 4 KB"})
+        # Drain accepted bodies before even a busy response: closing with unread
+        # request bytes can reset the connection before the client receives 429.
+        body = self.rfile.read(length)
         if not BUSY.acquire(blocking=False):
             print(f"{datetime.now(timezone.utc).isoformat()} ms=0 source=busy valid=false", file=sys.stderr, flush=True)
             return self.respond(429, {"error": "busy"})
         source, valid = "error", False
         try:
-            length = int(self.headers.get("Content-Length", "0"))
-            if length < 0 or length > 4096:
-                self.respond(413, {"error": "request body must be at most 4 KB"})
-                return
             try:
-                payload = json.loads(self.rfile.read(length))
+                payload = json.loads(body)
             except (ValueError, UnicodeDecodeError):
                 self.respond(400, {"error": "invalid JSON"})
                 return
