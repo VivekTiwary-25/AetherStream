@@ -8,6 +8,7 @@ import { useRecoveryFeed } from './useRecoveryFeed'
 import './recovery.css'
 
 const labels = { running: 'Running', dead: 'Dead', recovering: 'Recovering', rejoined: 'Rejoined', idle: 'Idle', unavailable: 'Unavailable' }
+const CONFIGURED_PARTITIONS = [0, 1, 2, 3, 4, 5]
 const number = (value: number | undefined) => value != null && Number.isFinite(value) ? value.toLocaleString(undefined, { maximumFractionDigits: 1 }) : 'Unavailable'
 
 export function LogsRecovery() {
@@ -20,6 +21,9 @@ export function LogsRecovery() {
   }, [])
   const currentHistory = feed.history.filter((entry) => entry.executionId === feed.execution?.id)
   const workerIds = [...new Set([...workers.map((worker) => worker.workerId), ...currentHistory.flatMap((entry) => entry.workerId ? [entry.workerId] : [])])].sort()
+  // The deployed topic has 6 partitions (docker-compose / k8s `--partitions 6`); also show any other partition the server reports.
+  const partitionIds = [...new Set([...CONFIGURED_PARTITIONS, ...workers.flatMap((worker) => Array.isArray(worker.partitions) ? worker.partitions : []),
+    ...currentHistory.flatMap((entry) => entry.partitionChanges?.map((change) => change.partition) ?? [])])].sort((a, b) => a - b)
   const latestRecovery = currentHistory.find((entry) => entry.event === 'RECOVERING' || entry.event === 'RECOVERED')
   return <div className="recovery-panel" data-testid="logs-recovery">
     <div className="recovery-intro">
@@ -28,8 +32,10 @@ export function LogsRecovery() {
     </div>
     {feed.historyError && <p role="alert">Recovery history unavailable: {feed.historyError}</p>}
     {feed.executionError && <p role="alert">Current run unavailable: {feed.executionError}</p>}
-    {latestRecovery?.event === 'RECOVERING' && <p className="recovery-pause">Processing paused for {seconds(now - latestRecovery.at)} s during recovery
-      {feed.status !== 'connected' ? ' (last recorded recovery; connection unavailable)' : ' (in progress)'}.</p>}
+    {latestRecovery?.event === 'RECOVERING' && (feed.status === 'connected' && feed.execution?.state === 'RECOVERING'
+      ? <p className="recovery-pause">Processing paused for {seconds(now - latestRecovery.at)} s during recovery (in progress).</p>
+      // Without a live RECOVERING run state, a ticking counter would be a guess: show only the recorded start.
+      : <p className="recovery-pause">Recovery started {new Date(latestRecovery.at).toLocaleString()}; its end has not been recorded yet{feed.status !== 'connected' ? ' (connection unavailable)' : ''}.</p>)}
     <section aria-labelledby="recovery-workers-title">
       <h2 id="recovery-workers-title">Workers</h2>
       <p className="recovery-muted">A worker that died or restarted stays marked for at least 3 seconds so you can see it; its live numbers may already be newer.</p>
@@ -55,7 +61,7 @@ export function LogsRecovery() {
     </section>
     <section aria-labelledby="recovery-partitions-title">
       <h2 id="recovery-partitions-title">Partition ownership</h2>
-      <div className="recovery-partitions">{[0, 1, 2, 3, 4, 5].map((partition) => {
+      <div className="recovery-partitions">{partitionIds.map((partition) => {
         const owners = workers.filter((worker) => worker.alive && worker.partitions?.includes(partition))
         const ownershipUnknown = workers.some((worker) => worker.alive && !Array.isArray(worker.partitions))
         const change = recentPartitionChange(partition, feed.history, feed.execution?.id, now)
@@ -74,7 +80,7 @@ export function LogsRecovery() {
           <thead><tr><th scope="col">Checkpoint</th><th scope="col">Generation</th><th scope="col">Completed</th><th scope="col">Duration</th><th scope="col">Source offsets</th></tr></thead>
           <tbody>{[...feed.checkpoints].sort((a, b) => b.checkpointId - a.checkpointId).map((checkpoint) => <tr key={checkpoint.checkpointId}>
             <th scope="row">#{checkpoint.checkpointId}</th><td>{checkpoint.generation}</td>
-            <td>{checkpoint.completedAt ? new Date(checkpoint.completedAt).toLocaleString() : 'Not recorded'}</td><td>{number(checkpoint.durationMs)} ms</td>
+            <td>{checkpoint.completedAt ? new Date(checkpoint.completedAt).toLocaleString() : 'Not recorded'}</td><td>{checkpoint.durationMs != null && Number.isFinite(checkpoint.durationMs) ? `${number(checkpoint.durationMs)} ms` : 'Not recorded'}</td>
             <td>{Object.entries(checkpoint.sourceOffsets ?? {}).map(([partition, offset]) => `P${partition}: ${offset}`).join(' · ') || 'Not recorded'}</td>
           </tr>)}</tbody>
         </table></div>}

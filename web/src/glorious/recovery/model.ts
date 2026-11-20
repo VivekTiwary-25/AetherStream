@@ -52,7 +52,8 @@ export function deriveWorkerState(
     (entry.event === 'WORKER_DEAD' || entry.event === 'WORKER_RESTARTED'))
   if (worker && !worker.alive) return 'dead'
   if (loss && now < (loss.observedAt ?? loss.at) + DEAD_HOLD_MS) return 'dead'
-  if (!worker) return loss ? 'dead' : 'unavailable'
+  // A restart is not a death: once its hold ends, a worker missing from /api/workers is just unavailable.
+  if (!worker) return loss?.event === 'WORKER_DEAD' ? 'dead' : 'unavailable'
   // A pre-death RUNNING sample must not erase an authoritative death event.
   if (loss?.event === 'WORKER_DEAD' && (!Number.isFinite(worker.lastHeartbeatMs) || worker.lastHeartbeatMs <= loss.at)) return 'dead'
   if (worker.state === 'RESTORING' || execution?.state === 'RECOVERING') return 'recovering'
