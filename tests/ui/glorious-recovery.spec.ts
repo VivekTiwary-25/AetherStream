@@ -53,5 +53,5 @@ test('worker-2 recovers from a server-recorded kill', async ({ page }) => {
     typeof entry.restoredFromCheckpoint === 'number')).toBeTruthy()
 
   await expect(recovery.locator('li.recovery-event--worker_dead, li.recovery-event--worker_restarted')
-    .filter({ hasText: 'worker-2' }).first()).toBeVisible()
+    .filter({ has: page.getByText('worker-2', { exact: true }) }).first()).toBeVisible()
 })

@@ -53,8 +53,8 @@ test('Truck Speeds drills down in the same window and returns to the list', asyn
     )
   }, { message: 'Truck detail must preserve the window position and size within 2 px' }).toBeLessThanOrEqual(2)
 
-  // The title bar and the detail content both currently expose a Back button.
-  await window.getByRole('button', { name: 'Back', exact: true }).first().click()
+  // Select the title-bar control, not the identically named detail-content button.
+  await window.locator('.gl-window__titlebar').getByRole('button', { name: 'Back', exact: true }).click()
   await expect(list).toBeVisible()
   await expect(list.getByTestId(truckRowId!)).toBeVisible()
   await expect(window.getByTestId('truck-speed-chart')).toHaveCount(0)
@@ -71,13 +71,14 @@ test('Logs & Recovery shows three workers covering partitions P0–P5', async ({
   for (let index = 0; index < 3; index++) {
     const worker = workers.nth(index)
     await expect(worker).toBeVisible()
-    const partitions = worker.getByLabel(/ assigned partitions$/).locator('.recovery-chip')
+    const partitions = worker.getByTestId(/^partition-chip-[0-5]$/)
     await expect.poll(() => partitions.count(), {
       message: `Worker card ${index + 1} must show at least one partition`,
     }).toBeGreaterThanOrEqual(1)
     await expect(partitions.first()).toHaveText(/^\s*P[0-5]\s*$/)
   }
   for (let partition = 0; partition < 6; partition++) {
+    // Ownership summaries reuse these testids; require a chip inside a worker card.
     const chip = workers.getByTestId(`partition-chip-${partition}`)
     await expect(chip).toBeVisible()
     await expect(chip).toHaveText(new RegExp(`^\\s*P${partition}\\s*$`))
