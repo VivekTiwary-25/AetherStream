@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { advanceDistance, easeLabelOffset, facingLeftWithHysteresis, lookAheadPoint, placeMarker, prepareRoute, sampleRoute, truckLabel, type RouteFeature } from './mapLogic'
+import { advanceDistance, easeLabelOffset, facingLeftWithHysteresis, labelTransform, lookAheadPoint, placeMarker, prepareRoute, sampleRoute, truckLabel, type RouteFeature } from './mapLogic'
 
 // Isolated metric path for numerical assertions, not fleet/demo data.
 const feature: RouteFeature = {
@@ -69,6 +69,12 @@ describe('live road motion', () => {
     expect(firstFrame).toBe(-8)
     expect(secondFrame).toBe(-16)
     expect(easeLabelOffset(secondFrame, -80)).toBe(-24)
+  })
+
+  it('keeps the label centred under the truck while applying the overlap offset', () => {
+    // The inline style replaces the stylesheet's translateX(-50%); losing it shifts every label right.
+    expect(labelTransform(-16)).toBe('translate(-50%, -16px)')
+    expect(labelTransform(0)).toBe('translate(-50%, 0px)')
   })
 
   it('skips duplicate road points without NaN and rejects a zero-length path', () => {

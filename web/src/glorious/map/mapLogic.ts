@@ -77,6 +77,11 @@ export function easeLabelOffset(current: number, target: number, maxStep = 8): n
   return Math.abs(delta) <= maxStep ? target : current + Math.sign(delta) * maxStep
 }
 
+/** Inline label transform. It replaces the CSS translateX(-50%), so it must keep the centring. */
+export function labelTransform(offsetY: number): string {
+  return `translate(-50%, ${offsetY}px)`
+}
+
 
 /** Truck T-01 is a display label for the real simulator ID truck-001. */
 export function truckLabel(id: string): string {
