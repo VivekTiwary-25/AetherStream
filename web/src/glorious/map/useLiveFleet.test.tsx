@@ -64,7 +64,53 @@ describe('live fleet telemetry and cleanup', () => {
     expect(result.current.fresh).toBe(false)
     act(() => frame('trucks', [{ ...truck, speedKmh: 0, status: 'STOPPED' }]))
     expect(result.current.fresh).toBe(true)
+    expect(result.current.controlsFresh).toBe(false)
+    expect(result.current.error).toBe('Simulator controls unavailable')
+  })
+
+  it('does not let truck-only frames make missing simulator controls look available', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('Control API offline')))
+    const { result } = renderHook(useLiveFleet)
+    await act(async () => {})
+    act(() => frame('trucks', [truck]))
+    expect(result.current.trucks).toEqual([truck])
+    expect(result.current.fresh).toBe(true)
+    expect(result.current.controlsFresh).toBe(false)
+    expect(result.current.error).toBe('Simulator controls unavailable')
+  })
+
+  it.each([
+    { running: undefined, timeScale: 10 },
+    { running: true, timeScale: -1 },
+    { running: true, timeScale: null },
+  ])('rejects unavailable controls rather than accepting %j', async (controls) => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response({ ...state([truck]), ...controls } as unknown as SimulatorState)))
+    const { result } = renderHook(useLiveFleet)
+    await act(async () => {})
+    expect(result.current.controlsFresh).toBe(false)
+    expect(result.current.trucks).toEqual([])
+    expect(result.current.error).toBe('The simulator sent data that could not be read')
+  })
+
+  it('retains valid reconnect controls when an older HTTP request fails', async () => {
+    let reject!: (reason: Error) => void
+    vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>((_, fail) => { reject = fail })))
+    const { result } = renderHook(useLiveFleet)
+    act(() => frame('snapshot', [truck]))
+    await act(async () => { reject(new Error('Obsolete failure')) })
+    expect(result.current.controlsFresh).toBe(true)
+    expect(result.current.running).toBe(true)
     expect(result.current.error).toBeNull()
+  })
+
+  it('does not replace a newer unavailable-control snapshot with an older successful poll', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response(state([truck]))))
+    const { result } = renderHook(useLiveFleet)
+    act(() => socket.listener?.({ type: 'snapshot', ts: 0, data: { simulator: { trucks: [truck] } } }))
+    await act(async () => {})
+    expect(result.current.trucks).toEqual([truck])
+    expect(result.current.controlsFresh).toBe(false)
+    expect(result.current.error).toBe('Simulator controls unavailable')
   })
 
   it('backs off failed HTTP polls, recovers and resets the next outage delay', async () => {

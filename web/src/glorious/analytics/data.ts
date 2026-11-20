@@ -1,7 +1,44 @@
-import type { DeadLetter, SimulatorTruck, WindowResult } from '../../api/types'
+import type { Alert, DeadLetter, SimulatorTruck, WindowResult } from '../../api/types'
 
 export function validTruckReadings(trucks: SimulatorTruck[]): SimulatorTruck[] {
   return trucks.filter((truck) => truck && typeof truck.truckId === 'string')
+}
+
+export const finiteNumber = (value: unknown): number | undefined => typeof value === 'number' && Number.isFinite(value) ? value : undefined
+
+export interface FlowReading {
+  eventsPerSec: number | undefined
+  rejectedPerSec: number | undefined
+  latePerSec: number | undefined
+  byPartition: Record<string, number | undefined> | undefined
+}
+
+/** Missing or invalid rates remain gaps, never zero-valued measurements. */
+export function readFlow(value: unknown): FlowReading {
+  const data = value && typeof value === 'object' ? value as Record<string, unknown> : {}
+  const rate = (value: unknown) => {
+    const number = finiteNumber(value)
+    return number !== undefined && number >= 0 ? number : undefined
+  }
+  const partitions = data.byPartition
+  return {
+    eventsPerSec: rate(data.eventsPerSec),
+    rejectedPerSec: rate(data.rejectedPerSec),
+    latePerSec: rate(data.latePerSec),
+    byPartition: partitions && typeof partitions === 'object' && !Array.isArray(partitions)
+      ? Object.fromEntries(Object.entries(partitions).map(([partition, value]) => [partition, rate(value)]))
+      : undefined,
+  }
+}
+
+/** REST hydration can overlap live alerts; alertId is the persisted identity. */
+export function uniqueAlerts(alerts: Alert[]): Alert[] {
+  const seen = new Set<string>()
+  return alerts.filter((alert) => {
+    if (!alert || seen.has(alert.alertId)) return false
+    seen.add(alert.alertId)
+    return true
+  })
 }
 
 /** REST hydration and live frames can contain the same persisted result. Keep the newest copy. */

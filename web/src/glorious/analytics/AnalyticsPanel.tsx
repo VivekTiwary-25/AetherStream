@@ -1,16 +1,21 @@
 import { useEffect, useRef, useState } from 'react'
 import { useAetherMessages } from '../../api/ws'
-import type { Alert, DeadLetter, Flow, SimulatorTruck, WebSocketMessage, WindowResult } from '../../api/types'
+import type { Alert, DeadLetter, SimulatorTruck, WebSocketMessage, WindowResult } from '../../api/types'
 import { useDashboard } from '../../app/state/store'
 import { useWindows } from '../shell/windows'
 import { Icon } from '../shell/Icon'
 import { Bars, ChartRow, LineChart } from './charts/Charts'
-import { groupTruckWindows, mapFailedRecords, uniqueWindows, validTruckReadings, windowLengthLabel } from './data'
+import { finiteNumber, groupTruckWindows, mapFailedRecords, readFlow, uniqueAlerts, uniqueWindows, validTruckReadings, windowLengthLabel, type FlowReading } from './data'
 import './analytics.css'
 
 export type AnalyticsId = 'truck-speeds' | 'deliveries' | 'alerts' | 'events-processed' | 'failed-records'
-type FlowSample = Flow & { at: number }
-type TruckSample = { truckId: string; speed: number; at: number }
+type FlowSample = FlowReading & { at: number }
+type TruckSample = { truckId: string; speed: number | undefined; at: number }
+
+function gapTruckSamples(samples: TruckSample[], at: number): TruckSample[] {
+  const latest = new Map(samples.map((sample) => [sample.truckId, sample]))
+  return [...samples, ...[...latest.values()].filter((sample) => sample.speed !== undefined).map(({ truckId }) => ({ truckId, speed: undefined, at }))].slice(-600)
+}
 
 export function AnalyticsPanel({ id }: { id: AnalyticsId }) {
   const windowsApi = useWindows()
@@ -21,8 +26,10 @@ export function AnalyticsPanel({ id }: { id: AnalyticsId }) {
   const [selectedTruck, setSelectedTruck] = useState<string | null>(null)
   const [selectedFailure, setSelectedFailure] = useState<DeadLetter | null>(null)
   const [failureKind, setFailureKind] = useState<'ALL' | DeadLetter['kind']>('ALL')
-  const lastTruckAt = useRef(0)
+  const lastTruckAt = useRef<number | null>(null)
   const [trucksFresh, setTrucksFresh] = useState(false)
+  const lastFlowAt = useRef<number | null>(null)
+  const [flowFresh, setFlowFresh] = useState(false)
 
   const liveStatus = useAetherMessages((message: WebSocketMessage) => {
     if (message.type === 'snapshot' && message.data && typeof message.data === 'object') {
@@ -30,6 +37,10 @@ export function AnalyticsPanel({ id }: { id: AnalyticsId }) {
       setTrucks(Array.isArray(snapshot.simulator?.trucks) ? validTruckReadings(snapshot.simulator.trucks) : [])
       lastTruckAt.current = Date.now()
       setTrucksFresh(true)
+      setSpeedSamples((samples) => gapTruckSamples(samples, Date.now()))
+      lastFlowAt.current = null
+      setFlowFresh(false)
+      setFlowSamples((samples) => samples.length ? [...samples, { ...readFlow(null), at: Date.now() }].slice(-300) : samples)
     }
     if (message.type === 'trucks' && message.data && typeof message.data === 'object' && 'trucks' in message.data) {
       const data = message.data as { trucks: SimulatorTruck[] }
@@ -39,39 +50,74 @@ export function AnalyticsPanel({ id }: { id: AnalyticsId }) {
       const at = Date.now()
       lastTruckAt.current = at
       setTrucksFresh(true)
-      setSpeedSamples((samples) => [...samples, ...readings.filter((truck) => Number.isFinite(truck.speedKmh)).map((truck) => ({ truckId: truck.truckId, speed: truck.speedKmh, at }))].slice(-600))
+      setSpeedSamples((samples) => {
+        const present = new Set(readings.map((truck) => truck.truckId))
+        const latest = new Map(samples.map((sample) => [sample.truckId, sample]))
+        const removed = [...latest.values()].filter((sample) => sample.speed !== undefined && !present.has(sample.truckId))
+        return [...samples,
+          ...removed.map(({ truckId }) => ({ truckId, speed: undefined, at })),
+          ...readings.map((truck) => ({ truckId: truck.truckId, speed: finiteNumber(truck.speedKmh), at })),
+        ].slice(-600)
+      })
     }
-    if (message.type === 'flow' && message.data && typeof message.data === 'object') {
-      setFlowSamples((samples) => [...samples, { ...(message.data as Flow), at: Date.now() }].slice(-300))
+    if (message.type === 'flow') {
+      const at = Date.now()
+      lastFlowAt.current = at
+      setFlowFresh(true)
+      setFlowSamples((samples) => [...samples, { ...readFlow(message.data), at }].slice(-300))
     }
   })
 
   useEffect(() => {
     const timer = window.setInterval(() => {
-      if (Date.now() - lastTruckAt.current > 4500) setTrucksFresh(false)
+      if (lastTruckAt.current !== null && Date.now() - lastTruckAt.current > 4500) {
+        lastTruckAt.current = null
+        setTrucksFresh(false)
+        setSpeedSamples((samples) => gapTruckSamples(samples, Date.now()))
+      }
+      if (lastFlowAt.current !== null && Date.now() - lastFlowAt.current > 4500) {
+        lastFlowAt.current = null
+        setFlowFresh(false)
+        setFlowSamples((samples) => [...samples, { ...readFlow(null), at: Date.now() }].slice(-300))
+      }
     }, 1000)
     return () => window.clearInterval(timer)
   }, [])
 
+  useEffect(() => {
+    if (liveStatus === 'connected') return
+    lastTruckAt.current = null
+    setSpeedSamples((samples) => gapTruckSamples(samples, Date.now()))
+    setTrucksFresh(false)
+    setFlowFresh(false)
+    lastFlowAt.current = null
+    setFlowSamples((samples) => samples.length ? [...samples, { ...readFlow(null), at: Date.now() }].slice(-300) : samples)
+  }, [liveStatus])
+
+  const latestPartitions = flowFresh && liveStatus === 'connected' ? flowSamples.at(-1)?.byPartition : undefined
+
   const currentTrucks = trucks
 
   const speedWindows = windows.filter((window) => window?.sinkId === 'speedSink')
-  const deliveryWindows = uniqueWindows(windows.filter((window) => window?.sinkId === 'delSink'))
+  const deliveryWindows = uniqueWindows(windows.filter((window) => window?.sinkId === 'delSink' && typeof window.key === 'string' && Number.isFinite(window.windowStart) && Number.isFinite(window.windowEnd)))
   const truckRows = groupTruckWindows(speedWindows)
   const speedByTruck = new Map(truckRows.map((row) => [row.truckId, row.latest]))
   const truckIds = [...new Set([...currentTrucks.map((truck) => truck.truckId), ...speedByTruck.keys()])].sort((a, b) => a.localeCompare(b))
   const latestDeliveryByTruck = new Map<string, WindowResult>()
-  const deliveryByWindow = new Map<number, number>()
+  const deliveryByWindow = new Map<number, number | undefined>()
   for (const row of deliveryWindows) {
     const previous = latestDeliveryByTruck.get(row.key)
     if (!previous || previous.windowEnd < row.windowEnd) latestDeliveryByTruck.set(row.key, row)
-    const deliveries = row.values?.deliveries
-    if (Number.isFinite(row.windowEnd) && typeof deliveries === 'number' && Number.isFinite(deliveries)) deliveryByWindow.set(row.windowEnd, (deliveryByWindow.get(row.windowEnd) ?? 0) + deliveries)
+    const deliveries = finiteNumber(row.values?.deliveries)
+    const previousTotal = deliveryByWindow.get(row.windowEnd)
+    const total = deliveryByWindow.has(row.windowEnd) ? previousTotal : 0
+    deliveryByWindow.set(row.windowEnd, deliveries !== undefined && deliveries >= 0 && total !== undefined ? total + deliveries : undefined)
   }
   const deliveryEntries = [...deliveryByWindow].sort(([a], [b]) => a - b).slice(-15)
-  const sortedAlerts = [...alerts].sort((a, b) => b.eventTime - a.eventTime).slice(0, 8)
+  const distinctAlerts = uniqueAlerts(alerts)
+  const sortedAlerts = [...distinctAlerts].sort((a, b) => b.eventTime - a.eventTime).slice(0, 8)
   const alertByMinute = new Map<number, number>()
-  for (const alert of alerts) {
+  for (const alert of distinctAlerts) {
     if (Number.isFinite(alert.eventTime)) {
       const minute = Math.floor(alert.eventTime / 60_000) * 60_000
       alertByMinute.set(minute, (alertByMinute.get(minute) ?? 0) + 1)
@@ -99,31 +145,31 @@ export function AnalyticsPanel({ id }: { id: AnalyticsId }) {
         const latest = speedByTruck.get(truckId)
         return <li key={truckId}><button className="an-row" type="button" data-testid={`truck-row-${truckId}`} onClick={() => showTruck(truckId)}>
           <strong>{truckId}</strong><span>{current && trucksFresh && liveStatus === 'connected' && Number.isFinite(current.speedKmh) ? `${current.speedKmh.toFixed(1)} km/h now` : 'Live speed unavailable'}</span>
-          <span>{latest ? `${typeof latest.values?.avgSpeedKmh === 'number' && Number.isFinite(latest.values.avgSpeedKmh) ? `${latest.values.avgSpeedKmh.toFixed(1)} km/h ${windowLengthLabel(latest)}` : 'No average'} · ${latest.eventCount} readings` : 'No average yet'}</span>
+          <span>{latest ? `${finiteNumber(latest.values?.avgSpeedKmh) !== undefined ? `${latest.values.avgSpeedKmh!.toFixed(1)} km/h ${windowLengthLabel(latest)}` : 'No average'} · ${finiteNumber(latest.eventCount) !== undefined && latest.eventCount >= 0 ? `${latest.eventCount} readings` : 'readings unavailable'}` : 'No average yet'}</span>
         </button></li>
       })}</ul></> : <EmptyState socketStatus={socketStatus} execution={execution?.state} message="No truck speeds yet." />}
     </section>}
     {id === 'deliveries' && <section>
-      <p className="an-caption">Deliveries per truck in its latest completed time window. The chart adds up the whole fleet for each window.</p>
+      <p className="an-caption">Deliveries per truck in its latest completed time window. The chart sums reported truck results for each window; unavailable counts leave a gap.</p>
       {latestDeliveryByTruck.size > 0 && <TableHead columns={['Truck', 'Latest window', 'Window ended']} />}
-      <div className="an-list">{latestDeliveryByTruck.size ? [...latestDeliveryByTruck].sort(([a], [b]) => a.localeCompare(b)).map(([truckId, row]) => <div className="an-row" key={truckId}><strong>{truckId}</strong><span>{row.values?.deliveries ?? 0} deliveries</span><span>{simClock(row.windowEnd)} sim time</span></div>) : <EmptyState socketStatus={socketStatus} execution={execution?.state} message="No deliveries counted yet." />}</div>
+      <div className="an-list">{latestDeliveryByTruck.size ? [...latestDeliveryByTruck].sort(([a], [b]) => a.localeCompare(b)).map(([truckId, row]) => <div className="an-row" key={truckId}><strong>{truckId}</strong><span>{finiteNumber(row.values?.deliveries) !== undefined && row.values.deliveries! >= 0 ? `${row.values.deliveries} deliveries` : 'Delivery count unavailable'}</span><span>{simClock(row.windowEnd)} sim time</span></div>) : <EmptyState socketStatus={socketStatus} execution={execution?.state} message="No deliveries counted yet." />}</div>
       <Bars values={deliveryEntries.map(([, count]) => count)} label="Total deliveries per completed window" unit="deliveries" />
     </section>}
     {id === 'alerts' && <section className="an-cols-alerts">
-      <p className="an-caption">Times are simulated time (the demo’s clock), not your local time.</p>
+      <p className="an-caption">Times are simulated time (the demo’s clock), not your local time. Counts cover loaded alerts; the chart shows only minutes with reported alerts.</p>
       <Bars values={alertEntries.map(([, count]) => count)} label="Alerts per simulation minute" unit="alerts/min" />
       {sortedAlerts.length ? <><TableHead columns={['Truck', 'Alert', 'Sim time']} /><div className="an-list">{sortedAlerts.map((alert) => <AlertRow key={alert.alertId} alert={alert} />)}</div></> : <EmptyState socketStatus={socketStatus} execution={execution?.state} message="No alerts yet." />}
     </section>}
     {id === 'events-processed' && <section className="an-cols-2">
-      <p className="an-caption">Live engine throughput. The stream is split into partitions (slices handled by one worker each); per-partition rates are estimates, splitting each worker’s rate evenly across its partitions.</p>
+      <p className="an-caption">Engine throughput samples since this panel opened (local clock). Charts retain history when live data is unavailable. Current per-partition rates are estimates, splitting each worker’s rate evenly across its partitions.</p>
       <LineChart values={flowSamples.map((sample) => sample.eventsPerSec)} label="Events processed" unit="events/s" times={flowTimes(flowSamples)} />
       <ChartRow>
         <LineChart values={flowSamples.map((sample) => sample.rejectedPerSec)} label="Rejected" unit="records/s" />
         <LineChart values={flowSamples.map((sample) => sample.latePerSec)} label="Late" unit="records/s" />
       </ChartRow>
-      {flowSamples.length > 0 && <TableHead columns={['Partition', 'Estimated rate']} />}
-      {flowSamples.length > 0 && <div className="an-list">{Object.keys(flowSamples.at(-1)!.byPartition).sort((a, b) => Number(a) - Number(b)).map((partition) => <div className="an-row" key={partition}><strong>Partition {partition}</strong><span>Estimated {flowSamples.at(-1)!.byPartition[partition]!.toFixed(2)} events/s</span></div>)}</div>}
-      {!flowSamples.length && <EmptyState socketStatus={socketStatus} execution={execution?.state} message="Waiting for live throughput data." />}
+      {latestPartitions && Object.keys(latestPartitions).length > 0 ? <><TableHead columns={['Partition', 'Estimated rate']} />
+        <div className="an-list">{Object.keys(latestPartitions).sort((a, b) => Number(a) - Number(b)).map((partition) => <div className="an-row" key={partition}><strong>Partition {partition}</strong><span>{latestPartitions[partition] !== undefined ? `Estimated ${latestPartitions[partition].toFixed(2)} events/s` : 'Rate unavailable'}</span></div>)}</div></>
+        : <p className="an-empty">{liveStatus !== 'connected' ? 'Disconnected — live throughput unavailable.' : !flowSamples.length ? 'Waiting for live throughput data.' : !flowFresh ? 'Live throughput unavailable — waiting for a fresh sample.' : latestPartitions ? 'No partition rates reported.' : 'Partition rates unavailable.'}</p>}
     </section>}
     {id === 'failed-records' && <section>
       <p className="an-caption">Records the engine set aside: rejected (invalid data) or late (arrived after their time window closed). Times are simulated time; partition and offset show exactly where each record was read.</p>
@@ -146,7 +192,7 @@ function TruckDetail({ truckId, windows, liveSamples }: { truckId: string; windo
   const duration = history[0] ? windowLengthLabel(history[0]).replace(' avg', '') : 'completed windows'
   return <div data-testid="truck-speed-chart">
     <p className="an-caption">Averages for each completed time window ({duration}), plus live speed readings since you opened this panel.</p>
-    <LineChart values={history.map((row) => row.values?.avgSpeedKmh).filter((value): value is number => typeof value === 'number' && Number.isFinite(value))} label="Average speed per completed window" unit="km/h" />
+    <LineChart values={history.map((row) => finiteNumber(row.values?.avgSpeedKmh))} label="Average speed per completed window" unit="km/h" />
     <LineChart values={samples.map((sample) => sample.speed)} label={`Live readings since ${samples[0] ? clock(samples[0].at) : 'panel opened'}`} unit="km/h" times={samples[0] ? [clock(samples[0].at), clock(samples.at(-1)!.at)] : undefined} />
   </div>
 }
@@ -174,7 +220,7 @@ function EmptyState({ socketStatus, execution, message }: { socketStatus: string
 }
 
 function simClock(timestamp: number): string {
-  return Number.isFinite(timestamp) ? new Date(timestamp).toISOString().slice(11, 19) : 'time unavailable'
+  return Number.isFinite(timestamp) && Number.isFinite(new Date(timestamp).getTime()) ? new Date(timestamp).toISOString().slice(11, 19) : 'time unavailable'
 }
 
 function clock(timestamp: number): string {
