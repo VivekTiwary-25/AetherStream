@@ -65,18 +65,18 @@ const page = (results: Array<{ seq: number }>, extra: Partial<ResultsPage> = {})
 })
 
 describe('results polling reducer', () => {
-  it('starts before seq 0 and advances after to the highest seq', () => {
+  it('starts at the API’s non-negative cursor and receives the first result', () => {
     let view = initialRunView('r1')
-    expect(view.after).toBe(-1)
-    view = runReducer(view, { type: 'page', page: page([{ seq: 0 }, { seq: 1 }]) })
-    expect(view.after).toBe(1)
-    expect(view.results.map((result) => result.seq)).toEqual([0, 1])
+    expect(view.after).toBe(0)
+    view = runReducer(view, { type: 'page', page: page([{ seq: 1 }, { seq: 2 }]) })
+    expect(view.after).toBe(2)
+    expect(view.results.map((result) => result.seq)).toEqual([1, 2])
   })
 
   it('ignores duplicates, sorts out-of-order results and keeps after on an empty page', () => {
-    let view = runReducer(initialRunView('r1'), { type: 'page', page: page([{ seq: 0 }, { seq: 1 }]) })
+    let view = runReducer(initialRunView('r1'), { type: 'page', page: page([{ seq: 1 }]) })
     view = runReducer(view, { type: 'page', page: page([{ seq: 3 }, { seq: 1 }, { seq: 2 }]) })
-    expect(view.results.map((result) => result.seq)).toEqual([0, 1, 2, 3])
+    expect(view.results.map((result) => result.seq)).toEqual([1, 2, 3])
     view = runReducer(view, { type: 'page', page: page([], { eventsIn: 42 }) })
     expect(view.after).toBe(3)
     expect(view.eventsIn).toBe(42)
@@ -126,6 +126,7 @@ describe('error rendering', () => {
 
   it('explains a busy AI and other server errors honestly', () => {
     expect(describeError(new ApiError(429, { error: 'busy' }), 'ai').message).toMatch(/busy/)
+    expect(describeError(new ApiError(429, {})).message).toBe('The pipeline service is busy. Try again in a moment.')
     expect(describeError(new ApiError(500, { error: 'disk full' })).message).toBe('Request failed (500): disk full')
   })
 })

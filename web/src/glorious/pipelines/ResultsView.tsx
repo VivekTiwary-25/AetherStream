@@ -58,14 +58,14 @@ export function ResultsView({ runId }: { runId: string }) {
     <div className="gl-results__bar">
       <p className={`gl-run-state ${stateClass}`} aria-live="polite"><span className="gl-run-state__dot" aria-hidden="true" />{view.pollError ? 'Disconnected' : view.state ? STATE_LABEL[view.state] : 'Connecting...'}</p>
       <p className="gl-results__count">Events in: <strong>{view.eventsIn ?? '-'}</strong></p>
-      <p className="gl-results__count">Results: <strong>{view.results.length}</strong></p>
+      <p className="gl-results__count">Buffered results: <strong>{view.state ? view.results.length : '-'}</strong></p>
       <ClayButton onClick={() => void stop()} disabled={finished || stopping || !view.state}>{stopping ? 'Stopping...' : 'Stop'}</ClayButton>
     </div>
     {view.state === 'FAILED' && <p className="gl-alert gl-alert--error" role="alert">Run failed{view.error ? `: ${view.error}` : ''}</p>}
     {view.pollError && <p className="gl-alert gl-alert--error" role="alert">{view.pollError}</p>}
     {stopError && <p className="gl-alert gl-alert--error" role="alert">Could not stop: {stopError}</p>}
     {latest.length === 0
-      ? <p className="gl-muted">{view.state === 'RUNNING' ? 'Waiting for matching events. No results yet.' : view.state ? 'No results.' : 'Waiting for the first update...'}</p>
+      ? <p className="gl-muted">{view.pollError ? 'Results unavailable. Waiting to reconnect.' : view.state === 'RUNNING' ? 'Waiting for matching events. No results yet.' : view.state ? 'No results.' : 'Waiting for the first update...'}</p>
       : <div className="gl-results__table-wrap"><table className="gl-results__table">
         <caption className="gl-sr-only">Latest {latest.length} pipeline results, newest first</caption>
         <thead><tr><th scope="col">Time</th><th scope="col">Kind</th><th scope="col">Output</th>{columns.map((column) => <th scope="col" key={column}>{column}</th>)}</tr></thead>

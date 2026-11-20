@@ -21,7 +21,7 @@ function Thinking() {
   }, [])
   return <div className="gl-thinking" role="status">
     <span className="gl-thinking__dots" aria-hidden="true"><span /><span /><span /></span>
-    <span className="gl-thinking__label">Thinking... <span className="gl-thinking__time">{seconds} s</span><small className="gl-muted">Usually 10–30 seconds</small></span>
+    <span className="gl-thinking__label">Thinking... <span className="gl-thinking__time">{seconds} s</span></span>
   </div>
 }
 

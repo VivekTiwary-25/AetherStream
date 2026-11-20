@@ -20,7 +20,7 @@ export type RunAction =
   | { type: 'pollError'; message: string }
   | { type: 'reset'; runId: string }
 
-export const initialRunView = (runId: string): RunView => ({ runId, after: -1, results: [] })
+export const initialRunView = (runId: string): RunView => ({ runId, after: 0, results: [] })
 
 export function runReducer(view: RunView, action: RunAction): RunView {
   switch (action.type) {
