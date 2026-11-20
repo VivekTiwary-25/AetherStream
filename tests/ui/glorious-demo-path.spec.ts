@@ -31,10 +31,17 @@ test('new-UI demo path records six non-destructive walkthrough steps', async ({ 
   await expect(trucks).toHaveCount(6, { timeout: 20_000 })
   await screenshot(page, 'step-2-live-world')
 
-  // 3. Focus opens the moving marker's card without waiting for pointer stability.
-  await trucks.first().focus()
+  // 3. Re-query and hover at the moving marker's current position on each attempt.
+  // The read-only UI exposes a stable card ID, but no card data-testid.
   const truckCard = map.locator('#gl-truck-card')
-  await expect(truckCard).toBeVisible()
+  await expect(async () => {
+    const markerName = await trucks.first().getAttribute('aria-label', { timeout: 750 })
+    expect(markerName).toBeTruthy()
+    // Skip stability checks, not pointer delivery: the card must open from a real hover.
+    await map.getByRole('button', { name: markerName!, exact: true }).hover({ force: true, timeout: 750 })
+    await expect(truckCard).toBeVisible({ timeout: 750 })
+    await expect(truckCard).toHaveAttribute('aria-label', `${markerName!.split(',')[0]} details`, { timeout: 750 })
+  }).toPass({ timeout: 5_000, intervals: [100, 250, 500] })
   await expect(truckCard.locator('dd').first()).toHaveText(/\d+(?:\.\d+)? km\/h/)
   await expect(truckCard.locator('dd').nth(2)).toHaveText(/Partition \d+ · Worker W\d+/)
   await screenshot(page, 'step-3-truck-card')
@@ -51,16 +58,16 @@ test('new-UI demo path records six non-destructive walkthrough steps', async ({ 
   await expect(analytics.getByTestId('truck-speed-chart')).toBeVisible()
   await expect(analytics).toHaveCount(1)
   await screenshot(page, 'step-4-truck-speed-chart')
-  await analytics.getByRole('button', { name: 'Back', exact: true }).first().click()
+  await analytics.locator('.gl-window__titlebar').getByRole('button', { name: 'Back', exact: true }).click()
   await expect(speedList).toBeVisible()
   await analytics.getByRole('button', { name: 'Close Truck Speeds', exact: true }).click()
   await expect(analytics).toHaveCount(0)
 
   // 5. Failed records must show rows or the explicit honest empty state.
-  await page.getByRole('button', { name: 'Back to main navigation' }).click()
+  await page.getByRole('button', { name: 'Back to main navigation', exact: true }).click()
   await page.getByRole('button', { name: 'Analytics', exact: true }).click()
   await page.getByRole('button', { name: 'Failed Records', exact: true }).click()
-  const failedRecords = page.getByRole('dialog', { name: 'Failed Records' })
+  const failedRecords = page.getByRole('dialog', { name: 'Failed Records', exact: true })
   const rows = failedRecords.locator('.an-list').getByRole('button')
   const emptyState = failedRecords.getByText('No failed records yet.', { exact: true })
   await expect.poll(async () => (await rows.count()) > 0 || await emptyState.isVisible()).toBe(true)
@@ -69,11 +76,11 @@ test('new-UI demo path records six non-destructive walkthrough steps', async ({ 
   await expect(failedRecords).toHaveCount(0)
 
   // 6. Use the first saved prompt, run its generated/saved pipeline, and open the editor tab.
-  await page.getByRole('button', { name: 'Back to main navigation' }).click()
+  await page.getByRole('button', { name: 'Back to main navigation', exact: true }).click()
   await page.getByRole('button', { name: 'Pipelines', exact: true }).click()
   const pipelines = page.getByTestId('pipelines-panel')
   await expect(pipelines).toBeVisible()
-  await pipelines.getByRole('group', { name: 'Example prompts' }).getByRole('button').first().click()
+  await pipelines.getByRole('group', { name: 'Example prompts', exact: true }).getByRole('button').first().click()
   await pipelines.getByTestId('ai-generate').click()
   const generated = pipelines.locator('.gl-generated')
   await expect(generated).toBeVisible({ timeout: 60_000 })
