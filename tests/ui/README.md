@@ -71,19 +71,56 @@ strict and browser failures remain visible in reports. The inspected shell does
 not yet mount the existing editor, chaos, or comparison components; these are
 integration failures to fix in the UI lane, not reasons to weaken this scenario.
 
-## New-UI smoke tests
-Run `npm run test:glorious` for Chromium checks of Home/map, Truck Speeds, and Logs & Recovery.
-The recovery spec is destructive: it skips unless `ALLOW_KILL=1`; it refuses `GLORIOUS_URL` containing `:8088`.
-Run it only against a disposable stack with three live workers and an active execution; it kills `worker-2`.
-Recovery screenshots are written to `test-results/recovery-*.png`.
-The isolated config uses fresh contexts, no storage state, reduced motion, and no AI or mocked data.
-## Demo-path recording
+## Run the new-UI suites against a preview host
 
-Run `npx playwright test -c playwright.glorious.config.ts glorious-demo-path.spec.ts` against the disposable preview (`GLORIOUS_URL`, default `http://localhost:8089`).
-The spec records video with motion enabled and saves six named screenshots under `test-results/demo-path/`; it does not use storage state or destructive actions.
-The walkthrough focuses moving truck markers to open their detail cards and closes analytics dialogs before continuing, so floating windows cannot intercept pipeline controls.
-It requires a write-enabled AI/pipeline backend to complete Generate and Run; an unavailable AI service remains a failure, not a fabricated successful recording.
-Worker partition-chip checks are scoped to `worker-card-<id>`; the separate partition-ownership summary also exposes partition chip IDs.
+From `tests/ui` in Windows PowerShell, install dependencies and run the Chromium
+suites against a disposable preview at port 8089:
+
+```powershell
+npm install --package-lock=false --no-audit --no-fund
+npx playwright install chromium
+$env:GLORIOUS_URL='http://localhost:8089'
+npx playwright test -c playwright.glorious.config.ts
+```
+
+The recovery spec skips unless `$env:ALLOW_KILL='1'`; enabling it kills `worker-2`.
+Only enable it on a disposable preview with three live workers and an active
+execution. The new-UI tests do not check `EXPECT_SHA`. For the classic suite,
+`EXPECT_SHA` must match the preview build; the test does not infer it from the
+server. Its committed config hard-codes port 8088, so use a temporary config to
+target 8089 without changing that file:
+
+```powershell
+@'
+import { defineConfig } from '@playwright/test'
+import base from './playwright.config.ts'
+export default defineConfig({
+  ...base,
+  use: {
+    ...base.use,
+    baseURL: 'http://localhost:8089',
+    storageState: {
+      cookies: [],
+      origins: [{ origin: 'http://localhost:8089', localStorage: [{ name: 'aether.ui', value: 'classic' }] }],
+    },
+  },
+})
+'@ | Set-Content -Encoding utf8 playwright.preview.config.ts
+$env:CLASSIC_ALL_SPECS='1'
+npx playwright test -c playwright.preview.config.ts
+Remove-Item playwright.preview.config.ts
+```
+
+Without `CLASSIC_ALL_SPECS`, the classic config runs only `demo.spec.ts`; setting it
+to `1` also runs `features.spec.ts`. Node 26 may require
+`$env:NODE_OPTIONS='--no-experimental-webstorage'` when running web unit tests.
+
+The new-UI config uses fresh contexts, no storage state, reduced motion, and no
+mocked data. The demo-path spec records video with motion enabled and saves six
+named screenshots under `test-results/demo-path/`; it does not use storage state
+or destructive actions. It requires a write-enabled AI/pipeline backend to
+complete Generate and Run; an unavailable AI service remains a failure, not a
+fabricated successful recording.
 
 Discover the new-UI tests without contacting a server:
 
