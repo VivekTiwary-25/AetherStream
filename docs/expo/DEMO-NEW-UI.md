@@ -64,7 +64,7 @@ The map menu and **Settings → Truck Breakdown** both confirm before sending: *
 - **If it fails:** `events late` reports how many events were sent, not that they were classified late. If no late records appear, explain that the watermark determines classification; do not invent records or reasons.
 
 ### 6. Pipelines — Ask AI, review and run (about 5 minutes)
-- **Click:** Click **Pipelines**. In **Ask AI**, enter `Alert me when any truck goes over 60 km/h`, click **Generate**, and review the generated steps. Click **Open in editor** to open the new tab; review the handed-off pipeline there, then click **Run**.
+- **Click:** Click **Pipelines**. In **Ask AI**, enter `Alert me when any truck goes over 45 km/h`, click **Generate**, and review the generated steps. Click **Open in editor** to open the new tab; review the handed-off pipeline there, then click **Run**.
 - **Audience sees:** A pipeline preview (AI-generated or explicitly marked as a saved example), then the editor and a **Pipeline results** window with results or an honest run error.
 - **Say:** “The pipeline is validated before use; this run reads the live stream and reports its results here.”
 - **If it fails:** If AI is unavailable, use the displayed saved example only when marked **Showing a saved example: AI was unavailable**; review it before running. If the editor or run fails, show the error and continue—do not claim a successful result.
