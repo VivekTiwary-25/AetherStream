@@ -1,0 +1,18 @@
+# T188: Every deploy also proves the stage tools work (expo-check + expo-proofs in CD)  [expo safety]
+
+Lane 7. The CD deploy job (.github/workflows/cd.yml, self-hosted Windows runner on vivek-pc, Git Bash shell as in the existing
+demo-ready step) ends with demo-ready.sh. Add two steps after it, skipped when the deploy itself is skipped by the DEMO_FREEZE
+logic: `bash infra/scripts/expo-check.sh` (laptop mode, not --ci) and `bash infra/scripts/expo-proofs.sh all` (read-only).
+Append both outputs to $GITHUB_STEP_SUMMARY. expo-check failures of WARN-level items (RAM, tunnel) must not fail the job;
+critical failures should. Timeout each step at 3 minutes. Do not change triggers, runner labels, freeze logic or pull-by-SHA.
+
+Files (edit only these): .github/workflows/cd.yml (two new steps in the deploy job).
+
+Acceptance check: cd workflow validation green on your branch (the deploy job runs only on main; the boss checks the first
+deploy after merge).
+
+## Rules (apply to every task)
+- Read every file in docs/contracts/ first and follow them exactly. Do not edit docs/contracts/ or infra/db/schema.sql (if a contract looks wrong, say so in your report).
+- Do not read or change anything in swarm/ (except your own report file if the swarm asks you to write one).
+- Only edit the files listed. If you are on vivek-pc: do NOT start Docker containers or kind there (the live demo runs on it). Acceptance runs in GitHub Actions on your task branch.
+- If you are on vivek-pc: it runs the live demo. Do NOT run builds, test suites, Gradle, npm build/test, Playwright or any browser/renderer locally there - read code, edit, and rely on GitHub Actions for every check.
